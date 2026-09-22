@@ -22,6 +22,9 @@ model SinhVien {
   trangThaiNoiTru String   @db.NVarChar(50)
   role            String   @default("STUDENT") @db.VarChar(20)
 
+  dangKyKTXs      DangKyKTX[]
+  hopDongs        HopDong[]
+
   @@map("SINH_VIEN")
 }
 
@@ -37,7 +40,38 @@ model NhanVien {
   chucVu          String   @db.NVarChar(100)
   phone           String   @db.VarChar(15)
   email           String   @db.VarChar(100)
-  role            String   @default("STAFF") @db.VarChar(20)
+  role            String   @default("MANAGER") @db.VarChar(20)
 
   @@map("NHAN_VIEN")
+}
+model Phong {
+  maPhong           String       @id
+  soPhong           String
+  loaiPhong         String
+  soSinhVienToiDa   Int
+  soSinhVienHienTai Int          @default(0) // Mặc định phòng trống là 0
+  hopDongs          HopDong[]
+}
+
+model DangKyKTX {
+  maDangKy        String    @id @default(uuid())
+  maSinhVien      String    @db.VarChar(20)
+  ngayDangKy      DateTime  @default(now())
+  loaiPhongYeuCau String
+  trangThai       String    @default("PENDING") 
+  
+  sinhVien        SinhVien  @relation(fields: [maSinhVien], references: [maSV])
+}
+
+model HopDong {
+  maHopDong   String    @id @default(uuid())
+  maSinhVien  String    @db.VarChar(20) 
+  maPhong     String
+  ngayBatDau  DateTime
+  ngayKetThuc DateTime
+  tongTien    Float     
+  trangThai   String    @default("PENDING_PAYMENT") 
+  
+  sinhVien    SinhVien  @relation(fields: [maSinhVien], references: [maSV])
+  phong       Phong     @relation(fields: [maPhong], references: [maPhong])
 }

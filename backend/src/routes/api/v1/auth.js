@@ -14,7 +14,7 @@ router.post('/bills/meter-readings', protect, restrictTo('ACCOUNTANT'), (req, re
 });
 
 // Route dành riêng cho Kỹ thuật và Quản lý chung (Phân công xử lý ticket)
-router.patch('/tickets/:id/assign', protect, restrictTo('TECH', 'STAFF'), (req, res) => {
+router.patch('/tickets/:id/assign', protect, restrictTo('TECHNICIAN', 'MANAGER'), (req, res) => {
     res.status(200).json({ success: true, message: 'Điều phối ticket thành công' });
 });
 
