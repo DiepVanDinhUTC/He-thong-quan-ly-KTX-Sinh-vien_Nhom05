@@ -6,7 +6,8 @@
   "scripts": {
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "prepare": "husky"
+    "prepare": "husky",
+    "postinstall": "prisma skills sync || exit 0"
   },
   "repository": {
     "type": "git",

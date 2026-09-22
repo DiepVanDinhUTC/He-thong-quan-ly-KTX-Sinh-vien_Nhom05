@@ -1,0 +1,43 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlserver"
+  url      = env("DATABASE_URL")
+}
+
+// Bảng SINH_VIEN
+model SinhVien {
+  maSV            String   @id @db.VarChar(20)
+  hoTen           String   @db.NVarChar(100)
+  ngaySinh        DateTime @db.Date
+  gioiTinh        Boolean  // true: Nam, false: Nữ
+  lop             String   @db.VarChar(50)
+  khoa            String   @db.NVarChar(100)
+  cccd            String   @unique @db.VarChar(20)
+  phone           String   @db.VarChar(15)
+  email           String   @db.VarChar(100)
+  dienUuTien      String?  @db.NVarChar(50)
+  trangThaiNoiTru String   @db.NVarChar(50)
+  role            String   @default("STUDENT") @db.VarChar(20)
+
+  @@map("SINH_VIEN")
+}
+
+// Bảng NHAN_VIEN
+model NhanVien {
+  maNhanVien      String   @id @db.VarChar(20)
+  hoTen           String   @db.NVarChar(100)
+  ngaySinh        DateTime @db.Date
+  gioiTinh        Boolean
+  queQuan         String   @db.NVarChar(255)
+  danToc          String   @db.NVarChar(50)
+  cccd            String   @unique @db.VarChar(20)
+  chucVu          String   @db.NVarChar(100)
+  phone           String   @db.VarChar(15)
+  email           String   @db.VarChar(100)
+  role            String   @default("STAFF") @db.VarChar(20)
+
+  @@map("NHAN_VIEN")
+}
