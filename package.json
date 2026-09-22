@@ -28,9 +28,12 @@
     "husky": "^9.1.7",
     "lint-staged": "^17.5.1"
   },
-    "lint-staged": {
+  "lint-staged": {
     "*.{js,jsx,mjs,cjs}": [
       "eslint --fix"
     ]
-    }
+  },
+  "dependencies": {
+    "dotenv": "^18.0.2"
+  }
 }
