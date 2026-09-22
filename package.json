@@ -1,0 +1,21 @@
+{
+  "name": "he-thong-quan-ly-ktx-sinh-vien_nhom05",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/DiepVanDinhUTC/He-thong-quan-ly-KTX-Sinh-vien_Nhom05.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/DiepVanDinhUTC/He-thong-quan-ly-KTX-Sinh-vien_Nhom05/issues"
+  },
+  "homepage": "https://github.com/DiepVanDinhUTC/He-thong-quan-ly-KTX-Sinh-vien_Nhom05#readme"
+}
