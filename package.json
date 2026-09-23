@@ -23,11 +23,16 @@
   "homepage": "https://github.com/DiepVanDinhUTC/He-thong-quan-ly-KTX-Sinh-vien_Nhom05#readme",
   "devDependencies": {
     "@eslint/js": "^8.57.1",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.1",
     "eslint": "^8.57.0",
     "eslint-plugin-react": "^7.37.5",
     "globals": "^17.12.0",
     "husky": "^9.1.7",
-    "lint-staged": "^17.5.1"
+    "lint-staged": "^17.5.1",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.0"
   },
   "lint-staged": {
     "*.{js,jsx,mjs,cjs}": [
@@ -35,6 +40,9 @@
     ]
   },
   "dependencies": {
-    "dotenv": "^18.0.2"
+    "dotenv": "^18.0.2",
+    "lucide-react": "^1.47.0",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0"
   }
 }
