@@ -71,6 +71,7 @@ model HopDong {
   ngayKetThuc DateTime
   tongTien    Float     
   trangThai   String    @default("PENDING_PAYMENT") 
+  ngayTao      DateTime  @default(now())
   
   sinhVien    SinhVien  @relation(fields: [maSinhVien], references: [maSV])
   phong       Phong     @relation(fields: [maPhong], references: [maPhong])
