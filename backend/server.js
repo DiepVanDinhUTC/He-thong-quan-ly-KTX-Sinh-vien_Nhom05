@@ -20,6 +20,8 @@ app.use('/api/v1/students', studentRoutes);
 app.use('/api/v1/mock/sis-utc', mockSisRoutes);
 app.use('/api/v1/contracts', contractRoutes);
 
+require('./src/cronjobs/contractCron'); // Import cronjob để chạy tự động
+
 // Khởi chạy server
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
