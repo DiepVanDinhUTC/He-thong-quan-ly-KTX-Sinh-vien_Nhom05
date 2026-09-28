@@ -5,11 +5,11 @@ const { protect } = require('../../../middleware/authMiddleware');
 const { restrictTo } = require('../../../middleware/rbacMiddleware');
 
 // Endpoint đồng bộ, yêu cầu quyền Admin/Staff theo thiết kế
-router.get('/sync', protect, restrictTo('STAFF', 'DIRECTOR'), studentController.syncData);
+router.get('/sync', protect, restrictTo('MANAGER', 'DIRECTOR'), studentController.syncData);
 
 // Chỉ Ban quản lý (STAFF) và Giám đốc (DIRECTOR) mới có quyền CRUD hồ sơ
 router.use(protect); // Áp dụng xác thực cho toàn bộ route phía dưới
-router.use(restrictTo('STAFF', 'DIRECTOR'));
+router.use(restrictTo('MANAGER', 'DIRECTOR'));
 
 // Tuyến đường cho US-10 (Đã làm trước đó)
 router.get('/sync', studentController.syncData);
