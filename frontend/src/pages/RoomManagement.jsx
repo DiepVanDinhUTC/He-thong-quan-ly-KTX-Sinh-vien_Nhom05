@@ -1,249 +1,287 @@
 import React, { useState } from 'react';
 import { 
-  Search, Bell, LayoutDashboard, Users, 
-  BedDouble, CreditCard, Settings, Plus, 
-  LayoutGrid, List, Wind, Thermometer, 
-  Wifi, ShieldAlert, CheckCircle, Clock
+  Building, 
+  Home, 
+  UserPlus, 
+  DoorOpen, 
+  FileSignature, 
+  Wrench, 
+  User, 
+  Search, 
+  Bell,
+  Filter,
+  Plus,
+  Wind,
+  Lightbulb,
+  Bed,
+  Archive,
+  CheckCircle2,
+  AlertTriangle,
+  MoreVertical,
+  MapPin,
+  Edit3
 } from 'lucide-react';
 
-// --- MOCK DATA ---
-const ROOMS = [
-  { id: '1', name: 'A1-102', building: 'A1', type: 'Tiêu chuẩn 8 người', capacity: 8, occupancy: 8, status: 'Kín chỗ', price: '120.000đ', facilities: ['wifi'] },
-  { id: '2', name: 'A1-205', building: 'A1', type: 'Tiêu chuẩn 8 người', capacity: 8, occupancy: 5, status: 'Còn chỗ', price: '120.000đ', facilities: ['wifi'] },
-  { id: '3', name: 'A4-301', building: 'A4', type: 'Dịch vụ 4 người', capacity: 4, occupancy: 4, status: 'Kín chỗ', price: '450.000đ', facilities: ['ac', 'heater', 'wifi'] },
-  { id: '4', name: 'A4-412', building: 'A4', type: 'Dịch vụ 4 người', capacity: 4, occupancy: 2, status: 'Còn chỗ', price: '450.000đ', facilities: ['ac', 'heater', 'wifi'] },
-  { id: '5', name: 'A5-101', building: 'A5', type: 'Tiêu chuẩn 8 người', capacity: 8, occupancy: 0, status: 'Đang bảo trì', price: '120.000đ', facilities: ['wifi'] },
-  { id: '6', name: 'A6-505', building: 'A6', type: 'Tiêu chuẩn 8 người', capacity: 8, occupancy: 7, status: 'Còn chỗ', price: '120.000đ', facilities: ['wifi'] },
-  { id: '7', name: 'A4-202', building: 'A4', type: 'Dịch vụ 4 người', capacity: 4, occupancy: 0, status: 'Còn chỗ', price: '450.000đ', facilities: ['ac', 'heater', 'wifi'] },
-];
+const RoomManagement = () => {
+  const [selectedRoomId, setSelectedRoomId] = useState('104');
+  const [searchQuery, setSearchQuery] = useState('');
 
-export default function RoomManagement() {
-  const [viewMode, setViewMode] = useState('grid'); // 'grid' | 'table'
+  // Dữ liệu mẫu (Mock data)
+  const rooms = [
+    { id: '101', building: 'A1', type: 'Phòng Điều hòa', status: 'occupied', current: 8, max: 8 },
+    { id: '102', building: 'A1', type: 'Phòng Quạt', status: 'empty', current: 0, max: 8 },
+    { id: '103', building: 'A1', type: 'Phòng Điều hòa', status: 'occupied', current: 5, max: 8 },
+    { id: '104', building: 'A1', type: 'Phòng Điều hòa', status: 'maintenance', current: 0, max: 8, issue: 'Hỏng điều hòa' },
+    { id: '105', building: 'A1', type: 'Phòng Quạt', status: 'empty', current: 0, max: 8 },
+    { id: '201', building: 'A5', type: 'Phòng Quạt', status: 'occupied', current: 8, max: 8 },
+    { id: '202', building: 'A5', type: 'Phòng Điều hòa', status: 'occupied', current: 6, max: 8 },
+    { id: '203', building: 'A5', type: 'Phòng Quạt', status: 'occupied', current: 8, max: 8 },
+  ];
 
-  // Tính toán thống kê nhanh từ MOCK DATA
-  const totalRooms = ROOMS.length;
-  const availableRooms = ROOMS.filter(r => r.status === 'Còn chỗ').length;
-  const fullRooms = ROOMS.filter(r => r.status === 'Kín chỗ').length;
-  const maintenanceRooms = ROOMS.filter(r => r.status === 'Đang bảo trì').length;
+  const facilities = [
+    { id: 'TB001', name: 'Giường tầng sắt', quantity: 4, status: 'good', icon: Bed },
+    { id: 'TB002', name: 'Tủ cá nhân 2 ngăn', quantity: 8, status: 'good', icon: Archive },
+    { id: 'TB003', name: 'Điều hòa Daikin 12000 BTU', quantity: 1, status: 'broken', icon: Wind },
+    { id: 'TB004', name: 'Quạt trần Vinawind', quantity: 2, status: 'good', icon: Wind },
+    { id: 'TB005', name: 'Bóng đèn tuýp LED', quantity: 4, status: 'good', icon: Lightbulb },
+  ];
+
+  const selectedRoom = rooms.find(r => r.id === selectedRoomId);
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 font-sans flex">
+    <div className="flex h-screen overflow-hidden bg-gray-50 text-gray-800 antialiased font-sans">
       
-      {/* 1. SIDEBAR */}
-      <aside className="w-64 bg-white border-r border-slate-200 hidden md:flex flex-col shrink-0">
-        <div className="h-16 flex items-center px-6 border-b border-slate-100">
-          <div className="flex items-center gap-2 text-blue-900 font-bold text-lg tracking-tight">
-            <BedDouble className="w-6 h-6" />
-            <span>UTC Dormitory</span>
+      {/* Sidebar */}
+      <div className="w-64 bg-blue-900 text-white flex flex-col h-full shadow-lg flex-shrink-0">
+        <div className="p-6 flex items-center justify-center border-b border-blue-800">
+          <Building className="w-8 h-8 mr-3" />
+          <h1 className="text-xl font-bold tracking-wider">KTX GTVT</h1>
+        </div>
+        
+        <nav className="flex-1 px-4 py-6 space-y-2">
+          <a href="#" className="flex items-center px-4 py-3 text-blue-200 hover:bg-blue-800 hover:text-white rounded-lg transition-colors">
+            <Home className="w-5 h-5" />
+            <span className="ml-3">Trang chủ</span>
+          </a>
+          <a href="#" className="flex items-center px-4 py-3 text-blue-200 hover:bg-blue-800 hover:text-white rounded-lg transition-colors">
+            <UserPlus className="w-5 h-5" />
+            <span className="ml-3">Quản lý Sinh viên</span>
+          </a>
+          <a href="#" className="flex items-center px-4 py-3 bg-blue-800 rounded-lg text-white font-medium">
+            <DoorOpen className="w-5 h-5" />
+            <span className="ml-3">Quản lý Phòng & CSVC</span>
+          </a>
+          <a href="#" className="flex items-center px-4 py-3 text-blue-200 hover:bg-blue-800 hover:text-white rounded-lg transition-colors">
+            <FileSignature className="w-5 h-5" />
+            <span className="ml-3">Quản lý Hợp đồng</span>
+          </a>
+          <a href="#" className="flex items-center px-4 py-3 text-blue-200 hover:bg-blue-800 hover:text-white rounded-lg transition-colors">
+            <Wrench className="w-5 h-5" />
+            <span className="ml-3">Ticket báo hỏng</span>
+          </a>
+        </nav>
+
+        <div className="p-4 border-t border-blue-800">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-blue-700 flex items-center justify-center">
+              <User className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-white">Nguyễn Văn A</p>
+              <p className="text-xs text-blue-300">Nhân viên BQL</p>
+            </div>
           </div>
         </div>
-        <nav className="flex-1 py-6 px-3 flex flex-col gap-1">
-          <NavItem icon={<LayoutDashboard />} label="Dashboard Overview" />
-          <NavItem icon={<Users />} label="Quản lý Sinh viên" />
-          <NavItem icon={<BedDouble />} label="Quản lý Phòng & CSVC" active />
-          <NavItem icon={<CreditCard />} label="Hóa đơn & Dịch vụ" />
-          <div className="mt-auto pt-6">
-            <NavItem icon={<Settings />} label="Cài đặt hệ thống" />
-          </div>
-        </nav>
-      </aside>
+      </div>
 
-      {/* 2. MAIN CONTENT AREA */}
-      <div className="flex-1 flex flex-col h-screen overflow-hidden">
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col h-full overflow-hidden">
         
-        {/* HEADER CHUNG */}
-        <header className="h-16 border-b border-slate-200 bg-white flex items-center justify-between px-6 shrink-0 shadow-sm z-10">
-          <div className="flex items-center gap-4 flex-1"></div>
-          
+        {/* Header */}
+        <header className="bg-white shadow-sm h-16 flex items-center justify-between px-8 z-10 flex-shrink-0 border-b border-gray-200">
+          <h2 className="text-xl font-semibold text-gray-800">Quản lý Phòng & Cơ sở vật chất</h2>
           <div className="flex items-center gap-4">
-            <button className="relative p-2 text-slate-400 hover:text-blue-900 transition-colors rounded-full hover:bg-slate-100">
-              <Bell className="w-5 h-5" />
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
-            </button>
-            <div className="h-8 w-px bg-slate-200 mx-2"></div>
-            <button className="flex items-center gap-3 text-left">
-              <img 
-                src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop&auto=format" 
-                alt="Admin Avatar" 
-                className="w-8 h-8 rounded-full object-cover border border-slate-200"
-              />
-              <div className="hidden lg:block text-sm">
-                <p className="font-medium text-slate-800">Trưởng Ban QL</p>
-                <p className="text-slate-500 text-xs">Admin / Director</p>
-              </div>
+            <button className="relative p-2 text-gray-500 hover:text-blue-600 transition-colors">
+              <Bell className="w-6 h-6" />
             </button>
           </div>
         </header>
 
-        {/* NỘI DUNG TRANG QUẢN LÝ PHÒNG */}
-        <main className="flex-1 overflow-y-auto p-6 md:p-8 bg-slate-50">
-          <div className="max-w-7xl mx-auto space-y-6">
+        {/* Scrollable Main Area - 2 Columns Layout */}
+        <main className="flex-1 overflow-hidden flex flex-col md:flex-row p-6 gap-6">
+          
+          {/* Left Column: Room Grid */}
+          <div className="w-full md:w-2/3 flex flex-col bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
             
-            {/* PAGE HEADER */}
-            <div>
-              <h1 className="text-2xl font-bold text-blue-900 tracking-tight">Quản lý Phòng & Cơ sở vật chất</h1>
-              <p className="text-slate-500 mt-1 text-sm">Giám sát tình trạng lưu trú, công suất phòng và bảo trì thiết bị.</p>
-            </div>
-
-            {/* METRIC CARDS */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              <MetricCard title="Tổng số phòng" value={totalRooms} subtitle="Trên toàn hệ thống" icon={<BedDouble className="text-blue-600 w-5 h-5" />} border="border-blue-200" />
-              <MetricCard title="Đang trống" value={availableRooms} subtitle="Có thể xếp thêm" icon={<CheckCircle className="text-green-600 w-5 h-5" />} border="border-green-200" />
-              <MetricCard title="Đã kín chỗ" value={fullRooms} subtitle="Đạt 100% công suất" icon={<Users className="text-slate-500 w-5 h-5" />} border="border-slate-300" />
-              <MetricCard title="Đang bảo trì" value={maintenanceRooms} subtitle="Khóa tạm thời" icon={<ShieldAlert className="text-red-500 w-5 h-5" />} border="border-red-200" />
-            </div>
-
-            {/* TOOLBAR */}
-            <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col lg:flex-row gap-4 items-center justify-between">
-              <div className="flex flex-col sm:flex-row gap-4 w-full lg:w-auto">
-                <div className="relative w-full sm:w-64 shrink-0">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            {/* Toolbar */}
+            <div className="p-4 border-b border-gray-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+              <div className="flex flex-1 gap-3 w-full">
+                <div className="relative flex-1 max-w-sm">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                   <input 
                     type="text" 
-                    placeholder="Tìm mã phòng (VD: A1-102)..." 
-                    className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-900 transition-all"
+                    placeholder="Tìm mã phòng..." 
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-full bg-gray-50"
                   />
                 </div>
-                
-                <div className="flex gap-2 w-full overflow-x-auto pb-1 sm:pb-0">
-                  <select className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-900 min-w-[120px]">
-                    <option value="">Tòa nhà</option>
-                    <option value="A1">Tòa A1</option>
-                    <option value="A4">Tòa A4</option>
-                    <option value="A5">Tòa A5</option>
-                    <option value="A6">Tòa A6</option>
-                  </select>
-                  <select className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-900 min-w-[140px]">
-                    <option value="">Loại phòng</option>
-                    <option value="Tiêu chuẩn">Tiêu chuẩn 8 người</option>
-                    <option value="Dịch vụ">Dịch vụ 4 người</option>
-                  </select>
-                  <select className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-900 min-w-[130px]">
-                    <option value="">Trạng thái</option>
-                    <option value="Còn chỗ">Còn chỗ</option>
-                    <option value="Kín chỗ">Kín chỗ</option>
-                    <option value="Bảo trì">Đang sửa</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-3 w-full lg:w-auto justify-end">
-                <div className="flex bg-slate-100 p-1 rounded-lg border border-slate-200">
-                  <button onClick={() => setViewMode('grid')} className={`p-1.5 rounded-md transition-colors ${viewMode === 'grid' ? 'bg-white shadow text-blue-900' : 'text-slate-400 hover:text-slate-700'}`}>
-                    <LayoutGrid className="w-4 h-4" />
-                  </button>
-                  <button onClick={() => setViewMode('table')} className={`p-1.5 rounded-md transition-colors ${viewMode === 'table' ? 'bg-white shadow text-blue-900' : 'text-slate-400 hover:text-slate-700'}`}>
-                    <List className="w-4 h-4" />
-                  </button>
-                </div>
-                <button className="px-4 py-2 bg-blue-900 hover:bg-blue-800 text-white rounded-lg text-sm font-medium transition-all flex items-center gap-2 shadow-sm">
-                  <Plus className="w-4 h-4" /> Thêm phòng mới
+                <select className="border border-gray-300 rounded-lg text-sm px-3 py-2 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-700">
+                  <option>Tòa A1</option>
+                  <option>Tòa A5</option>
+                  <option>Tòa A6</option>
+                </select>
+                <button className="flex items-center justify-center p-2 border border-gray-300 rounded-lg text-gray-600 hover:bg-gray-50 transition-colors">
+                  <Filter className="w-4 h-4" />
                 </button>
               </div>
+              <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors whitespace-nowrap">
+                <Plus className="w-4 h-4" />
+                <span>Thêm phòng</span>
+              </button>
             </div>
 
-            {/* ROOM GRID VIEW */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-              {ROOMS.map((room) => (
-                <RoomCard key={room.id} room={room} />
-              ))}
+            {/* Room Grid */}
+            <div className="flex-1 overflow-y-auto p-4">
+              <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                {rooms.map((room) => (
+                  <div 
+                    key={room.id}
+                    onClick={() => setSelectedRoomId(room.id)}
+                    className={`border-2 rounded-xl p-4 cursor-pointer transition-all ${selectedRoomId === room.id ? 'ring-2 ring-blue-500 border-transparent shadow-md' : 'hover:shadow-md'}
+                      ${room.status === 'occupied' ? 'border-blue-100 bg-blue-50/30 hover:border-blue-300' : ''}
+                      ${room.status === 'empty' ? 'border-green-100 bg-green-50/30 hover:border-green-300' : ''}
+                      ${room.status === 'maintenance' ? 'border-red-200 bg-red-50/50 hover:border-red-300' : ''}
+                    `}
+                  >
+                    <div className="flex justify-between items-start mb-2">
+                      <h4 className="font-bold text-gray-800 text-lg">P.{room.id}</h4>
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider
+                        ${room.status === 'occupied' ? 'bg-blue-100 text-blue-700' : ''}
+                        ${room.status === 'empty' ? 'bg-green-100 text-green-700' : ''}
+                        ${room.status === 'maintenance' ? 'bg-red-100 text-red-700' : ''}
+                      `}>
+                        {room.status === 'occupied' ? 'Đang ở' : room.status === 'empty' ? 'Trống' : 'Bảo trì'}
+                      </span>
+                    </div>
+                    <p className="text-xs text-gray-500 mb-3 flex items-center"><Building className="w-3 h-3 mr-1"/> Tòa {room.building} &bull; {room.type}</p>
+                    
+                    {room.status !== 'maintenance' ? (
+                      <div className="bg-white rounded-lg p-2 border border-gray-100 flex items-center justify-between">
+                        <span className="text-xs text-gray-500 font-medium">Sức chứa</span>
+                        <span className={`text-sm font-bold ${room.current === room.max ? 'text-blue-700' : 'text-green-600'}`}>{room.current}/{room.max}</span>
+                      </div>
+                    ) : (
+                      <div className="bg-red-100 rounded-lg p-2 border border-red-200 flex items-center">
+                        <AlertTriangle className="w-3 h-3 text-red-600 mr-1.5 flex-shrink-0" />
+                        <span className="text-xs text-red-700 font-medium truncate" title={room.issue}>{room.issue}</span>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
             </div>
+          </div>
 
+          {/* Right Column: Room Details & Facilities */}
+          <div className="w-full md:w-1/3 bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col overflow-hidden">
+            {selectedRoom ? (
+              <>
+                <div className="p-6 border-b border-gray-200 bg-gray-50/50">
+                  <div className="flex justify-between items-start mb-4">
+                    <div>
+                      <h3 className="text-xl font-bold text-gray-800 flex items-center">
+                        Phòng {selectedRoom.id}
+                        <span className="ml-2 text-sm font-normal text-gray-500 bg-gray-200 px-2 py-0.5 rounded-full">Tòa {selectedRoom.building}</span>
+                      </h3>
+                      <p className="text-sm text-gray-500 mt-1">{selectedRoom.type}</p>
+                    </div>
+                    <button className="p-2 text-gray-400 hover:text-blue-600 transition-colors">
+                      <Edit3 className="w-5 h-5" />
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="bg-white p-3 rounded-lg border border-gray-200 shadow-sm">
+                      <p className="text-xs text-gray-500 mb-1 font-medium">Trạng thái</p>
+                      <p className={`text-sm font-semibold
+                        ${selectedRoom.status === 'occupied' ? 'text-blue-600' : ''}
+                        ${selectedRoom.status === 'empty' ? 'text-green-600' : ''}
+                        ${selectedRoom.status === 'maintenance' ? 'text-red-600' : ''}
+                      `}>
+                        {selectedRoom.status === 'occupied' ? 'Đang sử dụng' : selectedRoom.status === 'empty' ? 'Phòng trống' : 'Đang bảo trì'}
+                      </p>
+                    </div>
+                    <div className="bg-white p-3 rounded-lg border border-gray-200 shadow-sm">
+                      <p className="text-xs text-gray-500 mb-1 font-medium">Lấp đầy</p>
+                      <p className="text-sm font-semibold text-gray-800">{selectedRoom.current} / {selectedRoom.max} Sinh viên</p>
+                    </div>
+                  </div>
+                  
+                  {selectedRoom.status === 'maintenance' && (
+                    <button className="w-full mt-4 flex items-center justify-center gap-2 px-4 py-2.5 bg-red-50 border border-red-200 text-red-600 rounded-lg text-sm font-medium hover:bg-red-100 transition-colors">
+                      <Wrench className="w-4 h-4" />
+                      <span>Xem Ticket Đang Xử Lý</span>
+                    </button>
+                  )}
+                </div>
+
+                <div className="flex-1 overflow-y-auto p-0">
+                  <div className="px-6 py-4 flex items-center justify-between border-b border-gray-100 sticky top-0 bg-white z-10">
+                    <h4 className="font-semibold text-gray-800">Danh mục Tài sản (CSVC)</h4>
+                    <button className="text-blue-600 hover:text-blue-800 text-sm font-medium flex items-center gap-1">
+                      <Plus className="w-4 h-4" /> Thêm
+                    </button>
+                  </div>
+                  
+                  <div className="p-4 space-y-3">
+                    {facilities.map((item) => {
+                      const Icon = item.icon;
+                      return (
+                        <div key={item.id} className="flex items-center justify-between p-3 border border-gray-100 rounded-xl hover:bg-gray-50 transition-colors group">
+                          <div className="flex items-center gap-3">
+                            <div className={`w-10 h-10 rounded-lg flex items-center justify-center
+                              ${item.status === 'good' ? 'bg-blue-50 text-blue-600' : 'bg-red-50 text-red-600'}
+                            `}>
+                              <Icon className="w-5 h-5" />
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium text-gray-800">{item.name}</p>
+                              <p className="text-xs text-gray-500 mt-0.5">Mã: {item.id} &bull; SL: {item.quantity}</p>
+                            </div>
+                          </div>
+                          
+                          <div className="flex items-center gap-3">
+                            {item.status === 'good' ? (
+                              <span className="flex items-center text-xs font-medium text-green-600 bg-green-50 px-2 py-1 rounded">
+                                <CheckCircle2 className="w-3 h-3 mr-1" /> Tốt
+                              </span>
+                            ) : (
+                              <span className="flex items-center text-xs font-medium text-red-600 bg-red-50 px-2 py-1 rounded">
+                                <AlertTriangle className="w-3 h-3 mr-1" /> Hư hỏng
+                              </span>
+                            )}
+                            <button className="text-gray-400 hover:text-gray-600 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <MoreVertical className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div className="flex-1 flex flex-col items-center justify-center p-8 text-gray-400">
+                <MapPin className="w-12 h-12 mb-4 text-gray-300" />
+                <p className="text-center font-medium">Chọn một phòng từ danh sách để xem chi tiết cơ sở vật chất.</p>
+              </div>
+            )}
           </div>
         </main>
       </div>
     </div>
   );
-}
+};
 
-// --- SUBCOMPONENTS ---
-
-function NavItem({ icon, label, active = false }) {
-  return (
-    <button 
-      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors text-sm font-medium
-        ${active 
-          ? 'bg-blue-900 text-white shadow-md' 
-          : 'text-slate-600 hover:bg-slate-100 hover:text-blue-900'
-        }`}
-    >
-      <span className={active ? 'text-blue-200' : 'text-slate-400'}>
-        {React.cloneElement(icon, { className: 'w-5 h-5' })}
-      </span>
-      {label}
-    </button>
-  );
-}
-
-function MetricCard({ title, value, subtitle, icon, border }) {
-  return (
-    <div className={`bg-white p-5 rounded-xl border-l-4 ${border} border-y border-r border-y-slate-200 border-r-slate-200 shadow-sm flex flex-col`}>
-      <div className="flex items-center justify-between mb-2">
-        <span className="text-sm font-semibold text-slate-500">{title}</span>
-        <div className="p-2 bg-slate-50 rounded-lg">{icon}</div>
-      </div>
-      <div className="flex items-end gap-2 mt-auto">
-        <span className="text-3xl font-bold text-slate-800">{value}</span>
-      </div>
-      <span className="text-xs text-slate-400 mt-1 font-medium">{subtitle}</span>
-    </div>
-  );
-}
-
-function RoomCard({ room }) {
-  // Tính % lấp đầy phòng
-  const fillPercentage = (room.occupancy / room.capacity) * 100;
-  
-  // Màu Status
-  const statusStyles = {
-    'Còn chỗ': 'bg-green-100 text-green-700',
-    'Kín chỗ': 'bg-slate-100 text-slate-600',
-    'Đang bảo trì': 'bg-red-100 text-red-700'
-  };
-
-  const barColor = room.status === 'Đang bảo trì' 
-    ? 'bg-red-500' 
-    : fillPercentage === 100 ? 'bg-slate-500' : 'bg-blue-600';
-
-  return (
-    <div className="bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow overflow-hidden flex flex-col group cursor-pointer">
-      {/* Card Header */}
-      <div className="p-4 border-b border-slate-100 flex justify-between items-start">
-        <div>
-          <h3 className="text-lg font-bold text-blue-900 group-hover:text-blue-700 transition-colors">{room.name}</h3>
-          <p className="text-xs font-medium text-slate-500 mt-0.5">{room.type}</p>
-        </div>
-        <span className={`px-2.5 py-1 rounded-md text-[11px] font-bold uppercase tracking-wide ${statusStyles[room.status]}`}>
-          {room.status}
-        </span>
-      </div>
-      
-      {/* Card Body - Progress & Price */}
-      <div className="p-4 flex-1">
-        <div className="flex justify-between items-end mb-2">
-          <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Sức chứa</span>
-          <span className="text-sm font-bold text-slate-800">{room.occupancy} <span className="text-slate-400 font-medium">/ {room.capacity} người</span></span>
-        </div>
-        <div className="w-full bg-slate-100 rounded-full h-2.5 mb-4 border border-slate-200/50 overflow-hidden">
-          <div className={`h-2.5 rounded-full transition-all duration-500 ${barColor}`} style={{ width: `${fillPercentage}%` }}></div>
-        </div>
-        <div className="flex justify-between items-center mt-2">
-          <span className="text-xs text-slate-500">Đơn giá / tháng</span>
-          <span className="text-sm font-bold text-blue-900">{room.price}</span>
-        </div>
-      </div>
-
-      {/* Card Footer - Facilities */}
-      <div className="px-4 py-3 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
-        <div className="flex items-center gap-3 text-slate-400">
-          {room.facilities.includes('ac') && <Wind className="w-4 h-4 hover:text-slate-600" title="Điều hòa" />}
-          {room.facilities.includes('heater') && <Thermometer className="w-4 h-4 hover:text-slate-600" title="Bình nóng lạnh" />}
-          {room.facilities.includes('wifi') && <Wifi className="w-4 h-4 hover:text-slate-600" title="Internet/Wifi" />}
-        </div>
-        <button className="text-xs font-semibold text-blue-600 hover:text-blue-800 transition-colors">
-          Chi tiết &rarr;
-        </button>
-      </div>
-    </div>
-  );
-}
+export default RoomManagement;

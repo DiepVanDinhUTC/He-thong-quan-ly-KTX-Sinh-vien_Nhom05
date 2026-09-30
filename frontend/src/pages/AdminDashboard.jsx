@@ -1,252 +1,269 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { 
-  Search, Bell, LayoutDashboard, Users, 
-  BedDouble, CreditCard, Settings, Plus, 
-  Zap, CheckCircle, AlertTriangle, Clock,
-  MoreVertical, Wrench, MessageSquare
+  Building, 
+  Home, 
+  UserPlus, 
+  DoorOpen, 
+  FileSignature, 
+  Wrench, 
+  User, 
+  Search, 
+  Bell, 
+  FileText, 
+  XCircle, 
+  UserCog,
+  Users,
+  AlertTriangle,
+  Clock,
+  ArrowRight
 } from 'lucide-react';
 
-// --- MOCK DATA ĐÃ ĐƯỢC ĐỒNG BỘ BỐI CẢNH UTC DORMITORY ---
-const STATS = [
-  { label: 'Tổng số sinh viên', value: '1,248', trend: '+12 trong tháng này', alert: false },
-  { label: 'Phòng trống', value: '42', trend: 'Sẵn sàng xếp phòng', alert: true },
-  { label: 'Doanh thu tháng 9', value: '284.5Tr', trend: '+4.2% so với tháng trước', alert: false },
-  { label: 'Yêu cầu chờ xử lý', value: '18', trend: '5 sự cố khẩn cấp', warning: true },
-];
+const AdminDashboard = () => {
+  const [searchQuery, setSearchQuery] = useState('');
 
-const REQUESTS = [
-  { id: 'YC-8021', student: 'Nguyễn Thanh Dương', room: 'A1-417', type: 'Báo hỏng CSVC', status: 'Chờ xử lý', date: '2 giờ trước' },
-  { id: 'YC-8020', student: 'Trần Hoài Nam', room: 'A4-311', type: 'Xin chuyển phòng', status: 'Chờ xử lý', date: '5 giờ trước' },
-  { id: 'YC-8019', student: 'Vương Toàn Quy', room: 'A6-401', type: 'Góp ý/Khiếu nại', status: 'Đã giải quyết', date: '1 ngày trước' },
-  { id: 'YC-8018', student: 'Trần Danh Hoàng Anh', room: 'A4-412', type: 'Báo hỏng CSVC', status: 'Đã giải quyết', date: '2 ngày trước' },
-];
+  // Dữ liệu mẫu (Mock data)
+  const rooms = [
+    { id: '101', status: 'occupied', current: 8, max: 8 },
+    { id: '102', status: 'empty', current: 0, max: 8 },
+    { id: '103', status: 'occupied', current: 5, max: 8 },
+    { id: '104', status: 'maintenance', issue: 'Hỏng quạt' },
+    { id: '105', status: 'empty', current: 0, max: 8 },
+    { id: '106', status: 'occupied', current: 8, max: 8 },
+    { id: '107', status: 'occupied', current: 7, max: 8 },
+  ];
 
-export default function AdminDashboard() {
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 font-sans flex">
+    <div className="flex h-screen overflow-hidden bg-gray-100 text-gray-800 antialiased font-sans">
       
-      {/* 1. SIDEBAR */}
-      <aside className="w-64 bg-white border-r border-slate-200 hidden md:flex flex-col shrink-0">
-        <div className="h-16 flex items-center px-6 border-b border-slate-100">
-          <div className="flex items-center gap-2 text-blue-900 font-bold text-lg tracking-tight">
-            <BedDouble className="w-6 h-6" />
-            <span>UTC Dormitory</span>
-          </div>
+      {/* Sidebar */}
+      <div className="w-64 bg-blue-900 text-white flex flex-col h-full shadow-lg flex-shrink-0">
+        <div className="p-6 flex items-center justify-center border-b border-blue-800">
+          <Building className="w-8 h-8 mr-3" />
+          <h1 className="text-xl font-bold tracking-wider">KTX GTVT</h1>
         </div>
         
-        <nav className="flex-1 py-6 px-3 flex flex-col gap-1">
-          <NavItem icon={<LayoutDashboard />} label="Dashboard Overview" active />
-          <NavItem icon={<Users />} label="Quản lý Sinh viên" />
-          <NavItem icon={<BedDouble />} label="Quản lý Phòng & CSVC" />
-          <NavItem icon={<CreditCard />} label="Hóa đơn & Dịch vụ" />
-          <div className="mt-auto pt-6">
-            <NavItem icon={<Settings />} label="Cài đặt hệ thống" />
-          </div>
+        <nav className="flex-1 px-4 py-6 space-y-2">
+          <a href="#" className="flex items-center px-4 py-3 bg-blue-800 rounded-lg text-white font-medium">
+            <Home className="w-5 h-5" />
+            <span className="ml-3">Trang chủ</span>
+          </a>
+          <a href="#" className="flex items-center px-4 py-3 text-blue-200 hover:bg-blue-800 hover:text-white rounded-lg transition-colors">
+            <UserPlus className="w-5 h-5" />
+            <span className="ml-3">Quản lý Sinh viên</span>
+          </a>
+          <a href="#" className="flex items-center px-4 py-3 text-blue-200 hover:bg-blue-800 hover:text-white rounded-lg transition-colors">
+            <DoorOpen className="w-5 h-5" />
+            <span className="ml-3">Quản lý Phòng & CSVC</span>
+          </a>
+          <a href="#" className="flex items-center px-4 py-3 text-blue-200 hover:bg-blue-800 hover:text-white rounded-lg transition-colors">
+            <FileSignature className="w-5 h-5" />
+            <span className="ml-3">Quản lý Hợp đồng</span>
+          </a>
+          <a href="#" className="flex items-center px-4 py-3 text-blue-200 hover:bg-blue-800 hover:text-white rounded-lg transition-colors">
+            <Wrench className="w-5 h-5" />
+            <span className="ml-3">Ticket báo hỏng</span>
+          </a>
         </nav>
-      </aside>
 
-      {/* 2. MAIN CONTENT AREA */}
-      <div className="flex-1 flex flex-col h-screen overflow-hidden">
-        
-        {/* HEADER CHUNG */}
-        <header className="h-16 border-b border-slate-200 bg-white flex items-center justify-between px-6 shrink-0 shadow-sm z-10">
-          <div className="flex items-center gap-4 flex-1">
-            <div className="relative w-full max-w-md hidden sm:block">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-              <input 
-                type="text" 
-                placeholder="Tìm kiếm sinh viên, phòng, hoặc mã hóa đơn..." 
-                className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-900 focus:bg-white transition-all"
-              />
+        <div className="p-4 border-t border-blue-800">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-blue-700 flex items-center justify-center">
+              <User className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-white">Nguyễn Văn A</p>
+              <p className="text-xs text-blue-300">Nhân viên BQL</p>
             </div>
           </div>
-          
+        </div>
+      </div>
+
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col h-full overflow-hidden">
+        
+        {/* Header */}
+        <header className="bg-white shadow-sm h-16 flex items-center justify-between px-8 z-10 flex-shrink-0">
+          <h2 className="text-xl font-semibold text-gray-800">Dashboard Tổng Quan</h2>
           <div className="flex items-center gap-4">
-            <button className="relative p-2 text-slate-400 hover:text-blue-900 transition-colors rounded-full hover:bg-slate-100">
-              <Bell className="w-5 h-5" />
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
-            </button>
-            <div className="h-8 w-px bg-slate-200 mx-2"></div>
-            <button className="flex items-center gap-3 text-left">
-              <img 
-                src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop&auto=format" 
-                alt="Admin Avatar" 
-                className="w-8 h-8 rounded-full object-cover border border-slate-200"
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <input 
+                type="text" 
+                placeholder="Tìm kiếm phòng, sinh viên..." 
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-64 bg-gray-50"
               />
-              <div className="hidden lg:block text-sm">
-                <p className="font-medium text-slate-800">Trưởng Ban QL</p>
-                <p className="text-slate-500 text-xs">Admin / Director</p>
-              </div>
+            </div>
+            <button className="relative p-2 text-gray-500 hover:text-blue-600 transition-colors">
+              <Bell className="w-6 h-6" />
+              <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white"></span>
             </button>
           </div>
         </header>
 
-        {/* NỘI DUNG TRANG CHỦ DASHBOARD */}
-        <main className="flex-1 overflow-y-auto p-6 md:p-8 bg-slate-50">
-          <div className="max-w-7xl mx-auto space-y-8">
+        {/* Scrollable Main */}
+        <main className="flex-1 overflow-auto p-8 space-y-6">
+          
+          {/* Quick Actions */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <button className="flex items-center justify-start px-6 gap-4 bg-white p-4 rounded-xl border border-gray-200 shadow-sm hover:shadow-md hover:border-blue-300 transition-all group">
+              <div className="w-12 h-12 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-colors flex-shrink-0">
+                <FileText className="w-6 h-6" />
+              </div>
+              <span className="font-medium text-gray-700 text-left">Duyệt & Lập hợp đồng nháp</span>
+            </button>
+            <button className="flex items-center justify-start px-6 gap-4 bg-white p-4 rounded-xl border border-gray-200 shadow-sm hover:shadow-md hover:border-blue-300 transition-all group">
+              <div className="w-12 h-12 rounded-full bg-gray-50 flex items-center justify-center text-gray-600 group-hover:bg-gray-600 group-hover:text-white transition-colors flex-shrink-0">
+                <XCircle className="w-6 h-6" />
+              </div>
+              <span className="font-medium text-gray-700 text-left">Thanh lý hợp đồng</span>
+            </button>
+            <button className="flex items-center justify-start px-6 gap-4 bg-white p-4 rounded-xl border border-gray-200 shadow-sm hover:shadow-md hover:border-blue-300 transition-all group">
+              <div className="w-12 h-12 rounded-full bg-yellow-50 flex items-center justify-center text-yellow-600 group-hover:bg-yellow-600 group-hover:text-white transition-colors flex-shrink-0">
+                <UserCog className="w-6 h-6" />
+              </div>
+              <span className="font-medium text-gray-700 text-left">Phân công kỹ thuật viên</span>
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
             
-            {/* PAGE HEADER */}
-            <div>
-              <h1 className="text-2xl font-bold text-blue-900 tracking-tight">Tổng quan Hệ thống</h1>
-              <p className="text-slate-500 mt-1 text-sm">Theo dõi lưu lượng lưu trú, doanh thu và các yêu cầu khẩn cấp từ sinh viên.</p>
-            </div>
-
-            {/* METRICS (Overview Cards) */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              {STATS.map((stat, i) => (
-                <div key={i} className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col">
-                  <span className="text-sm font-semibold text-slate-500 mb-2">{stat.label}</span>
-                  <div className="flex items-end justify-between mt-auto">
-                    <span className="text-3xl font-bold text-slate-800">{stat.value}</span>
-                  </div>
-                  <div className="mt-3 flex items-center gap-1.5">
-                    {stat.warning ? (
-                      <span className="flex items-center text-xs font-semibold text-yellow-700 bg-yellow-100 px-2 py-0.5 rounded border border-yellow-200">
-                        <Clock className="w-3 h-3 mr-1" /> {stat.trend}
-                      </span>
-                    ) : stat.alert ? (
-                      <span className="flex items-center text-xs font-semibold text-green-700 bg-green-100 px-2 py-0.5 rounded border border-green-200">
-                        <CheckCircle className="w-3 h-3 mr-1" /> {stat.trend}
-                      </span>
-                    ) : (
-                      <span className="text-xs font-medium text-slate-500">{stat.trend}</span>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {/* TWO COLUMN LAYOUT: Quick Actions & Data Table */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              
-              {/* CỘT 1: THAO TÁC NHANH (Quick Actions) */}
-              <div className="lg:col-span-1 space-y-4">
-                <h2 className="text-lg font-bold text-slate-800">Thao tác nhanh</h2>
-                <div className="bg-white p-1 rounded-xl border border-slate-200 shadow-sm">
-                  <ActionCard 
-                    icon={<CheckCircle className="w-5 h-5 text-blue-600" />}
-                    title="Duyệt đơn đăng ký nội trú"
-                    description="Có 12 hồ sơ đang chờ xét duyệt"
-                    bg="bg-blue-50"
-                  />
-                  <div className="h-px bg-slate-100 mx-4"></div>
-                  <ActionCard 
-                    icon={<Zap className="w-5 h-5 text-yellow-600" />}
-                    title="Lập hóa đơn điện nước"
-                    description="Kỳ thu phí tháng 09/2026"
-                    bg="bg-yellow-50"
-                  />
-                  <div className="h-px bg-slate-100 mx-4"></div>
-                  <ActionCard 
-                    icon={<Plus className="w-5 h-5 text-emerald-600" />}
-                    title="Đăng thông báo chung"
-                    description="Gửi thông báo tới toàn bộ sinh viên"
-                    bg="bg-emerald-50"
-                  />
-                </div>
-              </div>
-
-              {/* CỘT 2: BẢNG DỮ LIỆU (Recent Requests) */}
-              <div className="lg:col-span-2 space-y-4">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-lg font-bold text-slate-800">Yêu cầu & Sự cố gần đây</h2>
-                  <button className="text-sm text-blue-700 font-semibold hover:text-blue-900">Xem tất cả &rarr;</button>
-                </div>
-                
-                <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse">
-                      <thead>
-                        <tr className="bg-slate-100/70 border-b border-slate-200">
-                          <th className="px-5 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Mã YC</th>
-                          <th className="px-5 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Sinh viên & Phòng</th>
-                          <th className="px-5 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Phân loại</th>
-                          <th className="px-5 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider text-center">Trạng thái</th>
-                          <th className="px-5 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider text-right">Thao tác</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100 text-sm">
-                        {REQUESTS.map((req) => (
-                          <tr key={req.id} className="even:bg-slate-50/60 hover:bg-blue-50/40 transition-colors group">
-                            <td className="px-5 py-4 font-medium text-blue-900 whitespace-nowrap">{req.id}</td>
-                            <td className="px-5 py-4">
-                              <p className="font-bold text-slate-800">{req.student}</p>
-                              <p className="text-xs font-medium text-slate-500 mt-0.5">Phòng {req.room}</p>
-                            </td>
-                            <td className="px-5 py-4 text-slate-600">
-                              <span className="flex items-center gap-1.5 font-medium">
-                                {req.type === 'Báo hỏng CSVC' && <Wrench className="w-3.5 h-3.5 text-slate-400" />}
-                                {req.type === 'Xin chuyển phòng' && <BedDouble className="w-3.5 h-3.5 text-slate-400" />}
-                                {req.type === 'Góp ý/Khiếu nại' && <MessageSquare className="w-3.5 h-3.5 text-slate-400" />}
-                                {req.type}
-                              </span>
-                            </td>
-                            <td className="px-5 py-4 text-center">
-                              <StatusBadge status={req.status} />
-                            </td>
-                            <td className="px-5 py-4 text-right">
-                              <button className="p-1.5 text-slate-400 hover:text-blue-900 rounded-md hover:bg-blue-50 transition-colors">
-                                <MoreVertical className="w-4 h-4" />
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+            {/* Room Map */}
+            <div className="xl:col-span-2 bg-white rounded-xl shadow-sm border border-gray-200 p-6 flex flex-col min-h-[500px]">
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-lg font-semibold text-gray-800">
+                  Sơ đồ phòng <span className="text-sm font-normal text-gray-500 ml-2">(Tầng 1 - Tòa A1)</span>
+                </h3>
+                <div className="flex gap-4 text-sm font-medium">
+                  <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-green-500"></span> Trống</div>
+                  <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-blue-500"></span> Đang ở</div>
+                  <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-red-500"></span> Bảo trì</div>
                 </div>
               </div>
               
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 overflow-y-auto pr-2 pb-2">
+                {rooms.map((room) => (
+                  <div 
+                    key={room.id}
+                    className={`border-2 rounded-xl p-4 relative cursor-pointer hover:shadow-md transition-all group
+                      ${room.status === 'occupied' ? 'border-blue-100 bg-blue-50/50 hover:border-blue-300' : ''}
+                      ${room.status === 'empty' ? 'border-green-100 bg-green-50/50 hover:border-green-300' : ''}
+                      ${room.status === 'maintenance' ? 'border-red-200 bg-red-50 hover:border-red-400' : ''}
+                    `}
+                  >
+                    <div className={`absolute top-3 right-3 w-2.5 h-2.5 rounded-full shadow-sm
+                      ${room.status === 'occupied' ? 'bg-blue-500' : ''}
+                      ${room.status === 'empty' ? 'bg-green-500' : ''}
+                      ${room.status === 'maintenance' ? 'bg-red-500 animate-pulse' : ''}
+                    `}></div>
+                    
+                    <h4 className="font-bold text-gray-800 text-lg">{room.id}</h4>
+                    
+                    <p className={`text-xs mt-1 font-medium
+                      ${room.status === 'occupied' ? 'text-gray-500' : ''}
+                      ${room.status === 'empty' ? 'text-gray-500' : ''}
+                      ${room.status === 'maintenance' ? 'text-red-600' : ''}
+                    `}>
+                      {room.status === 'occupied' && 'Đang ở'}
+                      {room.status === 'empty' && 'Trống'}
+                      {room.status === 'maintenance' && 'Bảo trì'}
+                    </p>
+                    
+                    <div className="mt-3 flex items-end justify-between">
+                      {room.status !== 'maintenance' ? (
+                        <>
+                          <p className={`text-sm font-bold ${room.status === 'empty' ? 'text-green-700' : 'text-blue-700'}`}>
+                            {room.current}/{room.max} <span className="text-xs font-normal">SV</span>
+                          </p>
+                          {room.status === 'empty' ? (
+                            <DoorOpen className="w-5 h-5 text-green-200 group-hover:text-green-400 transition-colors" />
+                          ) : (
+                            <Users className="w-5 h-5 text-blue-200 group-hover:text-blue-400 transition-colors" />
+                          )}
+                        </>
+                      ) : (
+                        <p className="text-xs font-medium text-red-700 bg-red-100 px-2 py-1 rounded-md flex items-center">
+                          <Wrench className="w-3 h-3 mr-1" /> {room.issue}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Pending Tasks */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col min-h-[500px]">
+              <div className="p-5 border-b border-gray-100">
+                <h3 className="text-lg font-semibold text-gray-800">Danh sách chờ xử lý</h3>
+              </div>
+              
+              <div className="overflow-y-auto flex-1 p-2">
+                {/* Applications */}
+                <div className="p-3">
+                  <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 pl-1">Đơn đăng ký chờ duyệt (2)</h4>
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center p-3 hover:bg-gray-50 rounded-xl transition-colors border border-gray-100 shadow-sm">
+                      <div>
+                        <p className="font-medium text-gray-800 text-sm">Nguyễn Thanh Tùng</p>
+                        <p className="text-xs text-gray-500 mt-1 flex items-center">
+                          2312001 &bull; Xin vào A1
+                        </p>
+                      </div>
+                      <button className="px-3 py-1.5 bg-yellow-50 text-yellow-700 hover:bg-yellow-100 text-xs font-medium rounded-lg transition-colors border border-yellow-200">
+                        Duyệt
+                      </button>
+                    </div>
+                    <div className="flex justify-between items-center p-3 hover:bg-gray-50 rounded-xl transition-colors border border-gray-100 shadow-sm">
+                      <div>
+                        <p className="font-medium text-gray-800 text-sm">Lê Minh Tuấn</p>
+                        <p className="text-xs text-gray-500 mt-1 flex items-center">
+                          2312002 &bull; Xin vào A1
+                        </p>
+                      </div>
+                      <button className="px-3 py-1.5 bg-yellow-50 text-yellow-700 hover:bg-yellow-100 text-xs font-medium rounded-lg transition-colors border border-yellow-200">
+                        Duyệt
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Tickets */}
+                <div className="p-3 mt-2">
+                  <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 pl-1">Ticket báo hỏng (2)</h4>
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center p-3 hover:bg-red-50/50 rounded-xl transition-colors border border-red-100 bg-red-50/30 shadow-sm">
+                      <div>
+                        <p className="font-medium text-gray-800 text-sm">P.104 A1 - Hỏng điều hòa</p>
+                        <p className="text-xs text-red-600 font-medium mt-1 flex items-center">
+                          <AlertTriangle className="w-3 h-3 mr-1" /> Quá SLA (48h)
+                        </p>
+                      </div>
+                      <button className="w-8 h-8 rounded-full bg-white border border-gray-200 text-blue-600 hover:bg-blue-50 hover:border-blue-200 transition-colors flex items-center justify-center" title="Phân công">
+                        <ArrowRight className="w-4 h-4" />
+                      </button>
+                    </div>
+                    <div className="flex justify-between items-center p-3 hover:bg-gray-50 rounded-xl transition-colors border border-gray-100 shadow-sm">
+                      <div>
+                        <p className="font-medium text-gray-800 text-sm">P.205 A5 - Tắc bồn cầu</p>
+                        <p className="text-xs text-gray-500 mt-1 flex items-center">
+                          <Clock className="w-3 h-3 mr-1" /> Vừa xong
+                        </p>
+                      </div>
+                      <button className="w-8 h-8 rounded-full bg-white border border-gray-200 text-blue-600 hover:bg-blue-50 hover:border-blue-200 transition-colors flex items-center justify-center" title="Phân công">
+                        <ArrowRight className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </main>
       </div>
     </div>
   );
-}
+};
 
-// --- SUBCOMPONENTS ---
-
-function NavItem({ icon, label, active = false }) {
-  return (
-    <button 
-      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors text-sm font-medium
-        ${active 
-          ? 'bg-blue-900 text-white shadow-md' 
-          : 'text-slate-600 hover:bg-slate-100 hover:text-blue-900'
-        }`}
-    >
-      <span className={active ? 'text-blue-200' : 'text-slate-400'}>
-        {React.cloneElement(icon, { className: 'w-5 h-5' })}
-      </span>
-      {label}
-    </button>
-  );
-}
-
-function ActionCard({ icon, title, description, bg }) {
-  return (
-    <button className="w-full text-left p-4 flex items-start gap-4 hover:bg-slate-50 transition-colors rounded-lg group">
-      <div className={`p-2.5 rounded-lg ${bg} shrink-0`}>
-        {icon}
-      </div>
-      <div>
-        <h3 className="text-sm font-bold text-slate-800 group-hover:text-blue-900 transition-colors">{title}</h3>
-        <p className="text-xs font-medium text-slate-500 mt-1">{description}</p>
-      </div>
-    </button>
-  );
-}
-
-function StatusBadge({ status }) {
-  const isPending = status === 'Chờ xử lý';
-  
-  return (
-    <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold border whitespace-nowrap
-      ${isPending ? 'bg-yellow-100 text-yellow-800 border-yellow-200' : 'bg-green-100 text-green-800 border-green-200'}
-    `}>
-      <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${isPending ? 'bg-yellow-500' : 'bg-green-500'}`}></span>
-      {status}
-    </span>
-  );
-}
+export default AdminDashboard;

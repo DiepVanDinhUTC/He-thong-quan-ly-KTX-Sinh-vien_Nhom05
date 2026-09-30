@@ -2,15 +2,29 @@ import React from 'react';
 
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 
+import LoginPortal from './pages/LoginPortal';
+
 import AdminDashboard from './pages/AdminDashboard';
 
 import StudentManagement from './pages/StudentManagement';
 
 import RoomManagement from './pages/RoomManagement';
 
-import BillManagement from './pages/BillManagement';
+import ContractManagement from './pages/ContractManagement';
 
+import TicketManagement from './pages/TicketManagement';
 
+import StudentPortal from './pages/StudentPortal';
+
+import RoomRegistration from './pages/RoomRegistration';
+
+import TicketReport from './pages/TicketReport';
+
+import BillPayment from './pages/BillPayment';
+
+import FinancialDashboard from './pages/FinancialDashboard';
+
+import TechnicianApp from './pages/TechnicianApp';
 
 function App() {
 
@@ -20,21 +34,29 @@ function App() {
 
       <Routes>
 
-        {/* Đường dẫn mặc định (localhost:5173) sẽ hiển thị Dashboard */}
+        <Route path="/login" element={<LoginPortal />} />
 
         <Route path="/" element={<AdminDashboard />} />
 
-       
-
-        {/* Đường dẫn /students (localhost:5173/students) sẽ hiển thị Quản lý SV */}
-
         <Route path="/students" element={<StudentManagement />} />
-
-
 
         <Route path="/rooms" element={<RoomManagement />} />
 
-        <Route path="/bills" element={<BillManagement />} />
+        <Route path="/contracts" element={<ContractManagement />} />
+
+        <Route path="/tickets" element={<TicketManagement />} />
+
+        <Route path="/student-portal" element={<StudentPortal />} />
+
+        <Route path="/room-registration" element={<RoomRegistration />} />
+
+        <Route path="/ticket-report" element={<TicketReport />} />
+
+        <Route path="/bill-payment" element={<BillPayment />} />
+
+        <Route path="/financial-dashboard" element={<FinancialDashboard />} />
+
+        <Route path="/technician" element={<TechnicianApp />} />
 
       </Routes>
 
