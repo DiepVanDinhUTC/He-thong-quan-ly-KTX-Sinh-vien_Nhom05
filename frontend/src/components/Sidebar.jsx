@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { 
   Building2, 
   LayoutDashboard, 
@@ -15,18 +16,19 @@ import {
 const Sidebar = () => {
   // Trạng thái thu gọn/mở rộng thanh điều hướng
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const navigate = useNavigate();
+  const location = useLocation();
   
   // Trạng thái lưu mục đang được chọn (Active)
-  const [activeItem, setActiveItem] = useState('dashboard');
-
   // Danh sách các mục menu chính
   const mainMenuItems = [
-    { id: 'dashboard', label: 'Tổng quan', icon: LayoutDashboard },
-    { id: 'students', label: 'Quản lý Sinh viên', icon: Users },
-    { id: 'rooms', label: 'Quản lý Phòng & CSVC', icon: DoorOpen },
-    { id: 'billing', label: 'Hóa đơn & Dịch vụ', icon: Receipt },
-    { id: 'tickets', label: 'Yêu cầu sửa chữa', icon: Wrench },
+    { id: 'dashboard', path: '/', label: 'Tổng quan', icon: LayoutDashboard },
+    { id: 'students', path: '/students', label: 'Quản lý Sinh viên', icon: Users },
+    { id: 'rooms', path: '/rooms', label: 'Quản lý Phòng & CSVC', icon: DoorOpen },
+    { id: 'billing', path: '/financial-dashboard', label: 'Hóa đơn & Dịch vụ', icon: Receipt },
+    { id: 'tickets', path: '/tickets', label: 'Yêu cầu sửa chữa', icon: Wrench },
   ];
+  const activeItem = mainMenuItems.find((item) => item.path === location.pathname)?.id || 'dashboard';
 
   return (
     <div 
@@ -64,7 +66,7 @@ const Sidebar = () => {
           return (
             <button
               key={item.id}
-              onClick={() => setActiveItem(item.id)}
+              onClick={() => navigate(item.path)}
               title={isCollapsed ? item.label : ''}
               className={`
                 w-full flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-200 group

@@ -2,84 +2,97 @@ const syncStudentService = require('../services/syncStudentService');
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
+const editableFields = [
+    'hoTen', 'ngaySinh', 'gioiTinh', 'lop', 'khoa', 'cccd',
+    'phone', 'email', 'dienUuTien', 'trangThaiNoiTru'
+];
+const requiredFields = ['maSV', ...editableFields.filter((field) => field !== 'dienUuTien')];
+
+const pickStudentFields = (body) => Object.fromEntries(
+    editableFields
+        .filter((field) => body[field] !== undefined)
+        .map((field) => [field, body[field]])
+);
+
 exports.syncData = async (req, res) => {
     try {
         const result = await syncStudentService.syncStudentsFromSis();
-        res.status(200).json({
+        return res.status(200).json({
             success: true,
             message: `Đã đồng bộ thành công ${result.count} sinh viên từ sis.utc`
         });
     } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: error.message
-        });
+        return res.status(500).json({ success: false, message: error.message });
     }
-
 };
-// [READ] Lấy danh sách toàn bộ sinh viên (Có thể thêm phân trang, tìm kiếm sau)
+
 exports.getAllStudents = async (req, res) => {
     try {
         const students = await prisma.sinhVien.findMany({
-            orderBy: { maSV: 'desc' }
+            orderBy: { maSV: 'desc' },
+            include: { hopDongs: { include: { phong: true }, orderBy: { ngayTao: 'desc' }, take: 1 } }
         });
-        res.status(200).json({ success: true, data: students });
+        return res.status(200).json({ success: true, data: students });
     } catch (error) {
-        res.status(500).json({ success: false, message: 'Lỗi khi lấy danh sách sinh viên', error: error.message });
+        return res.status(500).json({ success: false, message: 'Lỗi khi lấy danh sách sinh viên', error: error.message });
     }
 };
 
-// [READ] Lấy thông tin chi tiết 1 sinh viên theo maSV
 exports.getStudentById = async (req, res) => {
     try {
         const student = await prisma.sinhVien.findUnique({
-            where: { maSV: req.params.id }
+            where: { maSV: req.params.id },
+            include: { hopDongs: { include: { phong: true }, orderBy: { ngayTao: 'desc' }, take: 1 } }
         });
-        if (!student) return res.status(404).json({ success: false, message: 'Không tìm thấy sinh viên!' });
-        
-        res.status(200).json({ success: true, data: student });
+        if (!student) return res.status(404).json({ success: false, message: 'Không tìm thấy sinh viên.' });
+        return res.status(200).json({ success: true, data: student });
     } catch (error) {
-        res.status(500).json({ success: false, message: 'Lỗi server', error: error.message });
+        return res.status(500).json({ success: false, message: 'Lỗi server', error: error.message });
     }
 };
 
-// [CREATE] Thêm mới một hồ sơ sinh viên thủ công
 exports.createStudent = async (req, res) => {
+    const missing = requiredFields.filter((field) => req.body[field] === undefined || req.body[field] === '');
+    if (missing.length) {
+        return res.status(400).json({ success: false, message: `Thiếu thông tin bắt buộc: ${missing.join(', ')}` });
+    }
+
     try {
-        const newStudent = await prisma.sinhVien.create({
-            data: req.body // req.body chứa maSV, hoTen, ngaySinh, cccd... gửi từ form Frontend
+        const student = await prisma.sinhVien.create({
+            data: { maSV: req.body.maSV, ...pickStudentFields(req.body) }
         });
-        res.status(201).json({ success: true, message: 'Thêm sinh viên thành công', data: newStudent });
+        return res.status(201).json({ success: true, message: 'Thêm sinh viên thành công', data: student });
     } catch (error) {
-        // Lỗi P2002 của Prisma là lỗi trùng lặp khóa chính (unique constraint)
         if (error.code === 'P2002') {
-            return res.status(400).json({ success: false, message: 'Mã sinh viên hoặc CCCD đã tồn tại!' });
+            return res.status(400).json({ success: false, message: 'Mã sinh viên hoặc CCCD đã tồn tại.' });
         }
-        res.status(500).json({ success: false, message: 'Lỗi khi thêm sinh viên', error: error.message });
+        return res.status(500).json({ success: false, message: 'Lỗi khi thêm sinh viên', error: error.message });
     }
 };
 
-// [UPDATE] Cập nhật thông tin sinh viên
 exports.updateStudent = async (req, res) => {
     try {
-        const updatedStudent = await prisma.sinhVien.update({
+        const student = await prisma.sinhVien.update({
             where: { maSV: req.params.id },
-            data: req.body
+            data: pickStudentFields(req.body)
         });
-        res.status(200).json({ success: true, message: 'Cập nhật thành công', data: updatedStudent });
+        return res.status(200).json({ success: true, message: 'Cập nhật thành công', data: student });
     } catch (error) {
-        res.status(500).json({ success: false, message: 'Lỗi khi cập nhật thông tin', error: error.message });
+        if (error.code === 'P2025') return res.status(404).json({ success: false, message: 'Không tìm thấy sinh viên.' });
+        if (error.code === 'P2002') return res.status(400).json({ success: false, message: 'CCCD đã tồn tại.' });
+        return res.status(500).json({ success: false, message: 'Lỗi khi cập nhật thông tin', error: error.message });
     }
 };
 
-// [DELETE] Xóa hồ sơ sinh viên
 exports.deleteStudent = async (req, res) => {
     try {
-        await prisma.sinhVien.delete({
-            where: { maSV: req.params.id }
-        });
-        res.status(200).json({ success: true, message: 'Đã xóa hồ sơ sinh viên thành công' });
+        await prisma.sinhVien.delete({ where: { maSV: req.params.id } });
+        return res.status(200).json({ success: true, message: 'Đã xóa hồ sơ sinh viên thành công.' });
     } catch (error) {
-        res.status(500).json({ success: false, message: 'Lỗi khi xóa hồ sơ', error: error.message });
+        if (error.code === 'P2025') return res.status(404).json({ success: false, message: 'Không tìm thấy sinh viên.' });
+        if (error.code === 'P2003') {
+            return res.status(409).json({ success: false, message: 'Sinh viên đang có hợp đồng hoặc đăng ký KTX nên không thể xóa.' });
+        }
+        return res.status(500).json({ success: false, message: 'Lỗi khi xóa hồ sơ', error: error.message });
     }
 };

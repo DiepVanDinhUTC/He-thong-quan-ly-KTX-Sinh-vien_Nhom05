@@ -6,6 +6,7 @@ const { restrictTo } = require('../../../middleware/rbacMiddleware');
 
 // Endpoint đồng bộ, yêu cầu quyền Admin/Staff theo thiết kế
 router.get('/sync', protect, restrictTo('MANAGER', 'DIRECTOR'), studentController.syncData);
+router.post('/sync', protect, restrictTo('MANAGER', 'DIRECTOR'), studentController.syncData);
 
 // Chỉ Ban quản lý (STAFF) và Giám đốc (DIRECTOR) mới có quyền CRUD hồ sơ
 router.use(protect); // Áp dụng xác thực cho toàn bộ route phía dưới

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
   ArrowLeft,
   CreditCard,
@@ -18,6 +19,7 @@ import {
 } from 'lucide-react';
 
 const BillPayment = () => {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('unpaid');
   const [paymentStep, setPaymentStep] = useState('select'); // 'select' | 'qr' | 'success'
   const [timeLeft, setTimeLeft] = useState(600); // 10 phút đếm ngược cho QR
@@ -56,6 +58,7 @@ const BillPayment = () => {
               onClick={() => {
                 if (paymentStep === 'qr') setPaymentStep('select');
                 else if (paymentStep === 'success') { setPaymentStep('select'); setActiveTab('history'); }
+                else navigate('/student-portal');
               }}
               className="p-2 -ml-2 text-gray-500 hover:bg-gray-100 rounded-full transition-colors"
             >

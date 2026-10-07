@@ -1,6 +1,7 @@
 import React from 'react';
 import Sidebar from './Sidebar'; // Component Sidebar vừa được tạo
-import { Bell, Search, User } from 'lucide-react';
+import { Bell, Search } from 'lucide-react';
+import AdminUserProfile from './AdminUserProfile';
 
 const AdminLayout = ({ children }) => {
   return (
@@ -35,15 +36,7 @@ const AdminLayout = ({ children }) => {
               <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border border-white"></span>
             </button>
             
-            <div className="flex items-center gap-3 pl-4 border-l border-gray-200 cursor-pointer hover:opacity-80 transition-opacity">
-              <div className="text-right hidden md:block mt-0.5">
-                <p className="text-sm font-bold text-gray-800 leading-none">Nguyễn Văn A</p>
-                <p className="text-xs text-gray-500 font-medium mt-1">Admin KTX</p>
-              </div>
-              <div className="w-9 h-9 rounded-full bg-blue-100 flex items-center justify-center border border-blue-200 text-blue-700 shadow-sm">
-                <User className="w-5 h-5" />
-              </div>
-            </div>
+            <AdminUserProfile variant="header" />
           </div>
         </header>
 
