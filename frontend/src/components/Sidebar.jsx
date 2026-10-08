@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useSelector } from 'react-redux';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { 
   Building2, 
@@ -18,17 +19,21 @@ const Sidebar = () => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
+  const role = useSelector((state) => state.auth.user?.role);
   
   // Trạng thái lưu mục đang được chọn (Active)
   // Danh sách các mục menu chính
   const mainMenuItems = [
-    { id: 'dashboard', path: '/', label: 'Tổng quan', icon: LayoutDashboard },
-    { id: 'students', path: '/students', label: 'Quản lý Sinh viên', icon: Users },
-    { id: 'rooms', path: '/rooms', label: 'Quản lý Phòng & CSVC', icon: DoorOpen },
-    { id: 'billing', path: '/financial-dashboard', label: 'Hóa đơn & Dịch vụ', icon: Receipt },
-    { id: 'tickets', path: '/tickets', label: 'Yêu cầu sửa chữa', icon: Wrench },
+    { id: 'dashboard', path: '/', label: 'Tổng quan', icon: LayoutDashboard, roles: ['MANAGER', 'DIRECTOR'] },
+    { id: 'students', path: '/students', label: 'Quản lý Sinh viên', icon: Users, roles: ['MANAGER', 'DIRECTOR'] },
+    { id: 'rooms', path: '/rooms', label: 'Quản lý Phòng & CSVC', icon: DoorOpen, roles: ['MANAGER', 'DIRECTOR'] },
+    { id: 'contracts', path: '/contracts', label: 'Quản lý Hợp đồng', icon: Receipt, roles: ['MANAGER', 'DIRECTOR'] },
+    { id: 'billing', path: '/financial-dashboard', label: 'Quản lý Hóa đơn & Điện nước', icon: Receipt, roles: ['ACCOUNTANT', 'DIRECTOR'] },
+    { id: 'tickets', path: '/tickets', label: 'Yêu cầu sửa chữa', icon: Wrench, roles: ['MANAGER', 'DIRECTOR'] },
+    { id: 'technician', path: '/technician', label: 'Bảng kỹ thuật', icon: Wrench, roles: ['MANAGER', 'TECHNICIAN'] },
   ];
-  const activeItem = mainMenuItems.find((item) => item.path === location.pathname)?.id || 'dashboard';
+  const visibleMenuItems = mainMenuItems.filter((item) => item.roles.includes(role));
+  const activeItem = mainMenuItems.find((item) => item.path === location.pathname)?.id;
 
   return (
     <div 
@@ -59,7 +64,7 @@ const Sidebar = () => {
           </p>
         )}
         
-        {mainMenuItems.map((item) => {
+        {visibleMenuItems.map((item) => {
           const Icon = item.icon;
           const isActive = activeItem === item.id;
           
@@ -99,16 +104,17 @@ const Sidebar = () => {
       {/* 3. Bottom Section (Settings, Logout, Collapse Toggle) */}
       <div className="p-3 border-t border-gray-100 bg-gray-50/50 shrink-0 space-y-1.5">
         
-        <button
-          title={isCollapsed ? 'Cài đặt' : ''}
+        {role === 'DIRECTOR' && <button
+          title={isCollapsed ? 'Cài đặt hệ thống' : ''}
+          onClick={() => navigate('/settings')}
           className={`
             w-full flex items-center gap-3 px-3 py-3 rounded-xl text-slate-500 hover:bg-slate-100 hover:text-blue-800 transition-all duration-200 group
             ${isCollapsed ? 'justify-center' : 'justify-start'}
           `}
         >
           <Settings className="w-5 h-5 shrink-0 group-hover:rotate-45 transition-transform duration-300" />
-          {!isCollapsed && <span className="text-sm font-medium whitespace-nowrap">Cài đặt</span>}
-        </button>
+          {!isCollapsed && <span className="text-sm font-medium whitespace-nowrap">Cài đặt hệ thống</span>}
+        </button>}
 
         <button
           title={isCollapsed ? 'Đăng xuất' : ''}

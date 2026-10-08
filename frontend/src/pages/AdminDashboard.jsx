@@ -1,6 +1,6 @@
 import AdminUserProfile from '../components/AdminUserProfile';
 import AdminLogoutButton from '../components/AdminLogoutButton';
-import { Link } from 'react-router-dom';
+import Link from '../components/RoleLink';
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
@@ -10,7 +10,8 @@ import {
   DoorOpen, 
   FileSignature, 
   Wrench, 
-  User, 
+  Receipt,
+  Settings,
   Search, 
   Bell, 
   FileText, 
@@ -68,6 +69,9 @@ const AdminDashboard = () => {
             <Wrench className="w-5 h-5" />
             <span className="ml-3">Ticket báo hỏng</span>
           </Link>
+          <Link to="/technician" className="flex items-center px-4 py-3 text-blue-200 hover:bg-blue-800 hover:text-white rounded-lg transition-colors"><Wrench className="w-5 h-5" /><span className="ml-3">Bảng kỹ thuật</span></Link>
+          <Link to="/financial-dashboard" className="flex items-center px-4 py-3 text-blue-200 hover:bg-blue-800 hover:text-white rounded-lg transition-colors"><Receipt className="w-5 h-5" /><span className="ml-3">Quản lý Hóa đơn & Điện nước</span></Link>
+          <Link to="/settings" className="flex items-center px-4 py-3 text-blue-200 hover:bg-blue-800 hover:text-white rounded-lg transition-colors"><Settings className="w-5 h-5" /><span className="ml-3">Cài đặt hệ thống</span></Link>
         </nav>
 
         <div className="p-4 border-t border-blue-800">

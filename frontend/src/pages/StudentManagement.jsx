@@ -1,6 +1,6 @@
 import AdminUserProfile from '../components/AdminUserProfile';
 import AdminLogoutButton from '../components/AdminLogoutButton';
-import { Link } from 'react-router-dom';
+import Link from '../components/RoleLink';
 import React, { useEffect, useMemo, useState } from 'react';
 import { studentApi } from '../services/studentApi';
 import { 
@@ -10,7 +10,8 @@ import {
   DoorOpen, 
   FileSignature, 
   Wrench, 
-  User, 
+  Receipt,
+  Settings,
   Search, 
   Bell,
   Filter,
@@ -23,7 +24,7 @@ import {
 
 const StudentManagement = () => {
   const emptyForm = {
-    maSV: '', hoTen: '', ngaySinh: '', gioiTinh: 'true', lop: '', khoa: '',
+    maSV: '', hoTen: '', ngaySinh: '', gioiTinh: 'true', lop: '', nienKhoa: 'K64', khoa: '',
     cccd: '', phone: '', email: '', dienUuTien: '', trangThaiNoiTru: 'CHUA_DANG_KY',
   };
   const [searchQuery, setSearchQuery] = useState('');
@@ -76,6 +77,7 @@ const StudentManagement = () => {
       ngaySinh: student.ngaySinh ? new Date(student.ngaySinh).toISOString().slice(0, 10) : '',
       gioiTinh: String(Boolean(student.gioiTinh)),
       lop: student.lop || '',
+      nienKhoa: student.nienKhoa || 'K64',
       khoa: student.khoa || '',
       cccd: student.cccd || '',
       phone: student.phone || '',
@@ -179,6 +181,9 @@ const StudentManagement = () => {
             <Wrench className="w-5 h-5" />
             <span className="ml-3">Ticket báo hỏng</span>
           </Link>
+          <Link to="/technician" className="flex items-center px-4 py-3 text-blue-200 hover:bg-blue-800 hover:text-white rounded-lg transition-colors"><Wrench className="w-5 h-5" /><span className="ml-3">Bảng kỹ thuật</span></Link>
+          <Link to="/financial-dashboard" className="flex items-center px-4 py-3 text-blue-200 hover:bg-blue-800 hover:text-white rounded-lg transition-colors"><Receipt className="w-5 h-5" /><span className="ml-3">Quản lý Hóa đơn & Điện nước</span></Link>
+          <Link to="/settings" className="flex items-center px-4 py-3 text-blue-200 hover:bg-blue-800 hover:text-white rounded-lg transition-colors"><Settings className="w-5 h-5" /><span className="ml-3">Cài đặt hệ thống</span></Link>
         </nav>
 
         <div className="p-4 border-t border-blue-800">
@@ -246,6 +251,7 @@ const StudentManagement = () => {
                   <tr className="bg-gray-50 border-b border-gray-200 text-xs uppercase text-gray-500 font-semibold tracking-wider">
                     <th className="px-6 py-4">Mã SV</th>
                     <th className="px-6 py-4">Họ và tên</th>
+                    <th className="px-6 py-4">Niên khóa</th>
                     <th className="px-6 py-4">Ngày sinh</th>
                     <th className="px-6 py-4">Giới tính</th>
                     <th className="px-6 py-4">Phòng</th>
@@ -255,13 +261,14 @@ const StudentManagement = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 text-sm">
-                  {loading && <tr><td className="px-6 py-8 text-center" colSpan="8">Đang tải...</td></tr>}
-                  {!loading && error && <tr><td className="px-6 py-8 text-center text-red-600" colSpan="8">{error}</td></tr>}
-                  {!loading && !error && filteredStudents.length === 0 && <tr><td className="px-6 py-8 text-center text-gray-500" colSpan="8">Không có sinh viên phù hợp.</td></tr>}
+                  {loading && <tr><td className="px-6 py-8 text-center" colSpan="9">Đang tải...</td></tr>}
+                  {!loading && error && <tr><td className="px-6 py-8 text-center text-red-600" colSpan="9">{error}</td></tr>}
+                  {!loading && !error && filteredStudents.length === 0 && <tr><td className="px-6 py-8 text-center text-gray-500" colSpan="9">Không có sinh viên phù hợp.</td></tr>}
                   {!loading && !error && filteredStudents.map((student) => (
                     <tr key={student.maSV} className="hover:bg-gray-50/50 transition-colors">
                       <td className="px-6 py-4 font-medium text-blue-600">{student.maSV}</td>
                       <td className="px-6 py-4 font-semibold text-gray-800">{student.hoTen}</td>
+                      <td className="px-6 py-4 text-gray-600">{student.nienKhoa || '—'}</td>
                       <td className="px-6 py-4 text-gray-600">{student.ngaySinh ? new Date(student.ngaySinh).toLocaleDateString('vi-VN') : '—'}</td>
                       <td className="px-6 py-4 text-gray-600">{student.gioiTinh ? 'Nam' : 'Nữ'}</td>
                       <td className="px-6 py-4 text-gray-800 font-medium">{student.hopDongs?.[0]?.phong?.soPhong || '—'}</td>
@@ -324,6 +331,11 @@ const StudentManagement = () => {
                 </label>
                 <label className="text-sm font-medium text-gray-700">Lớp
                   <input required disabled={formMode === 'view'} value={form.lop} onChange={(e) => setForm({ ...form, lop: e.target.value })} className="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2.5 disabled:bg-gray-100" />
+                </label>
+                <label className="text-sm font-medium text-gray-700">Niên khóa
+                  <select required disabled={formMode === 'view'} value={form.nienKhoa} onChange={(e) => setForm({ ...form, nienKhoa: e.target.value })} className="mt-1.5 w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 disabled:bg-gray-100">
+                    {['K62', 'K63', 'K64', 'K65', 'K66', 'K67'].map((cohort) => <option key={cohort} value={cohort}>{cohort}</option>)}
+                  </select>
                 </label>
                 <label className="text-sm font-medium text-gray-700">Khoa
                   <input required disabled={formMode === 'view'} value={form.khoa} onChange={(e) => setForm({ ...form, khoa: e.target.value })} className="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2.5 disabled:bg-gray-100" />

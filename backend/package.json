@@ -8,6 +8,8 @@
     "dev": "nodemon server.js",
     "seed:manager": "node seedManager.js",
     "seed:test-data": "node seedTestData.js",
+    "seed:locations": "node seedLocations.js",
+    "backfill:nien-khoa": "node backfillStudentCohorts.js",
     "test": "echo \"Error: no test specified\" && exit 1",
     "postinstall": "prisma skills sync || exit 0"
   },

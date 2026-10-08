@@ -31,6 +31,7 @@ const mockStudents = Array.from({ length: 50 }, (_, index) => {
         ngaySinh: new Date(Date.UTC(2003 + (index % 3), index % 12, (index % 27) + 1)).toISOString(),
         gioiTinh: !female,
         lop: `${major.lop}${(index % 4) + 1}-K${64 + (index % 3)}`,
+        nienKhoa: `K${64 + (index % 3)}`,
         khoa: major.khoa,
         cccd: `099${String(200300000 + number).padStart(9, '0')}`,
         phone,

@@ -36,6 +36,7 @@ async function main() {
             where: { maSV: `T10SV${suffix}` },
             update: {
                 userId: users[index - 1].id,
+                nienKhoa: `K${62 + ((index - 1) % 6)}`,
                 hoTen: `Sinh viên kiểm thử ${suffix}`,
                 trangThaiNoiTru: 'DANG_O',
                 phone: `090100${String(index).padStart(4, '0')}`,
@@ -48,6 +49,7 @@ async function main() {
                 ngaySinh: new Date(Date.UTC(2002 + (index % 5), index % 12, index + 1)),
                 gioiTinh: index % 2 === 1,
                 lop: `T10-CT${index}`,
+                nienKhoa: `K${62 + ((index - 1) % 6)}`,
                 khoa: 'Công nghệ thông tin',
                 cccd: `T10CCCDSV${suffix}`,
                 phone: `090100${String(index).padStart(4, '0')}`,

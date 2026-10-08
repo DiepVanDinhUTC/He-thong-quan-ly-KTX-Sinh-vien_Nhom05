@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { Building, DoorOpen, FileSignature, Home, UserPlus, Wrench, Search, Pencil, Check, X, ClipboardList } from 'lucide-react';
+import Link from '../components/RoleLink';
+import { Building, DoorOpen, FileSignature, Home, UserPlus, Wrench, Receipt, Settings, Search, Pencil, Check, X, ClipboardList } from 'lucide-react';
 import AdminUserProfile from '../components/AdminUserProfile';
 import AdminLogoutButton from '../components/AdminLogoutButton';
 import { housingApi } from '../services/housingApi';
@@ -124,6 +124,9 @@ const ContractManagement = () => {
           <Link to="/rooms" className="flex items-center rounded-lg px-4 py-3 text-blue-200 hover:bg-blue-800"><DoorOpen className="h-5 w-5" /><span className="ml-3">Quản lý Phòng & CSVC</span></Link>
           <Link to="/contracts" className="flex items-center rounded-lg bg-blue-800 px-4 py-3 font-medium text-white"><FileSignature className="h-5 w-5" /><span className="ml-3">Quản lý Hợp đồng</span></Link>
           <Link to="/tickets" className="flex items-center rounded-lg px-4 py-3 text-blue-200 hover:bg-blue-800"><Wrench className="h-5 w-5" /><span className="ml-3">Ticket báo hỏng</span></Link>
+          <Link to="/technician" className="flex items-center rounded-lg px-4 py-3 text-blue-200 hover:bg-blue-800"><Wrench className="h-5 w-5" /><span className="ml-3">Bảng kỹ thuật</span></Link>
+          <Link to="/financial-dashboard" className="flex items-center rounded-lg px-4 py-3 text-blue-200 hover:bg-blue-800"><Receipt className="h-5 w-5" /><span className="ml-3">Quản lý Hóa đơn & Điện nước</span></Link>
+          <Link to="/settings" className="flex items-center rounded-lg px-4 py-3 text-blue-200 hover:bg-blue-800"><Settings className="h-5 w-5" /><span className="ml-3">Cài đặt hệ thống</span></Link>
         </nav>
         <div className="border-t border-blue-800 p-4"><AdminUserProfile /></div><AdminLogoutButton />
       </aside>

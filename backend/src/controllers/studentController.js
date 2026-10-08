@@ -3,7 +3,7 @@ const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
 const editableFields = [
-    'hoTen', 'ngaySinh', 'gioiTinh', 'lop', 'khoa', 'cccd',
+    'hoTen', 'ngaySinh', 'gioiTinh', 'lop', 'nienKhoa', 'khoa', 'cccd',
     'phone', 'email', 'dienUuTien', 'trangThaiNoiTru'
 ];
 const requiredFields = ['maSV', ...editableFields.filter((field) => field !== 'dienUuTien')];
@@ -13,6 +13,9 @@ const pickStudentFields = (body) => Object.fromEntries(
         .filter((field) => body[field] !== undefined)
         .map((field) => [field, body[field]])
 );
+
+const validCohorts = ['K62', 'K63', 'K64', 'K65', 'K66', 'K67'];
+const invalidCohort = (body) => body.nienKhoa !== undefined && !validCohorts.includes(body.nienKhoa);
 
 exports.syncData = async (req, res) => {
     try {
@@ -52,6 +55,7 @@ exports.getStudentById = async (req, res) => {
 };
 
 exports.createStudent = async (req, res) => {
+    if (invalidCohort(req.body)) return res.status(400).json({ success: false, message: 'Niên khóa phải nằm trong khoảng K62 đến K67.' });
     const missing = requiredFields.filter((field) => req.body[field] === undefined || req.body[field] === '');
     if (missing.length) {
         return res.status(400).json({ success: false, message: `Thiếu thông tin bắt buộc: ${missing.join(', ')}` });
@@ -71,6 +75,7 @@ exports.createStudent = async (req, res) => {
 };
 
 exports.updateStudent = async (req, res) => {
+    if (invalidCohort(req.body)) return res.status(400).json({ success: false, message: 'Niên khóa phải nằm trong khoảng K62 đến K67.' });
     try {
         const student = await prisma.sinhVien.update({
             where: { maSV: req.params.id },

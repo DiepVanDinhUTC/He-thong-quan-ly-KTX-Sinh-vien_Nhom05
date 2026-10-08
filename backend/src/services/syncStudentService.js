@@ -4,6 +4,18 @@ const { PrismaClient } = require('@prisma/client');
 
 const prisma = new PrismaClient();
 
+const getCohort = (student) => {
+    const supported = ['K62', 'K63', 'K64', 'K65', 'K66', 'K67'];
+    if (supported.includes(student.nienKhoa)) return student.nienKhoa;
+    const fromClass = String(student.lop || '').match(/K6[2-7]/i)?.[0]?.toUpperCase();
+    if (fromClass) return fromClass;
+    const studentCode = String(student.maSV || '');
+    const year = Number(studentCode.slice(0, 2)) || Number(studentCode.slice(3, 5));
+    if (year >= 21 && year <= 26) return `K${year + 41}`;
+    const checksum = [...studentCode].reduce((sum, character) => sum + character.charCodeAt(0), 0);
+    return `K${62 + (checksum % 6)}`;
+};
+
 exports.syncStudentsFromSis = async () => {
     try {
         const response = await axios.get(process.env.SIS_UTC_API_URL, { timeout: 15000 });
@@ -23,6 +35,7 @@ exports.syncStudentsFromSis = async () => {
                         ngaySinh: new Date(student.ngaySinh),
                         gioiTinh: student.gioiTinh,
                         lop: student.lop,
+                        nienKhoa: getCohort(student),
                         khoa: student.khoa,
                         cccd: student.cccd,
                         phone: student.phone,
@@ -36,6 +49,7 @@ exports.syncStudentsFromSis = async () => {
                         ngaySinh: new Date(student.ngaySinh),
                         gioiTinh: student.gioiTinh,
                         lop: student.lop,
+                        nienKhoa: getCohort(student),
                         khoa: student.khoa,
                         cccd: student.cccd,
                         phone: student.phone,

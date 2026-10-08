@@ -14,6 +14,11 @@ import TicketReport from './pages/TicketReport';
 import BillPayment from './pages/BillPayment';
 import FinancialDashboard from './pages/FinancialDashboard';
 import TechnicianApp from './pages/TechnicianApp';
+import SystemSettings from './pages/SystemSettings';
+import StudentLayout from './components/StudentLayout';
+import MyRoom from './pages/MyRoom';
+import RequireRole from './components/RequireRole';
+import { rolePermissions } from './utils/accessControl';
 
 function App() {
   return (
@@ -21,17 +26,21 @@ function App() {
       <Route path="/login" element={<LoginPortal />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/admin-dashboard" element={<Navigate to="/" replace />} />
-      <Route path="/" element={<AdminDashboard />} />
-      <Route path="/students" element={<StudentManagement />} />
-      <Route path="/rooms" element={<RoomManagement />} />
-      <Route path="/contracts" element={<ContractManagement />} />
-      <Route path="/tickets" element={<TicketManagement />} />
-      <Route path="/student-portal" element={<StudentPortal />} />
-      <Route path="/room-registration" element={<RoomRegistration />} />
-      <Route path="/ticket-report" element={<TicketReport />} />
-      <Route path="/bill-payment" element={<BillPayment />} />
-      <Route path="/financial-dashboard" element={<FinancialDashboard />} />
-      <Route path="/technician" element={<TechnicianApp />} />
+      <Route path="/" element={<RequireRole allowedRoles={rolePermissions['/']}><AdminDashboard /></RequireRole>} />
+      <Route path="/students" element={<RequireRole allowedRoles={rolePermissions['/students']}><StudentManagement /></RequireRole>} />
+      <Route path="/rooms" element={<RequireRole allowedRoles={rolePermissions['/rooms']}><RoomManagement /></RequireRole>} />
+      <Route path="/contracts" element={<RequireRole allowedRoles={rolePermissions['/contracts']}><ContractManagement /></RequireRole>} />
+      <Route path="/tickets" element={<RequireRole allowedRoles={rolePermissions['/tickets']}><TicketManagement /></RequireRole>} />
+      <Route element={<RequireRole allowedRoles={rolePermissions['/student-portal']}><StudentLayout /></RequireRole>}>
+        <Route path="/student-portal" element={<StudentPortal />} />
+        <Route path="/my-room" element={<MyRoom />} />
+        <Route path="/room-registration" element={<RoomRegistration />} />
+        <Route path="/ticket-report" element={<TicketReport />} />
+        <Route path="/bill-payment" element={<BillPayment />} />
+      </Route>
+      <Route path="/financial-dashboard" element={<RequireRole allowedRoles={rolePermissions['/financial-dashboard']}><FinancialDashboard /></RequireRole>} />
+      <Route path="/settings" element={<RequireRole allowedRoles={rolePermissions['/settings']}><SystemSettings /></RequireRole>} />
+      <Route path="/technician" element={<RequireRole allowedRoles={rolePermissions['/technician']}><TechnicianApp /></RequireRole>} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

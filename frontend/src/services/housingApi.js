@@ -2,6 +2,12 @@ import api from './api';
 
 export const housingApi = {
   roomMap: async () => (await api.get('/rooms')).data,
+  roomLocations: async () => (await api.get('/rooms/locations')).data,
+  moveRoomMember: async (maPhong, maHopDong, maPhongMoi) => (await api.patch(`/rooms/${encodeURIComponent(maPhong)}/members/${encodeURIComponent(maHopDong)}/move`, { maPhongMoi })).data,
+  removeRoomMember: async (maPhong, maHopDong) => (await api.patch(`/rooms/${encodeURIComponent(maPhong)}/members/${encodeURIComponent(maHopDong)}/remove`)).data,
+  createRoom: async (data) => (await api.post('/rooms', data)).data,
+  updateRoom: async (maPhong, data) => (await api.patch(`/rooms/${encodeURIComponent(maPhong)}`, data)).data,
+  deleteRoom: async (maPhong) => (await api.delete(`/rooms/${encodeURIComponent(maPhong)}`)).data,
   createFacility: async (maPhong, data) => (await api.post(`/rooms/${encodeURIComponent(maPhong)}/facilities`, data)).data,
   updateFacility: async (maPhong, id, data) => (await api.patch(`/rooms/${encodeURIComponent(maPhong)}/facilities/${encodeURIComponent(id)}`, data)).data,
   deleteFacility: async (maPhong, id) => (await api.delete(`/rooms/${encodeURIComponent(maPhong)}/facilities/${encodeURIComponent(id)}`)).data,

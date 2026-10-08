@@ -48,6 +48,7 @@ model SinhVien {
   ngaySinh        DateTime @db.Date
   gioiTinh        Boolean  
   lop             String   @db.VarChar(50)
+  nienKhoa        String   @default("K64") @db.NVarChar(3)
   khoa            String   @db.NVarChar(100)
   cccd            String   @unique @db.VarChar(20)
   phone           String   @db.VarChar(15)
@@ -81,14 +82,43 @@ model NhanVien {
   @@map("NHAN_VIEN")
 }
 
+model CoSo {
+  maCoSo  String    @id @db.VarChar(20)
+  tenCoSo String    @db.NVarChar(120)
+  diaChi  String    @db.NVarChar(255)
+  toaNhas ToaNha[]
+
+  @@map("CO_SO")
+}
+
+model ToaNha {
+  maToaNha  String   @id @db.VarChar(20)
+  maCoSo    String   @db.VarChar(20)
+  tenToaNha String   @db.NVarChar(120)
+  soTang    Int      @default(10)
+
+  coSo   CoSo    @relation(fields: [maCoSo], references: [maCoSo], onDelete: NoAction, onUpdate: NoAction)
+  phongs Phong[]
+
+  @@unique([maCoSo, tenToaNha])
+  @@index([maCoSo])
+  @@map("TOA_NHA")
+}
+
 model Phong {
   maPhong           String       @id
   soPhong           String
   loaiPhong         String
   soSinhVienToiDa   Int
   soSinhVienHienTai Int          @default(0)
+  maToaNha          String?      @db.VarChar(20)
+  tang              Int?
+
+  toaNha            ToaNha?      @relation(fields: [maToaNha], references: [maToaNha], onDelete: NoAction, onUpdate: NoAction)
   hopDongs          HopDong[]
   thietBis          ThietBiPhong[]
+
+  @@index([maToaNha, tang])
 }
 
 model ThietBiPhong {
