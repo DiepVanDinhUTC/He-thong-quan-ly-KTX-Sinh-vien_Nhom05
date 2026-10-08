@@ -1,4 +1,8 @@
+import AdminUserProfile from '../components/AdminUserProfile';
+import AdminLogoutButton from '../components/AdminLogoutButton';
+import Link from '../components/RoleLink';
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
   Building, 
   Home, 
@@ -6,7 +10,8 @@ import {
   DoorOpen, 
   FileSignature, 
   Wrench, 
-  User, 
+  Receipt,
+  Settings,
   Search, 
   Bell, 
   FileText, 
@@ -20,6 +25,7 @@ import {
 
 const AdminDashboard = () => {
   const [searchQuery, setSearchQuery] = useState('');
+  const navigate = useNavigate();
 
   // Dữ liệu mẫu (Mock data)
   const rooms = [
@@ -43,39 +49,35 @@ const AdminDashboard = () => {
         </div>
         
         <nav className="flex-1 px-4 py-6 space-y-2">
-          <a href="#" className="flex items-center px-4 py-3 bg-blue-800 rounded-lg text-white font-medium">
+          <Link to="/" className="flex items-center px-4 py-3 bg-blue-800 rounded-lg text-white font-medium">
             <Home className="w-5 h-5" />
             <span className="ml-3">Trang chủ</span>
-          </a>
-          <a href="#" className="flex items-center px-4 py-3 text-blue-200 hover:bg-blue-800 hover:text-white rounded-lg transition-colors">
+          </Link>
+          <Link to="/students" className="flex items-center px-4 py-3 text-blue-200 hover:bg-blue-800 hover:text-white rounded-lg transition-colors">
             <UserPlus className="w-5 h-5" />
             <span className="ml-3">Quản lý Sinh viên</span>
-          </a>
-          <a href="#" className="flex items-center px-4 py-3 text-blue-200 hover:bg-blue-800 hover:text-white rounded-lg transition-colors">
+          </Link>
+          <Link to="/rooms" className="flex items-center px-4 py-3 text-blue-200 hover:bg-blue-800 hover:text-white rounded-lg transition-colors">
             <DoorOpen className="w-5 h-5" />
             <span className="ml-3">Quản lý Phòng & CSVC</span>
-          </a>
-          <a href="#" className="flex items-center px-4 py-3 text-blue-200 hover:bg-blue-800 hover:text-white rounded-lg transition-colors">
+          </Link>
+          <Link to="/contracts" className="flex items-center px-4 py-3 text-blue-200 hover:bg-blue-800 hover:text-white rounded-lg transition-colors">
             <FileSignature className="w-5 h-5" />
             <span className="ml-3">Quản lý Hợp đồng</span>
-          </a>
-          <a href="#" className="flex items-center px-4 py-3 text-blue-200 hover:bg-blue-800 hover:text-white rounded-lg transition-colors">
+          </Link>
+          <Link to="/tickets" className="flex items-center px-4 py-3 text-blue-200 hover:bg-blue-800 hover:text-white rounded-lg transition-colors">
             <Wrench className="w-5 h-5" />
             <span className="ml-3">Ticket báo hỏng</span>
-          </a>
+          </Link>
+          <Link to="/technician" className="flex items-center px-4 py-3 text-blue-200 hover:bg-blue-800 hover:text-white rounded-lg transition-colors"><Wrench className="w-5 h-5" /><span className="ml-3">Bảng kỹ thuật</span></Link>
+          <Link to="/financial-dashboard" className="flex items-center px-4 py-3 text-blue-200 hover:bg-blue-800 hover:text-white rounded-lg transition-colors"><Receipt className="w-5 h-5" /><span className="ml-3">Quản lý Hóa đơn & Điện nước</span></Link>
+          <Link to="/settings" className="flex items-center px-4 py-3 text-blue-200 hover:bg-blue-800 hover:text-white rounded-lg transition-colors"><Settings className="w-5 h-5" /><span className="ml-3">Cài đặt hệ thống</span></Link>
         </nav>
 
         <div className="p-4 border-t border-blue-800">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-blue-700 flex items-center justify-center">
-              <User className="w-5 h-5 text-white" />
-            </div>
-            <div>
-              <p className="text-sm font-medium text-white">Nguyễn Văn A</p>
-              <p className="text-xs text-blue-300">Nhân viên BQL</p>
-            </div>
-          </div>
+          <AdminUserProfile />
         </div>
+        <AdminLogoutButton />
       </div>
 
       {/* Main Content */}
@@ -107,19 +109,19 @@ const AdminDashboard = () => {
           
           {/* Quick Actions */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <button className="flex items-center justify-start px-6 gap-4 bg-white p-4 rounded-xl border border-gray-200 shadow-sm hover:shadow-md hover:border-blue-300 transition-all group">
+            <button onClick={() => navigate('/contracts')} className="flex items-center justify-start px-6 gap-4 bg-white p-4 rounded-xl border border-gray-200 shadow-sm hover:shadow-md hover:border-blue-300 transition-all group">
               <div className="w-12 h-12 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-colors flex-shrink-0">
                 <FileText className="w-6 h-6" />
               </div>
               <span className="font-medium text-gray-700 text-left">Duyệt & Lập hợp đồng nháp</span>
             </button>
-            <button className="flex items-center justify-start px-6 gap-4 bg-white p-4 rounded-xl border border-gray-200 shadow-sm hover:shadow-md hover:border-blue-300 transition-all group">
+            <button onClick={() => navigate('/contracts')} className="flex items-center justify-start px-6 gap-4 bg-white p-4 rounded-xl border border-gray-200 shadow-sm hover:shadow-md hover:border-blue-300 transition-all group">
               <div className="w-12 h-12 rounded-full bg-gray-50 flex items-center justify-center text-gray-600 group-hover:bg-gray-600 group-hover:text-white transition-colors flex-shrink-0">
                 <XCircle className="w-6 h-6" />
               </div>
               <span className="font-medium text-gray-700 text-left">Thanh lý hợp đồng</span>
             </button>
-            <button className="flex items-center justify-start px-6 gap-4 bg-white p-4 rounded-xl border border-gray-200 shadow-sm hover:shadow-md hover:border-blue-300 transition-all group">
+            <button onClick={() => navigate('/technician')} className="flex items-center justify-start px-6 gap-4 bg-white p-4 rounded-xl border border-gray-200 shadow-sm hover:shadow-md hover:border-blue-300 transition-all group">
               <div className="w-12 h-12 rounded-full bg-yellow-50 flex items-center justify-center text-yellow-600 group-hover:bg-yellow-600 group-hover:text-white transition-colors flex-shrink-0">
                 <UserCog className="w-6 h-6" />
               </div>

@@ -7,20 +7,54 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// Bảng SINH_VIEN
+// Đã xóa enum Role vì SQL Server không hỗ trợ
+
+model User {
+  id        String   @id @default(uuid())
+  username  String   @unique @db.VarChar(50) 
+  password  String   @db.VarChar(255)        
+  role      String   @default("STUDENT") // Đổi từ Role sang String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  sinhVien  SinhVien?
+  nhanVien  NhanVien?
+  passwordResetTokens PasswordResetToken[]
+
+  @@map("USER_ACCOUNT")
+}
+
+model PasswordResetToken {
+  id        String   @id @default(uuid())
+  userId    String
+  tokenHash String   @db.VarChar(64)
+  expiresAt DateTime
+  attempts  Int      @default(0)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([userId, expiresAt])
+  @@map("PASSWORD_RESET_TOKEN")
+}
+
 model SinhVien {
   maSV            String   @id @db.VarChar(20)
+  userId          String?  @unique 
+  user            User?    @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  
   hoTen           String   @db.NVarChar(100)
   ngaySinh        DateTime @db.Date
-  gioiTinh        Boolean  // true: Nam, false: Nữ
+  gioiTinh        Boolean  
   lop             String   @db.VarChar(50)
+  nienKhoa        String   @default("K64") @db.NVarChar(3)
   khoa            String   @db.NVarChar(100)
   cccd            String   @unique @db.VarChar(20)
   phone           String   @db.VarChar(15)
   email           String   @db.VarChar(100)
   dienUuTien      String?  @db.NVarChar(50)
   trangThaiNoiTru String   @db.NVarChar(50)
-  role            String   @default("STUDENT") @db.VarChar(20)
 
   dangKyKTXs      DangKyKTX[]
   hopDongs        HopDong[]
@@ -28,9 +62,11 @@ model SinhVien {
   @@map("SINH_VIEN")
 }
 
-// Bảng NHAN_VIEN
 model NhanVien {
   maNhanVien      String   @id @db.VarChar(20)
+  userId          String?  @unique 
+  user            User?    @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  
   hoTen           String   @db.NVarChar(100)
   ngaySinh        DateTime @db.Date
   gioiTinh        Boolean
@@ -40,28 +76,76 @@ model NhanVien {
   chucVu          String   @db.NVarChar(100)
   phone           String   @db.VarChar(15)
   email           String   @db.VarChar(100)
-  role            String   @default("MANAGER") @db.VarChar(20)
-  hoaDons HoaDon[]
+
+  hoaDons         HoaDon[]
 
   @@map("NHAN_VIEN")
 }
+
+model CoSo {
+  maCoSo  String    @id @db.VarChar(20)
+  tenCoSo String    @db.NVarChar(120)
+  diaChi  String    @db.NVarChar(255)
+  toaNhas ToaNha[]
+
+  @@map("CO_SO")
+}
+
+model ToaNha {
+  maToaNha  String   @id @db.VarChar(20)
+  maCoSo    String   @db.VarChar(20)
+  tenToaNha String   @db.NVarChar(120)
+  soTang    Int      @default(10)
+
+  coSo   CoSo    @relation(fields: [maCoSo], references: [maCoSo], onDelete: NoAction, onUpdate: NoAction)
+  phongs Phong[]
+
+  @@unique([maCoSo, tenToaNha])
+  @@index([maCoSo])
+  @@map("TOA_NHA")
+}
+
 model Phong {
   maPhong           String       @id
   soPhong           String
   loaiPhong         String
   soSinhVienToiDa   Int
-  soSinhVienHienTai Int          @default(0) // Mặc định phòng trống là 0
+  soSinhVienHienTai Int          @default(0)
+  maToaNha          String?      @db.VarChar(20)
+  tang              Int?
+
+  toaNha            ToaNha?      @relation(fields: [maToaNha], references: [maToaNha], onDelete: NoAction, onUpdate: NoAction)
   hopDongs          HopDong[]
+  thietBis          ThietBiPhong[]
+
+  @@index([maToaNha, tang])
+}
+
+model ThietBiPhong {
+  maThietBi   String   @id @default(uuid()) @db.VarChar(36)
+  maPhong     String
+  tenThietBi  String   @db.NVarChar(120)
+  soLuong     Int      @default(1)
+  trangThai   String   @default("TOT") @db.VarChar(20)
+  ghiChu      String?  @db.NVarChar(255)
+  ngayCapNhat DateTime @updatedAt
+
+  phong Phong @relation(fields: [maPhong], references: [maPhong], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([maPhong])
+  @@map("THIET_BI_PHONG")
 }
 
 model DangKyKTX {
   maDangKy        String    @id @default(uuid())
   maSinhVien      String    @db.VarChar(20)
+  maPhongYeuCau   String?
   ngayDangKy      DateTime  @default(now())
   loaiPhongYeuCau String
   trangThai       String    @default("PENDING") 
   
-  sinhVien        SinhVien  @relation(fields: [maSinhVien], references: [maSV])
+  // Đã ngắt Cascade
+  sinhVien        SinhVien  @relation(fields: [maSinhVien], references: [maSV], onDelete: NoAction, onUpdate: NoAction)
 }
 
 model HopDong {
@@ -72,20 +156,23 @@ model HopDong {
   ngayKetThuc DateTime
   tongTien    Float     
   trangThai   String    @default("PENDING_PAYMENT") 
-  ngayTao      DateTime  @default(now())
+  ngayTao     DateTime  @default(now())
   
-  sinhVien    SinhVien  @relation(fields: [maSinhVien], references: [maSV])
-  phong       Phong     @relation(fields: [maPhong], references: [maPhong])
-  hoaDons HoaDon[]
+  // Đã ngắt Cascade
+  sinhVien    SinhVien  @relation(fields: [maSinhVien], references: [maSV], onDelete: NoAction, onUpdate: NoAction)
+  phong       Phong     @relation(fields: [maPhong], references: [maPhong], onDelete: NoAction, onUpdate: NoAction)
+  hoaDons     HoaDon[]
 }
+
 model HoaDon {
   maHoaDon      String   @id @default(uuid())
   maHopDong     String
   soTien        Float
-  phuongThuc    String   @default("TRANSFER") // Tiền mặt (CASH) hoặc Chuyển khoản (TRANSFER)
+  phuongThuc    String   @default("TRANSFER")
   ngayThanhToan DateTime @default(now())
-  nguoiThu      String   @db.VarChar(20) // Mã nhân viên Kế toán thao tác
+  nguoiThu      String   @db.VarChar(20)
 
-  hopDong       HopDong  @relation(fields: [maHopDong], references: [maHopDong])
-  nhanVien      NhanVien @relation(fields: [nguoiThu], references: [maNhanVien])
+  // Đã ngắt Cascade
+  hopDong       HopDong  @relation(fields: [maHopDong], references: [maHopDong], onDelete: NoAction, onUpdate: NoAction)
+  nhanVien      NhanVien @relation(fields: [nguoiThu], references: [maNhanVien], onDelete: NoAction, onUpdate: NoAction)
 }

@@ -1,9 +1,19 @@
 import React, { useState } from 'react';
+import Link from '../components/RoleLink';
+import AdminUserProfile from '../components/AdminUserProfile';
+import AdminLogoutButton from '../components/AdminLogoutButton';
 import { 
+  Building,
+  Home,
+  UserPlus,
+  DoorOpen,
+  FileSignature,
+  Wrench,
+  Receipt,
+  Settings,
   DollarSign, 
   TrendingUp, 
   AlertOctagon, 
-  FileText, 
   Send, 
   Zap, 
   CheckCircle2, 
@@ -14,7 +24,6 @@ import {
   FileCheck,
   Search,
   Filter,
-  CreditCard,
   Clock
 } from 'lucide-react';
 
@@ -46,10 +55,29 @@ const FinancialDashboard = () => {
 
   // Helper format tiền tệ VND
   const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
+    return new window.Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
   };
 
   return (
+    <div className="flex h-screen overflow-hidden bg-gray-50 text-gray-800">
+      <aside className="flex h-full w-64 shrink-0 flex-col bg-blue-900 text-white shadow-lg">
+        <div className="flex items-center justify-center border-b border-blue-800 p-6"><Building className="mr-3 h-8 w-8" /><h1 className="text-xl font-bold tracking-wider">KTX GTVT</h1></div>
+        <nav className="flex-1 space-y-2 overflow-y-auto px-4 py-6">
+          <Link to="/" className="flex items-center rounded-lg px-4 py-3 text-blue-200 hover:bg-blue-800"><Home className="h-5 w-5" /><span className="ml-3">Trang chủ</span></Link>
+          <Link to="/students" className="flex items-center rounded-lg px-4 py-3 text-blue-200 hover:bg-blue-800"><UserPlus className="h-5 w-5" /><span className="ml-3">Quản lý Sinh viên</span></Link>
+          <Link to="/rooms" className="flex items-center rounded-lg px-4 py-3 text-blue-200 hover:bg-blue-800"><DoorOpen className="h-5 w-5" /><span className="ml-3">Quản lý Phòng & CSVC</span></Link>
+          <Link to="/contracts" className="flex items-center rounded-lg px-4 py-3 text-blue-200 hover:bg-blue-800"><FileSignature className="h-5 w-5" /><span className="ml-3">Quản lý Hợp đồng</span></Link>
+          <Link to="/tickets" className="flex items-center rounded-lg px-4 py-3 text-blue-200 hover:bg-blue-800"><Wrench className="h-5 w-5" /><span className="ml-3">Ticket báo hỏng</span></Link>
+          <Link to="/technician" className="flex items-center rounded-lg px-4 py-3 text-blue-200 hover:bg-blue-800"><Wrench className="h-5 w-5" /><span className="ml-3">Bảng kỹ thuật</span></Link>
+          <Link to="/financial-dashboard" className="flex items-center rounded-lg bg-blue-800 px-4 py-3 font-medium text-white"><Receipt className="h-5 w-5" /><span className="ml-3">Quản lý Hóa đơn & Điện nước</span></Link>
+          <Link to="/settings" className="flex items-center rounded-lg px-4 py-3 text-blue-200 hover:bg-blue-800"><Settings className="h-5 w-5" /><span className="ml-3">Cài đặt hệ thống</span></Link>
+        </nav>
+        <div className="border-t border-blue-800 p-4"><AdminUserProfile /></div>
+        <AdminLogoutButton />
+      </aside>
+      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+        <header className="flex h-16 shrink-0 items-center border-b bg-white px-5 shadow-sm sm:px-8"><h2 className="text-lg font-semibold sm:text-xl">Quản lý Hóa đơn & Điện nước</h2></header>
+        <main className="flex-1 overflow-y-auto p-4 sm:p-6">
     <div className="space-y-6">
       
       {/* Tiêu đề & Cụm thao tác nhanh (Quick Actions) */}
@@ -136,7 +164,7 @@ const FinancialDashboard = () => {
               Cần đối soát: Phát hiện 2 giao dịch nghi ngờ lỗi đồng bộ VNPAY
             </h3>
             <p className="text-sm text-red-600 mb-3">
-              Hệ thống ghi nhận tiền đã vào tài khoản ngân hàng nhưng trạng thái hóa đơn vẫn là "Chưa thu". Kế toán cần kiểm tra sao kê và gạch nợ thủ công để sinh viên không bị nhắc nợ oan.
+              Hệ thống ghi nhận tiền đã vào tài khoản ngân hàng nhưng trạng thái hóa đơn vẫn là &quot;Chưa thu&quot;. Kế toán cần kiểm tra sao kê và gạch nợ thủ công để sinh viên không bị nhắc nợ oan.
             </p>
             
             {/* List lỗi */}
@@ -271,6 +299,9 @@ const FinancialDashboard = () => {
 
       </div>
 
+    </div>
+        </main>
+      </div>
     </div>
   );
 };

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
   ArrowLeft,
   Wrench,
@@ -15,6 +16,7 @@ import {
 } from 'lucide-react';
 
 const TicketReport = () => {
+  const navigate = useNavigate();
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [images, setImages] = useState([]);
   const [formData, setFormData] = useState({
@@ -58,7 +60,7 @@ const TicketReport = () => {
       <header className="bg-white/80 backdrop-blur-md sticky top-0 z-50 border-b border-gray-200 px-4 py-3 sm:px-6 lg:px-8">
         <div className="max-w-3xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <button className="p-2 -ml-2 text-gray-500 hover:bg-gray-100 rounded-full transition-colors">
+            <button onClick={() => navigate('/student-portal')} className="p-2 -ml-2 text-gray-500 hover:bg-gray-100 rounded-full transition-colors">
               <ArrowLeft className="w-5 h-5" />
             </button>
             <h1 className="text-lg font-bold text-gray-800">Báo hỏng cơ sở vật chất</h1>
@@ -217,7 +219,7 @@ const TicketReport = () => {
                 Gửi thêm lỗi khác
               </button>
               <button 
-                onClick={() => window.location.reload()} 
+                onClick={() => navigate('/student-portal')} 
                 className="px-6 py-3 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition-colors"
               >
                 Về trang chủ

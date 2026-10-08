@@ -1,4 +1,8 @@
-import React, { useState } from 'react';
+import AdminUserProfile from '../components/AdminUserProfile';
+import AdminLogoutButton from '../components/AdminLogoutButton';
+import Link from '../components/RoleLink';
+import React, { useEffect, useMemo, useState } from 'react';
+import { studentApi } from '../services/studentApi';
 import { 
   Building, 
   Home, 
@@ -6,7 +10,8 @@ import {
   DoorOpen, 
   FileSignature, 
   Wrench, 
-  User, 
+  Receipt,
+  Settings,
   Search, 
   Bell,
   Filter,
@@ -18,31 +23,128 @@ import {
 } from 'lucide-react';
 
 const StudentManagement = () => {
+  const emptyForm = {
+    maSV: '', hoTen: '', ngaySinh: '', gioiTinh: 'true', lop: '', nienKhoa: 'K64', khoa: '',
+    cccd: '', phone: '', email: '', dienUuTien: '', trangThaiNoiTru: 'CHUA_DANG_KY',
+  };
   const [searchQuery, setSearchQuery] = useState('');
   const [isSyncing, setIsSyncing] = useState(false);
+  const [students, setStudents] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [formMode, setFormMode] = useState(null);
+  const [form, setForm] = useState(emptyForm);
+  const [formError, setFormError] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
 
-  // Dữ liệu mẫu (Mock data)
-  const students = [
-    { id: '2312001', name: 'Nguyễn Thanh Tùng', dob: '15/05/2005', gender: 'Nam', room: '101 - A1', phone: '0901234567', status: 'active' },
-    { id: '2312002', name: 'Lê Minh Tuấn', dob: '22/08/2005', gender: 'Nam', room: '103 - A1', phone: '0902345678', status: 'pending' },
-    { id: '2312003', name: 'Trần Thị Mai', dob: '10/11/2005', gender: 'Nữ', room: '201 - A5', phone: '0903456789', status: 'active' },
-    { id: '2312004', name: 'Phạm Văn Hùng', dob: '05/01/2005', gender: 'Nam', room: '106 - A1', phone: '0904567890', status: 'violation' },
-    { id: '2312005', name: 'Hoàng Bích Ngọc', dob: '18/09/2005', gender: 'Nữ', room: '205 - A5', phone: '0905678901', status: 'active' },
-  ];
+  const loadStudents = async () => {
+    setLoading(true);
+    try {
+      const response = await studentApi.list();
+      setStudents(response.data || []);
+      setError('');
+    } catch (err) {
+      setError(err.response?.data?.message || 'Không thể tải danh sách sinh viên. Hãy đăng nhập bằng tài khoản quản lý.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  const handleSync = () => {
+  useEffect(() => { loadStudents(); }, []);
+
+  const filteredStudents = useMemo(() => students.filter((student) =>
+    `${student.maSV} ${student.hoTen} ${student.phone || ''}`.toLowerCase().includes(searchQuery.toLowerCase())
+  ), [students, searchQuery]);
+
+  const handleSync = async () => {
     setIsSyncing(true);
-    setTimeout(() => setIsSyncing(false), 2000);
+    try {
+      await studentApi.sync();
+      await loadStudents();
+    } catch (err) {
+      setError(err.response?.data?.message || 'Không thể đồng bộ dữ liệu sinh viên.');
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  const openForm = (mode, student = null) => {
+    setFormMode(mode);
+    setFormError('');
+    setForm(student ? {
+      maSV: student.maSV || '',
+      hoTen: student.hoTen || '',
+      ngaySinh: student.ngaySinh ? new Date(student.ngaySinh).toISOString().slice(0, 10) : '',
+      gioiTinh: String(Boolean(student.gioiTinh)),
+      lop: student.lop || '',
+      nienKhoa: student.nienKhoa || 'K64',
+      khoa: student.khoa || '',
+      cccd: student.cccd || '',
+      phone: student.phone || '',
+      email: student.email || '',
+      dienUuTien: student.dienUuTien || '',
+      trangThaiNoiTru: student.trangThaiNoiTru || 'CHUA_DANG_KY',
+    } : { ...emptyForm });
+  };
+
+  const viewStudent = async (student) => {
+    try {
+      const response = await studentApi.get(student.maSV);
+      openForm('view', response.data);
+    } catch (err) {
+      setError(err.response?.data?.message || 'Không thể tải chi tiết hồ sơ sinh viên.');
+    }
+  };
+
+  const submitStudent = async (event) => {
+    event.preventDefault();
+    setIsSaving(true);
+    setFormError('');
+    const payload = {
+      ...form,
+      ngaySinh: new Date(`${form.ngaySinh}T00:00:00.000Z`).toISOString(),
+      gioiTinh: form.gioiTinh === 'true',
+      dienUuTien: form.dienUuTien || null,
+    };
+    try {
+      if (formMode === 'create') {
+        await studentApi.create(payload);
+      } else {
+        await studentApi.update(form.maSV, payload);
+      }
+      setFormMode(null);
+      await loadStudents();
+    } catch (err) {
+      setFormError(err.response?.data?.message || 'Không thể lưu hồ sơ sinh viên.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const deleteStudent = async (student) => {
+    if (!window.confirm(`Bạn có chắc muốn xóa hồ sơ sinh viên ${student.maSV} - ${student.hoTen}?`)) return;
+    try {
+      await studentApi.remove(student.maSV);
+      await loadStudents();
+      setError('');
+    } catch (err) {
+      setError(err.response?.data?.message || 'Không thể xóa hồ sơ sinh viên.');
+    }
   };
 
   const getStatusBadge = (status) => {
     switch (status) {
-      case 'active':
+      case 'CHUA_DANG_KY':
+      case 'Chưa đăng ký':
+        return <span className="px-3 py-1 bg-slate-100 text-slate-700 text-xs font-medium rounded-full">Chưa đăng ký</span>;
+      case 'DANG_O':
         return <span className="px-3 py-1 bg-green-100 text-green-700 text-xs font-medium rounded-full">Đang ở</span>;
-      case 'pending':
+      case 'CHO_DUYET':
         return <span className="px-3 py-1 bg-yellow-100 text-yellow-700 text-xs font-medium rounded-full">Chờ duyệt</span>;
-      case 'violation':
-        return <span className="px-3 py-1 bg-red-100 text-red-700 text-xs font-medium rounded-full">Vi phạm</span>;
+      case 'TAM_VANG':
+        return <span className="px-3 py-1 bg-blue-100 text-blue-700 text-xs font-medium rounded-full">Tạm vắng</span>;
+      case 'DA_ROI':
+        return <span className="px-3 py-1 bg-gray-100 text-gray-700 text-xs font-medium rounded-full">Đã rời KTX</span>;
       default:
         return <span className="px-3 py-1 bg-gray-100 text-gray-700 text-xs font-medium rounded-full">Không rõ</span>;
     }
@@ -59,39 +161,35 @@ const StudentManagement = () => {
         </div>
         
         <nav className="flex-1 px-4 py-6 space-y-2">
-          <a href="#" className="flex items-center px-4 py-3 text-blue-200 hover:bg-blue-800 hover:text-white rounded-lg transition-colors">
+          <Link to="/" className="flex items-center px-4 py-3 text-blue-200 hover:bg-blue-800 hover:text-white rounded-lg transition-colors">
             <Home className="w-5 h-5" />
             <span className="ml-3">Trang chủ</span>
-          </a>
-          <a href="#" className="flex items-center px-4 py-3 bg-blue-800 rounded-lg text-white font-medium">
+          </Link>
+          <Link to="/students" className="flex items-center px-4 py-3 bg-blue-800 rounded-lg text-white font-medium">
             <UserPlus className="w-5 h-5" />
             <span className="ml-3">Quản lý Sinh viên</span>
-          </a>
-          <a href="#" className="flex items-center px-4 py-3 text-blue-200 hover:bg-blue-800 hover:text-white rounded-lg transition-colors">
+          </Link>
+          <Link to="/rooms" className="flex items-center px-4 py-3 text-blue-200 hover:bg-blue-800 hover:text-white rounded-lg transition-colors">
             <DoorOpen className="w-5 h-5" />
             <span className="ml-3">Quản lý Phòng & CSVC</span>
-          </a>
-          <a href="#" className="flex items-center px-4 py-3 text-blue-200 hover:bg-blue-800 hover:text-white rounded-lg transition-colors">
+          </Link>
+          <Link to="/contracts" className="flex items-center px-4 py-3 text-blue-200 hover:bg-blue-800 hover:text-white rounded-lg transition-colors">
             <FileSignature className="w-5 h-5" />
             <span className="ml-3">Quản lý Hợp đồng</span>
-          </a>
-          <a href="#" className="flex items-center px-4 py-3 text-blue-200 hover:bg-blue-800 hover:text-white rounded-lg transition-colors">
+          </Link>
+          <Link to="/tickets" className="flex items-center px-4 py-3 text-blue-200 hover:bg-blue-800 hover:text-white rounded-lg transition-colors">
             <Wrench className="w-5 h-5" />
             <span className="ml-3">Ticket báo hỏng</span>
-          </a>
+          </Link>
+          <Link to="/technician" className="flex items-center px-4 py-3 text-blue-200 hover:bg-blue-800 hover:text-white rounded-lg transition-colors"><Wrench className="w-5 h-5" /><span className="ml-3">Bảng kỹ thuật</span></Link>
+          <Link to="/financial-dashboard" className="flex items-center px-4 py-3 text-blue-200 hover:bg-blue-800 hover:text-white rounded-lg transition-colors"><Receipt className="w-5 h-5" /><span className="ml-3">Quản lý Hóa đơn & Điện nước</span></Link>
+          <Link to="/settings" className="flex items-center px-4 py-3 text-blue-200 hover:bg-blue-800 hover:text-white rounded-lg transition-colors"><Settings className="w-5 h-5" /><span className="ml-3">Cài đặt hệ thống</span></Link>
         </nav>
 
         <div className="p-4 border-t border-blue-800">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-blue-700 flex items-center justify-center">
-              <User className="w-5 h-5 text-white" />
-            </div>
-            <div>
-              <p className="text-sm font-medium text-white">Nguyễn Văn A</p>
-              <p className="text-xs text-blue-300">Nhân viên BQL</p>
-            </div>
-          </div>
+          <AdminUserProfile />
         </div>
+        <AdminLogoutButton />
       </div>
 
       {/* Main Content */}
@@ -138,7 +236,7 @@ const StudentManagement = () => {
                 <RefreshCw className={`w-4 h-4 ${isSyncing ? 'animate-spin' : ''}`} />
                 <span>{isSyncing ? 'Đang đồng bộ...' : 'Đồng bộ từ trường'}</span>
               </button>
-              <button className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 shadow-sm transition-colors">
+              <button onClick={() => openForm('create')} className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 shadow-sm transition-colors">
                 <Plus className="w-4 h-4" />
                 <span>Thêm thủ công</span>
               </button>
@@ -153,6 +251,7 @@ const StudentManagement = () => {
                   <tr className="bg-gray-50 border-b border-gray-200 text-xs uppercase text-gray-500 font-semibold tracking-wider">
                     <th className="px-6 py-4">Mã SV</th>
                     <th className="px-6 py-4">Họ và tên</th>
+                    <th className="px-6 py-4">Niên khóa</th>
                     <th className="px-6 py-4">Ngày sinh</th>
                     <th className="px-6 py-4">Giới tính</th>
                     <th className="px-6 py-4">Phòng</th>
@@ -162,24 +261,28 @@ const StudentManagement = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 text-sm">
-                  {students.map((student) => (
-                    <tr key={student.id} className="hover:bg-gray-50/50 transition-colors">
-                      <td className="px-6 py-4 font-medium text-blue-600">{student.id}</td>
-                      <td className="px-6 py-4 font-semibold text-gray-800">{student.name}</td>
-                      <td className="px-6 py-4 text-gray-600">{student.dob}</td>
-                      <td className="px-6 py-4 text-gray-600">{student.gender}</td>
-                      <td className="px-6 py-4 text-gray-800 font-medium">{student.room}</td>
-                      <td className="px-6 py-4 text-gray-600">{student.phone}</td>
-                      <td className="px-6 py-4">{getStatusBadge(student.status)}</td>
+                  {loading && <tr><td className="px-6 py-8 text-center" colSpan="9">Đang tải...</td></tr>}
+                  {!loading && error && <tr><td className="px-6 py-8 text-center text-red-600" colSpan="9">{error}</td></tr>}
+                  {!loading && !error && filteredStudents.length === 0 && <tr><td className="px-6 py-8 text-center text-gray-500" colSpan="9">Không có sinh viên phù hợp.</td></tr>}
+                  {!loading && !error && filteredStudents.map((student) => (
+                    <tr key={student.maSV} className="hover:bg-gray-50/50 transition-colors">
+                      <td className="px-6 py-4 font-medium text-blue-600">{student.maSV}</td>
+                      <td className="px-6 py-4 font-semibold text-gray-800">{student.hoTen}</td>
+                      <td className="px-6 py-4 text-gray-600">{student.nienKhoa || '—'}</td>
+                      <td className="px-6 py-4 text-gray-600">{student.ngaySinh ? new Date(student.ngaySinh).toLocaleDateString('vi-VN') : '—'}</td>
+                      <td className="px-6 py-4 text-gray-600">{student.gioiTinh ? 'Nam' : 'Nữ'}</td>
+                      <td className="px-6 py-4 text-gray-800 font-medium">{student.hopDongs?.[0]?.phong?.soPhong || '—'}</td>
+                      <td className="px-6 py-4 text-gray-600">{student.phone || '—'}</td>
+                      <td className="px-6 py-4">{getStatusBadge(student.trangThaiNoiTru)}</td>
                       <td className="px-6 py-4 text-right">
                         <div className="flex items-center justify-end gap-2">
-                          <button className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors" title="Xem chi tiết">
+                          <button onClick={() => viewStudent(student)} className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors" title="Xem chi tiết">
                             <Eye className="w-4 h-4" />
                           </button>
-                          <button className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded transition-colors" title="Chỉnh sửa">
+                          <button onClick={() => openForm('edit', student)} className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded transition-colors" title="Chỉnh sửa">
                             <Edit className="w-4 h-4" />
                           </button>
-                          <button className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors" title="Xóa/Thanh lý">
+                          <button onClick={() => deleteStudent(student)} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors" title="Xóa hồ sơ">
                             <Trash2 className="w-4 h-4" />
                           </button>
                         </div>
@@ -190,21 +293,84 @@ const StudentManagement = () => {
               </table>
             </div>
             
-            {/* Pagination */}
-            <div className="p-4 border-t border-gray-200 flex items-center justify-between text-sm text-gray-500 bg-gray-50 mt-auto">
-              <div>Hiển thị 1 đến 5 trong số 1,200 sinh viên</div>
-              <div className="flex items-center gap-1">
-                <button className="px-3 py-1 border border-gray-300 rounded hover:bg-gray-100 disabled:opacity-50" disabled>Trước</button>
-                <button className="px-3 py-1 border border-blue-600 bg-blue-50 text-blue-600 rounded font-medium">1</button>
-                <button className="px-3 py-1 border border-gray-300 rounded hover:bg-gray-100">2</button>
-                <button className="px-3 py-1 border border-gray-300 rounded hover:bg-gray-100">3</button>
-                <span className="px-2">...</span>
-                <button className="px-3 py-1 border border-gray-300 rounded hover:bg-gray-100">Sau</button>
-              </div>
+            <div className="p-4 border-t border-gray-200 text-sm text-gray-500 bg-gray-50 mt-auto">
+              Hiển thị {filteredStudents.length} / {students.length} sinh viên
             </div>
           </div>
         </main>
       </div>
+
+      {formMode && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/50 p-4" onMouseDown={(event) => { if (event.target === event.currentTarget) setFormMode(null); }}>
+          <section className="w-full max-w-3xl max-h-[90vh] overflow-y-auto rounded-2xl bg-white shadow-2xl" role="dialog" aria-modal="true" aria-labelledby="student-form-title">
+            <div className="sticky top-0 z-10 flex items-center justify-between border-b border-gray-100 bg-white px-6 py-4">
+              <div>
+                <h2 id="student-form-title" className="text-lg font-bold text-gray-800">
+                  {formMode === 'create' ? 'Thêm hồ sơ sinh viên' : formMode === 'edit' ? 'Cập nhật hồ sơ sinh viên' : 'Chi tiết hồ sơ sinh viên'}
+                </h2>
+                <p className="mt-1 text-sm text-gray-500">Thông tin được lưu trực tiếp vào hệ thống quản lý KTX.</p>
+              </div>
+              <button type="button" onClick={() => setFormMode(null)} className="rounded-lg px-3 py-2 text-gray-500 hover:bg-gray-100" aria-label="Đóng">✕</button>
+            </div>
+
+            <form onSubmit={submitStudent} className="space-y-5 p-6">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <label className="text-sm font-medium text-gray-700">Mã sinh viên
+                  <input required disabled={formMode !== 'create'} value={form.maSV} onChange={(e) => setForm({ ...form, maSV: e.target.value })} className="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2.5 disabled:bg-gray-100" />
+                </label>
+                <label className="text-sm font-medium text-gray-700">Họ và tên
+                  <input required disabled={formMode === 'view'} value={form.hoTen} onChange={(e) => setForm({ ...form, hoTen: e.target.value })} className="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2.5 disabled:bg-gray-100" />
+                </label>
+                <label className="text-sm font-medium text-gray-700">Ngày sinh
+                  <input required type="date" disabled={formMode === 'view'} value={form.ngaySinh} onChange={(e) => setForm({ ...form, ngaySinh: e.target.value })} className="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2.5 disabled:bg-gray-100" />
+                </label>
+                <label className="text-sm font-medium text-gray-700">Giới tính
+                  <select disabled={formMode === 'view'} value={form.gioiTinh} onChange={(e) => setForm({ ...form, gioiTinh: e.target.value })} className="mt-1.5 w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 disabled:bg-gray-100">
+                    <option value="true">Nam</option><option value="false">Nữ</option>
+                  </select>
+                </label>
+                <label className="text-sm font-medium text-gray-700">Lớp
+                  <input required disabled={formMode === 'view'} value={form.lop} onChange={(e) => setForm({ ...form, lop: e.target.value })} className="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2.5 disabled:bg-gray-100" />
+                </label>
+                <label className="text-sm font-medium text-gray-700">Niên khóa
+                  <select required disabled={formMode === 'view'} value={form.nienKhoa} onChange={(e) => setForm({ ...form, nienKhoa: e.target.value })} className="mt-1.5 w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 disabled:bg-gray-100">
+                    {['K62', 'K63', 'K64', 'K65', 'K66', 'K67'].map((cohort) => <option key={cohort} value={cohort}>{cohort}</option>)}
+                  </select>
+                </label>
+                <label className="text-sm font-medium text-gray-700">Khoa
+                  <input required disabled={formMode === 'view'} value={form.khoa} onChange={(e) => setForm({ ...form, khoa: e.target.value })} className="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2.5 disabled:bg-gray-100" />
+                </label>
+                <label className="text-sm font-medium text-gray-700">CCCD
+                  <input required disabled={formMode === 'view'} value={form.cccd} onChange={(e) => setForm({ ...form, cccd: e.target.value })} className="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2.5 disabled:bg-gray-100" />
+                </label>
+                <label className="text-sm font-medium text-gray-700">Số điện thoại
+                  <input required disabled={formMode === 'view'} value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} className="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2.5 disabled:bg-gray-100" />
+                </label>
+                <label className="text-sm font-medium text-gray-700">Email
+                  <input required type="email" disabled={formMode === 'view'} value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2.5 disabled:bg-gray-100" />
+                </label>
+                <label className="text-sm font-medium text-gray-700">Trạng thái nội trú
+                  <select disabled={formMode === 'view'} value={form.trangThaiNoiTru} onChange={(e) => setForm({ ...form, trangThaiNoiTru: e.target.value })} className="mt-1.5 w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 disabled:bg-gray-100">
+                    <option value="CHUA_DANG_KY">Chưa đăng ký</option><option value="DANG_O">Đang ở</option><option value="CHO_DUYET">Chờ duyệt</option><option value="TAM_VANG">Tạm vắng</option><option value="DA_ROI">Đã rời KTX</option>
+                  </select>
+                </label>
+                <label className="text-sm font-medium text-gray-700 sm:col-span-2">Diện ưu tiên (nếu có)
+                  <input disabled={formMode === 'view'} value={form.dienUuTien} onChange={(e) => setForm({ ...form, dienUuTien: e.target.value })} className="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2.5 disabled:bg-gray-100" />
+                </label>
+              </div>
+              {formError && <p role="alert" className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{formError}</p>}
+              <div className="flex justify-end gap-3 border-t border-gray-100 pt-4">
+                <button type="button" onClick={() => setFormMode(null)} className="rounded-lg border border-gray-300 px-4 py-2.5 font-medium text-gray-700 hover:bg-gray-50">{formMode === 'view' ? 'Đóng' : 'Hủy'}</button>
+                {formMode === 'view' ? (
+                  <button type="button" onClick={() => openForm('edit', students.find((student) => student.maSV === form.maSV))} className="rounded-lg bg-blue-600 px-4 py-2.5 font-semibold text-white hover:bg-blue-700">Chỉnh sửa</button>
+                ) : (
+                  <button type="submit" disabled={isSaving} className="rounded-lg bg-blue-600 px-4 py-2.5 font-semibold text-white hover:bg-blue-700 disabled:opacity-60">{isSaving ? 'Đang lưu...' : formMode === 'create' ? 'Tạo hồ sơ' : 'Lưu thay đổi'}</button>
+                )}
+              </div>
+            </form>
+          </section>
+        </div>
+      )}
     </div>
   );
 };

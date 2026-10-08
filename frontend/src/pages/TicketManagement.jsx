@@ -1,3 +1,6 @@
+import AdminUserProfile from '../components/AdminUserProfile';
+import AdminLogoutButton from '../components/AdminLogoutButton';
+import Link from '../components/RoleLink';
 import React, { useState } from 'react';
 import {
   Building,
@@ -6,6 +9,8 @@ import {
   DoorOpen,
   FileSignature,
   Wrench,
+  Receipt,
+  Settings,
   User,
   Search,
   Bell,
@@ -119,39 +124,35 @@ const TicketManagement = () => {
         </div>
         
         <nav className="flex-1 px-4 py-6 space-y-2">
-          <a href="#" className="flex items-center px-4 py-3 text-blue-200 hover:bg-blue-800 hover:text-white rounded-lg transition-colors">
+          <Link to="/" className="flex items-center px-4 py-3 text-blue-200 hover:bg-blue-800 hover:text-white rounded-lg transition-colors">
             <Home className="w-5 h-5" />
             <span className="ml-3">Trang chủ</span>
-          </a>
-          <a href="#" className="flex items-center px-4 py-3 text-blue-200 hover:bg-blue-800 hover:text-white rounded-lg transition-colors">
+          </Link>
+          <Link to="/students" className="flex items-center px-4 py-3 text-blue-200 hover:bg-blue-800 hover:text-white rounded-lg transition-colors">
             <UserPlus className="w-5 h-5" />
             <span className="ml-3">Quản lý Sinh viên</span>
-          </a>
-          <a href="#" className="flex items-center px-4 py-3 text-blue-200 hover:bg-blue-800 hover:text-white rounded-lg transition-colors">
+          </Link>
+          <Link to="/rooms" className="flex items-center px-4 py-3 text-blue-200 hover:bg-blue-800 hover:text-white rounded-lg transition-colors">
             <DoorOpen className="w-5 h-5" />
             <span className="ml-3">Quản lý Phòng & CSVC</span>
-          </a>
-          <a href="#" className="flex items-center px-4 py-3 text-blue-200 hover:bg-blue-800 hover:text-white rounded-lg transition-colors">
+          </Link>
+          <Link to="/contracts" className="flex items-center px-4 py-3 text-blue-200 hover:bg-blue-800 hover:text-white rounded-lg transition-colors">
             <FileSignature className="w-5 h-5" />
             <span className="ml-3">Quản lý Hợp đồng</span>
-          </a>
-          <a href="#" className="flex items-center px-4 py-3 bg-blue-800 rounded-lg text-white font-medium shadow-inner border-l-4 border-blue-400">
+          </Link>
+          <Link to="/tickets" className="flex items-center px-4 py-3 bg-blue-800 rounded-lg text-white font-medium shadow-inner border-l-4 border-blue-400">
             <Wrench className="w-5 h-5 text-blue-400" />
             <span className="ml-3">Ticket báo hỏng</span>
-          </a>
+          </Link>
+          <Link to="/technician" className="flex items-center px-4 py-3 text-blue-200 hover:bg-blue-800 hover:text-white rounded-lg transition-colors"><Wrench className="w-5 h-5" /><span className="ml-3">Bảng kỹ thuật</span></Link>
+          <Link to="/financial-dashboard" className="flex items-center px-4 py-3 text-blue-200 hover:bg-blue-800 hover:text-white rounded-lg transition-colors"><Receipt className="w-5 h-5" /><span className="ml-3">Quản lý Hóa đơn & Điện nước</span></Link>
+          <Link to="/settings" className="flex items-center px-4 py-3 text-blue-200 hover:bg-blue-800 hover:text-white rounded-lg transition-colors"><Settings className="w-5 h-5" /><span className="ml-3">Cài đặt hệ thống</span></Link>
         </nav>
 
         <div className="p-4 border-t border-blue-800">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-blue-700 flex items-center justify-center">
-              <User className="w-5 h-5 text-white" />
-            </div>
-            <div>
-              <p className="text-sm font-medium text-white">Nguyễn Văn A</p>
-              <p className="text-xs text-blue-300">Nhân viên BQL</p>
-            </div>
-          </div>
+          <AdminUserProfile />
         </div>
+        <AdminLogoutButton />
       </div>
 
       {/* Main Content */}
