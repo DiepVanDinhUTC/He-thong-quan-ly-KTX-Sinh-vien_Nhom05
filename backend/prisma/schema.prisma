@@ -11,15 +11,15 @@ datasource db {
 
 model User {
   id        String   @id @default(uuid())
-  username  String   @unique @db.VarChar(50) 
-  password  String   @db.VarChar(255)        
+  username  String   @unique @db.VarChar(50)
+  password  String   @db.VarChar(255)
   role      String   @default("STUDENT") // Đổi từ Role sang String
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  sinhVien  SinhVien?
-  nhanVien  NhanVien?
+  sinhVien            SinhVien?
+  nhanVien            NhanVien?
   passwordResetTokens PasswordResetToken[]
 
   @@map("USER_ACCOUNT")
@@ -40,62 +40,60 @@ model PasswordResetToken {
 }
 
 model SinhVien {
-  maSV            String   @id @db.VarChar(20)
-  userId          String?  @unique 
-  user            User?    @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  
-  hoTen           String   @db.NVarChar(100)
-  ngaySinh        DateTime @db.Date
-  gioiTinh        Boolean  
-  lop             String   @db.VarChar(50)
-  nienKhoa        String   @default("K64") @db.NVarChar(3)
-  khoa            String   @db.NVarChar(100)
-  cccd            String   @unique @db.VarChar(20)
-  phone           String   @db.VarChar(15)
-  email           String   @db.VarChar(100)
-  dienUuTien      String?  @db.NVarChar(50)
-  trangThaiNoiTru String   @db.NVarChar(50)
+  maSV   String  @id @db.VarChar(20)
+  userId String? @unique
+  user   User?   @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
-  dangKyKTXs      DangKyKTX[]
-  hopDongs        HopDong[]
+  hoTen      String      @db.NVarChar(100)
+  ngaySinh   DateTime    @db.Date
+  gioiTinh   Boolean
+  lop        String      @db.VarChar(50)
+  nienKhoa   String      @default("K64") @db.NVarChar(3)
+  khoa       String      @db.NVarChar(100)
+  cccd       String      @unique @db.VarChar(20)
+  phone      String      @db.VarChar(15)
+  email      String      @db.VarChar(100)
+  dienUuTien String?     @db.NVarChar(50)
+  dangKyKTXs DangKyKTX[]
+  hopDongs   HopDong[]
 
   @@map("SINH_VIEN")
 }
 
 model NhanVien {
-  maNhanVien      String   @id @db.VarChar(20)
-  userId          String?  @unique 
-  user            User?    @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  
-  hoTen           String   @db.NVarChar(100)
-  ngaySinh        DateTime @db.Date
-  gioiTinh        Boolean
-  queQuan         String   @db.NVarChar(255)
-  danToc          String   @db.NVarChar(50)
-  cccd            String   @unique @db.VarChar(20)
-  chucVu          String   @db.NVarChar(100)
-  phone           String   @db.VarChar(15)
-  email           String   @db.VarChar(100)
+  maNhanVien String  @id @db.VarChar(20)
+  userId     String? @unique
+  user       User?   @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
-  hoaDons         HoaDon[]
+  hoTen    String   @db.NVarChar(100)
+  ngaySinh DateTime @db.Date
+  gioiTinh Boolean
+  queQuan  String   @db.NVarChar(255)
+  danToc   String   @db.NVarChar(50)
+  cccd     String   @unique @db.VarChar(20)
+  chucVu   String   @db.NVarChar(100)
+  phone    String   @db.VarChar(15)
+  email    String   @db.VarChar(100)
+
+  hoaDons HoaDon[]
 
   @@map("NHAN_VIEN")
 }
 
 model CoSo {
-  maCoSo  String    @id @db.VarChar(20)
-  tenCoSo String    @db.NVarChar(120)
-  diaChi  String    @db.NVarChar(255)
+  maCoSo  String   @id @db.VarChar(20)
+  tenCoSo String   @db.NVarChar(120)
+  diaChi  String   @db.NVarChar(255)
   toaNhas ToaNha[]
 
   @@map("CO_SO")
 }
 
 model ToaNha {
-  maToaNha  String   @id @db.VarChar(20)
-  maCoSo    String   @db.VarChar(20)
-  tenToaNha String   @db.NVarChar(120)
-  soTang    Int      @default(10)
+  maToaNha  String @id @db.VarChar(20)
+  maCoSo    String @db.VarChar(20)
+  tenToaNha String @db.NVarChar(120)
+  soTang    Int    @default(10)
 
   coSo   CoSo    @relation(fields: [maCoSo], references: [maCoSo], onDelete: NoAction, onUpdate: NoAction)
   phongs Phong[]
@@ -106,17 +104,17 @@ model ToaNha {
 }
 
 model Phong {
-  maPhong           String       @id
+  maPhong           String  @id
   soPhong           String
   loaiPhong         String
   soSinhVienToiDa   Int
-  soSinhVienHienTai Int          @default(0)
-  maToaNha          String?      @db.VarChar(20)
+  soSinhVienHienTai Int     @default(0)
+  maToaNha          String? @db.VarChar(20)
   tang              Int?
 
-  toaNha            ToaNha?      @relation(fields: [maToaNha], references: [maToaNha], onDelete: NoAction, onUpdate: NoAction)
-  hopDongs          HopDong[]
-  thietBis          ThietBiPhong[]
+  toaNha   ToaNha?        @relation(fields: [maToaNha], references: [maToaNha], onDelete: NoAction, onUpdate: NoAction)
+  hopDongs HopDong[]
+  thietBis ThietBiPhong[]
 
   @@index([maToaNha, tang])
 }
@@ -137,31 +135,31 @@ model ThietBiPhong {
 }
 
 model DangKyKTX {
-  maDangKy        String    @id @default(uuid())
-  maSinhVien      String    @db.VarChar(20)
+  maDangKy        String   @id @default(uuid())
+  maSinhVien      String   @db.VarChar(20)
   maPhongYeuCau   String?
-  ngayDangKy      DateTime  @default(now())
+  ngayDangKy      DateTime @default(now())
   loaiPhongYeuCau String
-  trangThai       String    @default("PENDING") 
-  
+  trangThai       String   @default("PENDING")
+
   // Đã ngắt Cascade
-  sinhVien        SinhVien  @relation(fields: [maSinhVien], references: [maSV], onDelete: NoAction, onUpdate: NoAction)
+  sinhVien SinhVien @relation(fields: [maSinhVien], references: [maSV], onDelete: NoAction, onUpdate: NoAction)
 }
 
 model HopDong {
-  maHopDong   String    @id @default(uuid())
-  maSinhVien  String    @db.VarChar(20) 
+  maHopDong   String   @id @default(uuid())
+  maSinhVien  String   @db.VarChar(20)
   maPhong     String
   ngayBatDau  DateTime
   ngayKetThuc DateTime
-  tongTien    Float     
-  trangThai   String    @default("PENDING_PAYMENT") 
-  ngayTao     DateTime  @default(now())
-  
+  tongTien    Float
+  trangThai   String   @default("PENDING_PAYMENT")
+  ngayTao     DateTime @default(now())
+
   // Đã ngắt Cascade
-  sinhVien    SinhVien  @relation(fields: [maSinhVien], references: [maSV], onDelete: NoAction, onUpdate: NoAction)
-  phong       Phong     @relation(fields: [maPhong], references: [maPhong], onDelete: NoAction, onUpdate: NoAction)
-  hoaDons     HoaDon[]
+  sinhVien SinhVien @relation(fields: [maSinhVien], references: [maSV], onDelete: NoAction, onUpdate: NoAction)
+  phong    Phong    @relation(fields: [maPhong], references: [maPhong], onDelete: NoAction, onUpdate: NoAction)
+  hoaDons  HoaDon[]
 }
 
 model HoaDon {
@@ -173,6 +171,6 @@ model HoaDon {
   nguoiThu      String   @db.VarChar(20)
 
   // Đã ngắt Cascade
-  hopDong       HopDong  @relation(fields: [maHopDong], references: [maHopDong], onDelete: NoAction, onUpdate: NoAction)
-  nhanVien      NhanVien @relation(fields: [nguoiThu], references: [maNhanVien], onDelete: NoAction, onUpdate: NoAction)
+  hopDong  HopDong  @relation(fields: [maHopDong], references: [maHopDong], onDelete: NoAction, onUpdate: NoAction)
+  nhanVien NhanVien @relation(fields: [nguoiThu], references: [maNhanVien], onDelete: NoAction, onUpdate: NoAction)
 }

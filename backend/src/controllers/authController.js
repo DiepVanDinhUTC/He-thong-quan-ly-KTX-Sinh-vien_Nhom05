@@ -2,6 +2,7 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
+const { deriveStudentHousingStatus } = require('../services/studentHousingStatus');
 
 const studentProfileInclude = {
     hopDongs: {
@@ -43,7 +44,10 @@ const serializeUser = (account) => {
         khoa: student?.khoa || null,
         email: student?.email || employee?.email || null,
         phone: student?.phone || employee?.phone || null,
-        trangThaiNoiTru: student?.trangThaiNoiTru || null,
+        trangThaiNoiTru: student ? deriveStudentHousingStatus(
+            student.hopDongs || [],
+            latestApplication?.trangThai === 'PENDING'
+        ) : null,
         maPhong: currentContract?.phong?.maPhong || null,
         soPhong: currentContract?.phong?.soPhong || null,
         ngayKetThucHopDong: currentContract?.ngayKetThuc || null,

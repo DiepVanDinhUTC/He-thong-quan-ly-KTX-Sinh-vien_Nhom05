@@ -37,7 +37,6 @@ const mockStudents = Array.from({ length: 50 }, (_, index) => {
         phone,
         email: `sv${String(number).padStart(2, '0')}@example.test`,
         dienUuTien: priorities[index % priorities.length],
-        trangThaiNoiTru: 'Chưa đăng ký'
     };
 });
 

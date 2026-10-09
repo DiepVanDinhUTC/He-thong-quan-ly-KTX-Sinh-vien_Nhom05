@@ -14,17 +14,35 @@ const RequireRole = ({ allowedRoles, children }) => {
   const [loading, setLoading] = useState(!user && Boolean(token || localStorage.getItem('accessToken')));
 
   useEffect(() => {
-    if (user) return undefined;
-    if (!token && !localStorage.getItem('accessToken')) return undefined;
+    if (user) {
+      setLoading(false);
+      return undefined;
+    }
+    if (!token && !localStorage.getItem('accessToken')) {
+      setLoading(false);
+      return undefined;
+    }
+
     let active = true;
-    authApi.me().then((response) => {
-      if (active) dispatch(userUpdated(response.user));
-    }).catch(() => {
-      if (!active) return;
-      dispatch(logout());
-    }).finally(() => {
-      if (active) setLoading(false);
-    });
+    setLoading(true);
+
+    const restoreSession = async () => {
+      try {
+        const response = await authApi.me();
+        if (!active) return;
+        // Stop the guard before updating Redux: that update can rerun this effect
+        // and cancel its cleanup-sensitive state updates.
+        setLoading(false);
+        if (response?.user) dispatch(userUpdated(response.user));
+        else dispatch(logout());
+      } catch {
+        if (!active) return;
+        setLoading(false);
+        dispatch(logout());
+      }
+    };
+
+    restoreSession();
     return () => { active = false; };
   }, [dispatch, token, user]);
 

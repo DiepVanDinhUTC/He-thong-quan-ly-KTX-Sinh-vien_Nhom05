@@ -3,16 +3,16 @@ import AdminLogoutButton from '../components/AdminLogoutButton';
 import Link from '../components/RoleLink';
 import React, { useEffect, useMemo, useState } from 'react';
 import { studentApi } from '../services/studentApi';
-import { 
-  Building, 
-  Home, 
-  UserPlus, 
-  DoorOpen, 
-  FileSignature, 
-  Wrench, 
+import {
+  Building,
+  Home,
+  UserPlus,
+  DoorOpen,
+  FileSignature,
+  Wrench,
   Receipt,
   Settings,
-  Search, 
+  Search,
   Bell,
   Filter,
   RefreshCw,
@@ -25,13 +25,14 @@ import {
 const StudentManagement = () => {
   const emptyForm = {
     maSV: '', hoTen: '', ngaySinh: '', gioiTinh: 'true', lop: '', nienKhoa: 'K64', khoa: '',
-    cccd: '', phone: '', email: '', dienUuTien: '', trangThaiNoiTru: 'CHUA_DANG_KY',
+    cccd: '', phone: '', email: '', dienUuTien: '',
   };
   const [searchQuery, setSearchQuery] = useState('');
   const [isSyncing, setIsSyncing] = useState(false);
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [syncMessage, setSyncMessage] = useState('');
   const [formMode, setFormMode] = useState(null);
   const [form, setForm] = useState(emptyForm);
   const [formError, setFormError] = useState('');
@@ -58,9 +59,11 @@ const StudentManagement = () => {
 
   const handleSync = async () => {
     setIsSyncing(true);
+    setSyncMessage('');
     try {
-      await studentApi.sync();
+      const response = await studentApi.sync();
       await loadStudents();
+      setSyncMessage(response.message || 'Đã đồng bộ dữ liệu sinh viên từ trường thành công.');
     } catch (err) {
       setError(err.response?.data?.message || 'Không thể đồng bộ dữ liệu sinh viên.');
     } finally {
@@ -83,7 +86,6 @@ const StudentManagement = () => {
       phone: student.phone || '',
       email: student.email || '',
       dienUuTien: student.dienUuTien || '',
-      trangThaiNoiTru: student.trangThaiNoiTru || 'CHUA_DANG_KY',
     } : { ...emptyForm });
   };
 
@@ -137,13 +139,19 @@ const StudentManagement = () => {
       case 'CHUA_DANG_KY':
       case 'Chưa đăng ký':
         return <span className="px-3 py-1 bg-slate-100 text-slate-700 text-xs font-medium rounded-full">Chưa đăng ký</span>;
+      case 'CHO_THANH_TOAN':
+        return <span className="px-3 py-1 bg-amber-100 text-amber-800 text-xs font-medium rounded-full">Chờ thanh toán</span>;
       case 'DANG_O':
+      case 'Đang lưu trú':
         return <span className="px-3 py-1 bg-green-100 text-green-700 text-xs font-medium rounded-full">Đang ở</span>;
       case 'CHO_DUYET':
+      case 'Chờ duyệt':
         return <span className="px-3 py-1 bg-yellow-100 text-yellow-700 text-xs font-medium rounded-full">Chờ duyệt</span>;
       case 'TAM_VANG':
+      case 'Tạm vắng':
         return <span className="px-3 py-1 bg-blue-100 text-blue-700 text-xs font-medium rounded-full">Tạm vắng</span>;
       case 'DA_ROI':
+      case 'Đã rời KTX':
         return <span className="px-3 py-1 bg-gray-100 text-gray-700 text-xs font-medium rounded-full">Đã rời KTX</span>;
       default:
         return <span className="px-3 py-1 bg-gray-100 text-gray-700 text-xs font-medium rounded-full">Không rõ</span>;
@@ -152,14 +160,14 @@ const StudentManagement = () => {
 
   return (
     <div className="flex h-screen overflow-hidden bg-gray-50 text-gray-800 antialiased font-sans">
-      
+
       {/* Sidebar */}
       <div className="w-64 bg-blue-900 text-white flex flex-col h-full shadow-lg flex-shrink-0">
         <div className="p-6 flex items-center justify-center border-b border-blue-800">
           <Building className="w-8 h-8 mr-3" />
           <h1 className="text-xl font-bold tracking-wider">KTX GTVT</h1>
         </div>
-        
+
         <nav className="flex-1 px-4 py-6 space-y-2">
           <Link to="/" className="flex items-center px-4 py-3 text-blue-200 hover:bg-blue-800 hover:text-white rounded-lg transition-colors">
             <Home className="w-5 h-5" />
@@ -194,7 +202,7 @@ const StudentManagement = () => {
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col h-full overflow-hidden">
-        
+
         {/* Header */}
         <header className="bg-white shadow-sm h-16 flex items-center justify-between px-8 z-10 flex-shrink-0 border-b border-gray-200">
           <h2 className="text-xl font-semibold text-gray-800">Quản lý Hồ sơ Sinh viên</h2>
@@ -207,15 +215,16 @@ const StudentManagement = () => {
 
         {/* Scrollable Main */}
         <main className="flex-1 overflow-auto p-8 flex flex-col">
-          
+          {syncMessage && <div role="status" className="mb-4 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm font-medium text-green-800">{syncMessage}</div>}
+
           {/* Top Actions */}
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
             <div className="flex flex-1 w-full sm:w-auto gap-4">
               <div className="relative flex-1 max-w-md">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                <input 
-                  type="text" 
-                  placeholder="Tìm kiếm theo tên, mã SV, phòng..." 
+                <input
+                  type="text"
+                  placeholder="Tìm kiếm theo tên, mã SV, phòng..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-full bg-white shadow-sm"
@@ -228,7 +237,7 @@ const StudentManagement = () => {
             </div>
             <div className="flex items-center gap-3">
               {/* Nút Đồng bộ dữ liệu thiết kế theo tính năng API đã nêu trong dự án */}
-              <button 
+              <button
                 onClick={handleSync}
                 className="flex items-center gap-2 px-4 py-2.5 bg-white border border-blue-200 text-blue-700 rounded-lg text-sm font-medium hover:bg-blue-50 shadow-sm transition-colors"
                 disabled={isSyncing}
@@ -292,7 +301,7 @@ const StudentManagement = () => {
                 </tbody>
               </table>
             </div>
-            
+
             <div className="p-4 border-t border-gray-200 text-sm text-gray-500 bg-gray-50 mt-auto">
               Hiển thị {filteredStudents.length} / {students.length} sinh viên
             </div>
@@ -349,11 +358,7 @@ const StudentManagement = () => {
                 <label className="text-sm font-medium text-gray-700">Email
                   <input required type="email" disabled={formMode === 'view'} value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2.5 disabled:bg-gray-100" />
                 </label>
-                <label className="text-sm font-medium text-gray-700">Trạng thái nội trú
-                  <select disabled={formMode === 'view'} value={form.trangThaiNoiTru} onChange={(e) => setForm({ ...form, trangThaiNoiTru: e.target.value })} className="mt-1.5 w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 disabled:bg-gray-100">
-                    <option value="CHUA_DANG_KY">Chưa đăng ký</option><option value="DANG_O">Đang ở</option><option value="CHO_DUYET">Chờ duyệt</option><option value="TAM_VANG">Tạm vắng</option><option value="DA_ROI">Đã rời KTX</option>
-                  </select>
-                </label>
+
                 <label className="text-sm font-medium text-gray-700 sm:col-span-2">Diện ưu tiên (nếu có)
                   <input disabled={formMode === 'view'} value={form.dienUuTien} onChange={(e) => setForm({ ...form, dienUuTien: e.target.value })} className="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2.5 disabled:bg-gray-100" />
                 </label>

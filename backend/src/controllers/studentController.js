@@ -1,10 +1,11 @@
 const syncStudentService = require('../services/syncStudentService');
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
+const { deriveStudentHousingStatus } = require('../services/studentHousingStatus');
 
 const editableFields = [
     'hoTen', 'ngaySinh', 'gioiTinh', 'lop', 'nienKhoa', 'khoa', 'cccd',
-    'phone', 'email', 'dienUuTien', 'trangThaiNoiTru'
+    'phone', 'email', 'dienUuTien'
 ];
 const requiredFields = ['maSV', ...editableFields.filter((field) => field !== 'dienUuTien')];
 
@@ -16,13 +17,18 @@ const pickStudentFields = (body) => Object.fromEntries(
 
 const validCohorts = ['K62', 'K63', 'K64', 'K65', 'K66', 'K67'];
 const invalidCohort = (body) => body.nienKhoa !== undefined && !validCohorts.includes(body.nienKhoa);
+const presentStudent = (student) => ({
+    ...student,
+    trangThaiNoiTru: deriveStudentHousingStatus(student.hopDongs || [], Boolean(student.dangKyKTXs?.length))
+});
 
 exports.syncData = async (req, res) => {
     try {
         const result = await syncStudentService.syncStudentsFromSis();
         return res.status(200).json({
             success: true,
-            message: `Đã đồng bộ thành công ${result.count} sinh viên từ sis.utc`
+            message: `Đã đồng bộ từ trường ${result.count} hồ sơ sinh viên thành công${result.createdAccounts ? `, tạo ${result.createdAccounts} tài khoản mới` : ''}.`,
+            data: result
         });
     } catch (error) {
         return res.status(500).json({ success: false, message: error.message });
@@ -33,9 +39,12 @@ exports.getAllStudents = async (req, res) => {
     try {
         const students = await prisma.sinhVien.findMany({
             orderBy: { maSV: 'desc' },
-            include: { hopDongs: { include: { phong: true }, orderBy: { ngayTao: 'desc' }, take: 1 } }
+            include: {
+                hopDongs: { where: { trangThai: { in: ['ACTIVE', 'PENDING_PAYMENT'] } }, include: { phong: true }, orderBy: { ngayTao: 'desc' }, take: 1 },
+                dangKyKTXs: { where: { trangThai: 'PENDING' }, select: { maDangKy: true }, take: 1 }
+            }
         });
-        return res.status(200).json({ success: true, data: students });
+        return res.status(200).json({ success: true, data: students.map(presentStudent) });
     } catch (error) {
         return res.status(500).json({ success: false, message: 'Lỗi khi lấy danh sách sinh viên', error: error.message });
     }
@@ -45,10 +54,13 @@ exports.getStudentById = async (req, res) => {
     try {
         const student = await prisma.sinhVien.findUnique({
             where: { maSV: req.params.id },
-            include: { hopDongs: { include: { phong: true }, orderBy: { ngayTao: 'desc' }, take: 1 } }
+            include: {
+                hopDongs: { where: { trangThai: { in: ['ACTIVE', 'PENDING_PAYMENT'] } }, include: { phong: true }, orderBy: { ngayTao: 'desc' }, take: 1 },
+                dangKyKTXs: { where: { trangThai: 'PENDING' }, select: { maDangKy: true }, take: 1 }
+            }
         });
         if (!student) return res.status(404).json({ success: false, message: 'Không tìm thấy sinh viên.' });
-        return res.status(200).json({ success: true, data: student });
+        return res.status(200).json({ success: true, data: presentStudent(student) });
     } catch (error) {
         return res.status(500).json({ success: false, message: 'Lỗi server', error: error.message });
     }

@@ -54,9 +54,10 @@ exports.createApplication = async (req, res) => {
                 throw error;
             }
 
-            return tx.dangKyKTX.create({
+            const application = await tx.dangKyKTX.create({
                 data: { maSinhVien: student.maSV, maPhongYeuCau, loaiPhongYeuCau, trangThai: 'PENDING' }
             });
+            return application;
         }, { isolationLevel: 'Serializable' });
 
         return res.status(201).json({ success: true, data: application, message: 'Đã gửi nguyện vọng nội trú.' });
@@ -117,9 +118,14 @@ exports.getAllApplications = async (_req, res) => {
 
 exports.rejectApplication = async (req, res) => {
     try {
-        const updated = await prisma.dangKyKTX.updateMany({
-            where: { maDangKy: req.params.id, trangThai: 'PENDING' },
-            data: { trangThai: 'REJECTED' }
+        const updated = await prisma.$transaction(async (tx) => {
+            const application = await tx.dangKyKTX.findFirst({
+                where: { maDangKy: req.params.id, trangThai: 'PENDING' },
+                select: { maDangKy: true, maSinhVien: true }
+            });
+            if (!application) return { count: 0 };
+            await tx.dangKyKTX.update({ where: { maDangKy: application.maDangKy }, data: { trangThai: 'REJECTED' } });
+            return { count: 1 };
         });
         if (updated.count !== 1) return res.status(409).json({ success: false, message: 'Đơn không tồn tại hoặc đã được xử lý.' });
         return res.status(200).json({ success: true, message: 'Đã từ chối đơn đăng ký.' });

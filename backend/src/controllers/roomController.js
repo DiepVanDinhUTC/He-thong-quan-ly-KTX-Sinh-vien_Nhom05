@@ -1,5 +1,6 @@
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
+const { deriveStudentHousingStatus } = require('../services/studentHousingStatus');
 const { randomUUID } = require('crypto');
 
 const facilityStatuses = ['TOT', 'HU_HONG', 'DANG_BAO_TRI'];
@@ -98,7 +99,7 @@ exports.getRooms = async (_req, res) => {
         }
         const memberRows = await prisma.$queryRaw`SELECT
             hd.maPhong, hd.maHopDong, hd.maSinhVien, hd.trangThai AS trangThaiHopDong,
-            sv.hoTen, sv.lop, sv.phone, sv.trangThaiNoiTru
+            sv.hoTen, sv.lop, sv.phone
             FROM [HopDong] AS hd
             INNER JOIN [SINH_VIEN] AS sv ON sv.maSV = hd.maSinhVien
             WHERE hd.trangThai IN ('ACTIVE', 'PENDING_PAYMENT')
@@ -112,7 +113,7 @@ exports.getRooms = async (_req, res) => {
                 hoTen: member.hoTen,
                 lop: member.lop,
                 phone: member.phone,
-                trangThaiNoiTru: member.trangThaiNoiTru,
+                trangThaiNoiTru: deriveStudentHousingStatus([{ trangThai: member.trangThaiHopDong }]),
                 trangThaiHopDong: member.trangThaiHopDong
             });
         }
@@ -315,15 +316,11 @@ exports.removeRoomMember = async (req, res) => {
     const { maPhong, maHopDong } = req.params;
     try {
         await prisma.$transaction(async (tx) => {
-            const contracts = await tx.$queryRaw`SELECT maHopDong, maSinhVien FROM [HopDong] WITH (UPDLOCK, HOLDLOCK)
+            const contracts = await tx.$queryRaw`SELECT maHopDong FROM [HopDong] WITH (UPDLOCK, HOLDLOCK)
                 WHERE maHopDong = ${maHopDong} AND maPhong = ${maPhong} AND trangThai IN ('ACTIVE', 'PENDING_PAYMENT')`;
             if (!contracts.length) throw Object.assign(new Error('Không tìm thấy hợp đồng lưu trú đang hiệu lực trong phòng này.'), { status: 404 });
-            const studentId = contracts[0].maSinhVien;
             await tx.$executeRaw`UPDATE [HopDong] SET trangThai = 'CANCELLED' WHERE maHopDong = ${maHopDong}`;
             await tx.$executeRaw`UPDATE [Phong] SET soSinhVienHienTai = CASE WHEN soSinhVienHienTai > 0 THEN soSinhVienHienTai - 1 ELSE 0 END WHERE maPhong = ${maPhong}`;
-            const otherContracts = await tx.$queryRaw`SELECT TOP (1) maHopDong FROM [HopDong]
-                WHERE maSinhVien = ${studentId} AND trangThai IN ('ACTIVE', 'PENDING_PAYMENT')`;
-            if (!otherContracts.length) await tx.$executeRaw`UPDATE [SINH_VIEN] SET trangThaiNoiTru = N'Đã rời KTX' WHERE maSV = ${studentId}`;
         }, { isolationLevel: 'Serializable' });
         return res.status(200).json({ success: true, message: 'Đã kết thúc hợp đồng và xóa sinh viên khỏi phòng. Lịch sử hợp đồng được giữ lại.' });
     } catch (error) {

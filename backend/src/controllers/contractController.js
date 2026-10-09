@@ -68,7 +68,7 @@ exports.createContract = async (req, res) => {
                 throw reject(409, 'Phòng đã hết chỗ; đơn đăng ký chưa được duyệt.');
             }
 
-            return tx.hopDong.create({
+            const contract = await tx.hopDong.create({
                 data: {
                     maSinhVien: application.maSinhVien,
                     maPhong,
@@ -78,6 +78,7 @@ exports.createContract = async (req, res) => {
                     trangThai: 'PENDING_PAYMENT'
                 }
             });
+            return contract;
         }, { isolationLevel: 'Serializable' });
 
         return res.status(201).json({
