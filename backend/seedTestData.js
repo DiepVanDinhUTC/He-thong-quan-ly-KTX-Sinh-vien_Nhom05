@@ -38,7 +38,6 @@ async function main() {
                 userId: users[index - 1].id,
                 nienKhoa: `K${62 + ((index - 1) % 6)}`,
                 hoTen: `Sinh viên kiểm thử ${suffix}`,
-                trangThaiNoiTru: 'DANG_O',
                 phone: `090100${String(index).padStart(4, '0')}`,
                 email: `test10.sv${suffix}@example.test`
             },
@@ -54,7 +53,6 @@ async function main() {
                 cccd: `T10CCCDSV${suffix}`,
                 phone: `090100${String(index).padStart(4, '0')}`,
                 email: `test10.sv${suffix}@example.test`,
-                trangThaiNoiTru: 'DANG_O'
             }
         }));
     }
@@ -106,7 +104,7 @@ async function main() {
     }
 
     const applications = [];
-    const applicationStates = ['PENDING', 'PENDING', 'PENDING', 'PENDING', 'PENDING', 'PENDING', 'PENDING', 'APPROVED', 'REJECTED', 'REJECTED'];
+    const applicationStates = ['PENDING', 'PENDING', 'PENDING', 'PENDING', 'PENDING', 'PENDING', 'APPROVED', 'APPROVED', 'REJECTED', 'APPROVED'];
     for (let index = 1; index <= 10; index += 1) {
         const suffix = String(index).padStart(2, '0');
         currentFixtureStep = `application T10-DK-${suffix}`;
@@ -127,7 +125,7 @@ async function main() {
         }));
     }
 
-    const contractStates = ['CANCELLED', 'CANCELLED', 'CANCELLED', 'CANCELLED', 'CANCELLED', 'CANCELLED', 'PENDING_PAYMENT', 'PAID', 'CANCELLED', 'PENDING_PAYMENT'];
+    const contractStates = ['CANCELLED', 'CANCELLED', 'CANCELLED', 'CANCELLED', 'CANCELLED', 'CANCELLED', 'PENDING_PAYMENT', 'ACTIVE', 'CANCELLED', 'PENDING_PAYMENT'];
     const contracts = [];
     for (let index = 1; index <= 10; index += 1) {
         const suffix = String(index).padStart(2, '0');
@@ -150,6 +148,16 @@ async function main() {
                 ngayTao: index === 10 ? dateAt(-3) : now
             }
         }));
+    }
+
+    for (const room of rooms) {
+        const currentOccupancy = await prisma.hopDong.count({
+            where: { maPhong: room.maPhong, trangThai: { in: ['ACTIVE', 'PENDING_PAYMENT'] } }
+        });
+        await prisma.phong.update({
+            where: { maPhong: room.maPhong },
+            data: { soSinhVienHienTai: currentOccupancy }
+        });
     }
 
     for (let index = 1; index <= 10; index += 1) {

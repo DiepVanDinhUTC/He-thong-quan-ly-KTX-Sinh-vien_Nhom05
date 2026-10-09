@@ -31,19 +31,18 @@ cron.schedule('0 0 * * *', async () => { //0 0 * * * , */5 * * * * *
 
         // 2. Dùng Transaction để Hủy hợp đồng và Nhả phòng đồng loạt
         for (const contract of expiredContracts) {
-            await prisma.$transaction([
-                // Đổi trạng thái hợp đồng thành CANCELLED
-                prisma.hopDong.update({
-                    where: { maHopDong: contract.maHopDong },
+            await prisma.$transaction(async (tx) => {
+                const cancelled = await tx.hopDong.updateMany({
+                    where: { maHopDong: contract.maHopDong, trangThai: 'PENDING_PAYMENT' },
                     data: { trangThai: 'CANCELLED' }
-                }),
-                
-                // Trừ số lượng người hiện tại của phòng đi 1 (giải phóng slot)
-                prisma.phong.update({
-                    where: { maPhong: contract.maPhong },
+                });
+                if (cancelled.count !== 1) return;
+
+                await tx.phong.updateMany({
+                    where: { maPhong: contract.maPhong, soSinhVienHienTai: { gt: 0 } },
                     data: { soSinhVienHienTai: { decrement: 1 } }
-                })
-            ]);
+                });
+            });
         }
 
         console.log('✅ Đã dọn dẹp xong các hợp đồng quá hạn và giải phóng phòng.');

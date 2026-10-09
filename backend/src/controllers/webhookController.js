@@ -53,11 +53,6 @@ exports.handleBankTransfer = async (req, res) => {
                 where: { maHopDong: contract.maHopDong },
                 data: { trangThai: 'ACTIVE' }
             });
-
-            await tx.sinhVien.update({
-                where: { maSV: contract.maSinhVien },
-                data: { trangThaiNoiTru: 'Đang lưu trú' }
-            });
         });
 
         console.log(`✅ Tự động thanh toán thành công cho hợp đồng của ${maSinhVien}.`);

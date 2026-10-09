@@ -37,7 +37,6 @@ async function main() {
                     cccd: '001204123456',
                     phone: '0987654321',
                     email: 'diep@utc.edu.vn',
-                    trangThaiNoiTru: 'DANG_O'
                 }
             }
         }

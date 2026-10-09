@@ -90,10 +90,6 @@ exports.processPayment = async (req, res) => {
             });
 
             // C. Cập nhật trạng thái cư trú của Sinh viên
-            await tx.sinhVien.update({
-                where: { maSV: contract.maSinhVien },
-                data: { trangThaiNoiTru: 'Đang lưu trú' }
-            });
 
             return { invoice, updatedContract };
         });

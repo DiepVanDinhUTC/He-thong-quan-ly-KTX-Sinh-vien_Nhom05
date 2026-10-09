@@ -26,8 +26,7 @@ exports.syncStudentsFromSis = async () => {
         const defaultPasswordHash = await bcrypt.hash(defaultPassword, 12);
         let createdAccounts = 0;
 
-        for (const student of studentsData) {
-            await prisma.$transaction(async (tx) => {
+        const syncOneStudent = async (student) => prisma.$transaction(async (tx) => {
                 const profile = await tx.sinhVien.upsert({
                     where: { maSV: student.maSV },
                     update: {
@@ -40,8 +39,7 @@ exports.syncStudentsFromSis = async () => {
                         cccd: student.cccd,
                         phone: student.phone,
                         email: student.email,
-                        dienUuTien: student.dienUuTien,
-                        trangThaiNoiTru: student.trangThaiNoiTru
+                        dienUuTien: student.dienUuTien
                     },
                     create: {
                         maSV: student.maSV,
@@ -54,14 +52,14 @@ exports.syncStudentsFromSis = async () => {
                         cccd: student.cccd,
                         phone: student.phone,
                         email: student.email,
-                        dienUuTien: student.dienUuTien,
-                        trangThaiNoiTru: student.trangThaiNoiTru
+                        dienUuTien: student.dienUuTien
                     }
                 });
 
                 if (profile.userId) return;
 
                 let account = await tx.user.findUnique({ where: { username: student.maSV } });
+                let createdAccount = false;
                 if (!account) {
                     account = await tx.user.create({
                         data: {
@@ -71,7 +69,7 @@ exports.syncStudentsFromSis = async () => {
                             isActive: true
                         }
                     });
-                    createdAccounts++;
+                    createdAccount = true;
                 }
 
                 if (account.role !== 'STUDENT') {
@@ -82,7 +80,16 @@ exports.syncStudentsFromSis = async () => {
                     where: { maSV: student.maSV },
                     data: { userId: account.id }
                 });
+                return { createdAccount };
             });
+
+        // Giới hạn số giao dịch chạy song song để tăng tốc mà không làm nghẽn SQL Server.
+        const batchSize = 5;
+        for (let index = 0; index < studentsData.length; index += batchSize) {
+            const batchResults = await Promise.all(studentsData
+                .slice(index, index + batchSize)
+                .map(syncOneStudent));
+            createdAccounts += batchResults.filter((result) => result?.createdAccount).length;
         }
 
         return { success: true, count: studentsData.length, createdAccounts };
