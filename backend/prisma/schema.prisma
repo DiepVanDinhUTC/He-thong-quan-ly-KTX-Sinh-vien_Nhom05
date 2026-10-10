@@ -24,6 +24,7 @@ model SinhVien {
 
   dangKyKTXs      DangKyKTX[]
   hopDongs        HopDong[]
+  baoHongs        BaoHong[]
 
   @@map("SINH_VIEN")
 }
@@ -52,6 +53,37 @@ model Phong {
   soSinhVienToiDa   Int
   soSinhVienHienTai Int          @default(0) // Mặc định phòng trống là 0
   hopDongs          HopDong[]
+  thietBis          ThietBi[]
+}
+
+model ThietBi {
+  maThietBi String    @id @db.VarChar(20)
+  maPhong   String?
+  tenThietBi String   @db.NVarChar(100)
+  moTa      String?   @db.NVarChar(255)
+  trangThai String    @default("ACTIVE") @db.VarChar(30)
+
+  phong     Phong?    @relation(fields: [maPhong], references: [maPhong])
+  baoHongs  BaoHong[]
+
+  @@map("THIET_BI")
+}
+
+model BaoHong {
+  maBaoHong             String   @id @default(uuid())
+  maSinhVien            String   @db.VarChar(20)
+  maThietBi             String   @db.VarChar(20)
+  moTa                  String   @db.NVarChar(1000)
+  anhHienTrang          String?  @db.NVarChar(500)
+  anhHienTrangPublicId  String?  @db.VarChar(255)
+  trangThai             String   @default("PENDING") @db.VarChar(30)
+  ngayBaoHong           DateTime @default(now())
+  ngayCapNhat           DateTime @updatedAt
+
+  sinhVien              SinhVien @relation(fields: [maSinhVien], references: [maSV])
+  thietBi               ThietBi  @relation(fields: [maThietBi], references: [maThietBi])
+
+  @@map("BAO_HONG")
 }
 
 model DangKyKTX {
