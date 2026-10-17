@@ -1,16 +1,28 @@
 import js from "@eslint/js";
 import globals from "globals";
 import pluginReact from "eslint-plugin-react";
-import { defineConfig } from "eslint/config";
 
-export default defineConfig([
-  { files: ["**/*.{js,mjs,cjs,jsx}"], plugins: { js }, extends: ["js/recommended"], languageOptions: { globals: {...globals.browser, ...globals.node} } },
+export default [
+  // 1. Bỏ qua toàn bộ thư mục backend
+  { ignores: ["backend/**"] },
+  
+  // 2. Kế thừa các bộ quy tắc chuẩn (Thay thế cho "extends")
+  js.configs.recommended,
   pluginReact.configs.flat.recommended,
+  
+  // 3. Cấu hình môi trường và cài đặt React
   {
+    files: ["**/*.{js,mjs,cjs,jsx}"],
+    languageOptions: {
+      globals: {
+        ...globals.browser,
+        ...globals.node
+      }
+    },
     settings: {
       react: {
         version: "detect"
       }
     }
   }
-]);
+];
