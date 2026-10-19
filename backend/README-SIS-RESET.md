@@ -14,10 +14,10 @@
 - Mã chỉ dùng một lần, lưu dưới dạng SHA-256, hết hạn sau 10 phút và tối đa 5 lần nhập sai.
 - Để gửi mã thật, cấu hình `RESEND_API_KEY` và `MAIL_FROM` trong `backend/.env`.
 - Khi phát triển cục bộ chưa có email, đặt `ENABLE_DEBUG_RESET_CODES=true`. API sẽ trả `debugCode` để thử luồng; không bật tùy chọn này trong production.
-- DB cần bảng `PASSWORD_RESET_TOKEN`; bảng đã được cập nhật bằng `npx prisma db push`.
+- Database cần bảng `PASSWORD_RESET_TOKEN`; bảng được tạo bởi `npx prisma migrate deploy`.
 
 ## Danh mục vị trí phòng
 
-- Các bảng `CO_SO` và `TOA_NHA` lưu cơ sở và tòa; `Phong.maToaNha` cùng `Phong.tang` xác định vị trí của từng phòng.
-- `GET /api/v1/rooms/locations` trả danh mục cơ sở và tòa cho bộ lọc sơ đồ phòng.
-- Sau khi cập nhật schema, `npm run seed:locations` khởi tạo hai cơ sở đã biết. Tòa nhà và tầng cần được nhập theo danh sách/quy ước thực tế trước khi gán các phòng.
+- Các bảng `KHU` và `TOA_NHA` lưu khu và tòa; `Phong.maToaNha` cùng `Phong.tang` xác định vị trí của từng phòng.
+- `GET /api/v1/rooms/locations` trả danh mục khu và tòa cho bộ lọc sơ đồ phòng.
+- Sau khi áp dụng migration đổi `CO_SO` thành `KHU`, chạy `npm run seed:locations` để bảo đảm có hai khu và năm tòa đã cấu hình.

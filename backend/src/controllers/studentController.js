@@ -1,6 +1,5 @@
 const syncStudentService = require('../services/syncStudentService');
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+const prisma = require('../config/prisma');
 const { deriveStudentHousingStatus } = require('../services/studentHousingStatus');
 
 const editableFields = [
@@ -17,6 +16,11 @@ const pickStudentFields = (body) => Object.fromEntries(
 
 const validCohorts = ['K62', 'K63', 'K64', 'K65', 'K66', 'K67'];
 const invalidCohort = (body) => body.nienKhoa !== undefined && !validCohorts.includes(body.nienKhoa);
+const activeHousingStatuses = ['ACTIVE', 'PENDING_PAYMENT'];
+const housingContractFilter = (buildingScope) => ({
+    trangThai: { in: activeHousingStatuses },
+    ...(buildingScope === null ? {} : { phong: { is: { maToaNha: { in: buildingScope } } } })
+});
 const presentStudent = (student) => ({
     ...student,
     trangThaiNoiTru: deriveStudentHousingStatus(student.hopDongs || [], Boolean(student.dangKyKTXs?.length))
@@ -37,10 +41,14 @@ exports.syncData = async (req, res) => {
 
 exports.getAllStudents = async (req, res) => {
     try {
+        const where = req.buildingScope === null ? undefined : {
+            hopDongs: { some: housingContractFilter(req.buildingScope) }
+        };
         const students = await prisma.sinhVien.findMany({
+            where,
             orderBy: { maSV: 'desc' },
             include: {
-                hopDongs: { where: { trangThai: { in: ['ACTIVE', 'PENDING_PAYMENT'] } }, include: { phong: true }, orderBy: { ngayTao: 'desc' }, take: 1 },
+                hopDongs: { where: housingContractFilter(req.buildingScope), include: { phong: true }, orderBy: { ngayTao: 'desc' }, take: 1 },
                 dangKyKTXs: { where: { trangThai: 'PENDING' }, select: { maDangKy: true }, take: 1 }
             }
         });
@@ -55,7 +63,7 @@ exports.getStudentById = async (req, res) => {
         const student = await prisma.sinhVien.findUnique({
             where: { maSV: req.params.id },
             include: {
-                hopDongs: { where: { trangThai: { in: ['ACTIVE', 'PENDING_PAYMENT'] } }, include: { phong: true }, orderBy: { ngayTao: 'desc' }, take: 1 },
+                hopDongs: { where: housingContractFilter(req.buildingScope), include: { phong: true }, orderBy: { ngayTao: 'desc' }, take: 1 },
                 dangKyKTXs: { where: { trangThai: 'PENDING' }, select: { maDangKy: true }, take: 1 }
             }
         });

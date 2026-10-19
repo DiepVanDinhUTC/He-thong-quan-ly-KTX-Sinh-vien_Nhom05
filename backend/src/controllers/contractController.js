@@ -1,5 +1,4 @@
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+const prisma = require('../config/prisma');
 
 const reject = (status, message) => Object.assign(new Error(message), { status });
 
@@ -101,9 +100,13 @@ exports.createContract = async (req, res) => {
     }
 };
 
-exports.getContracts = async (_req, res) => {
+exports.getContracts = async (req, res) => {
     try {
+        const where = req.buildingScope === null
+            ? undefined
+            : { phong: { is: { maToaNha: { in: req.buildingScope } } } };
         const data = await prisma.hopDong.findMany({
+            where,
             include: { sinhVien: true, phong: true },
             orderBy: { ngayTao: 'desc' }
         });
@@ -116,8 +119,12 @@ exports.getContracts = async (_req, res) => {
 exports.getRooms = async (req, res) => {
     try {
         const loaiPhong = req.query.loaiPhong;
+        const where = {
+            ...(loaiPhong ? { loaiPhong } : {}),
+            ...(req.buildingScope === null ? {} : { maToaNha: { in: req.buildingScope } })
+        };
         const data = await prisma.phong.findMany({
-            where: loaiPhong ? { loaiPhong } : undefined,
+            where,
             orderBy: { soPhong: 'asc' }
         });
         return res.status(200).json({ success: true, data });

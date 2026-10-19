@@ -1,12 +1,12 @@
-import AdminUserProfile from '../components/AdminUserProfile';
-import AdminLogoutButton from '../components/AdminLogoutButton';
-import Link from '../components/RoleLink';
 import React, { useEffect, useMemo, useState } from 'react';
+import { useSelector } from 'react-redux';
 import {
-  AlertTriangle, ArrowRightLeft, Bed, Building, CheckCircle2, DoorOpen, Download, FileSignature, Home,
-  MoreVertical, Pencil, Plus, Receipt, Search, Settings, Trash2, UserPlus, Users, Wrench, X
+  AlertTriangle, ArrowRightLeft, Bed, CheckCircle2, DoorOpen, Download,
+  MoreVertical, Pencil, Plus, Search, Trash2, Users, X
 } from 'lucide-react';
+import FacilitiesLayout from '../components/FacilitiesLayout';
 import { housingApi } from '../services/housingApi';
+import { roomTypes, roomTypeLabel } from '../utils/roomTypes';
 
 const facilityStatuses = [
   { value: 'TOT', label: 'Tốt' },
@@ -15,6 +15,8 @@ const facilityStatuses = [
 ];
 const facilityStatusLabels = { TOT: 'Tốt', HU_HONG: 'Hư hỏng', DANG_BAO_TRI: 'Đang bảo trì' };
 const roomStatusLabels = { TOT: 'Tốt', CO_HU_HONG: 'Có thiết bị hư hỏng', DANG_BAO_TRI: 'Đang bảo trì', CHUA_CAP_NHAT: 'Chưa có dữ liệu CSVC' };
+const noDormBuildingIds = new Set(['A2', 'A5']);
+const a4OnlyRoomTypeIds = new Set(['THIET_BI_TANG_CUONG', 'PHO_THONG_CO_DIEU_HOA', 'TIEU_CHUAN']);
 const memberHousingStatusLabels = {
   CHUA_DANG_KY: 'Chưa đăng ký',
   DANG_O: 'Đang ở', 'Đang lưu trú': 'Đang ở', CHO_DUYET: 'Chờ duyệt', 'Chờ duyệt': 'Chờ duyệt',
@@ -23,16 +25,16 @@ const memberHousingStatusLabels = {
   'Chưa đăng ký': 'Chưa đăng ký'
 };
 const contractStatusLabels = { ACTIVE: 'Hợp đồng hiệu lực', PENDING_PAYMENT: 'Chờ thanh toán' };
-const roomTypeLabel = (type) => type === 'DIEU_HOA' ? 'Điều hòa' : type === 'QUAT' ? 'Quạt' : type;
-
 const RoomManagement = () => {
+  const role = useSelector((state) => state.auth.user?.role);
+  const canManageRooms = ['FACILITIES_MANAGER', 'BUILDING_MANAGER', 'ADMIN'].includes(role);
   const [rooms, setRooms] = useState([]);
   const [locations, setLocations] = useState([]);
   const [selectedRoomId, setSelectedRoomId] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState('ALL');
   const [statusFilter, setStatusFilter] = useState('ALL');
-  const [campusFilter, setCampusFilter] = useState('ALL');
+  const [khuFilter, setKhuFilter] = useState('ALL');
   const [buildingFilter, setBuildingFilter] = useState('ALL');
   const [floorFilter, setFloorFilter] = useState('ALL');
   const [loading, setLoading] = useState(true);
@@ -71,10 +73,10 @@ const RoomManagement = () => {
   useEffect(() => { loadRooms(); }, []);
 
   const selectedRoom = rooms.find((room) => room.maPhong === selectedRoomId);
-  const selectedCampus = locations.find((campus) => campus.maCoSo === campusFilter);
-  const buildingOptions = (campusFilter === 'ALL'
-    ? locations.flatMap((campus) => campus.toaNhas.map((building) => ({ ...building, tenHienThi: `${building.tenToaNha} · ${campus.tenCoSo}` })))
-    : selectedCampus?.toaNhas || []);
+  const selectedKhu = locations.find((khu) => khu.maKhu === khuFilter);
+  const buildingOptions = (khuFilter === 'ALL'
+    ? locations.flatMap((khu) => khu.toaNhas.map((building) => ({ ...building, tenHienThi: `${building.tenToaNha} · ${khu.tenKhu}` })))
+    : selectedKhu?.toaNhas || []);
   const floorOptions = useMemo(() => {
     const buildings = buildingFilter === 'ALL'
       ? buildingOptions
@@ -83,14 +85,14 @@ const RoomManagement = () => {
   }, [buildingOptions, buildingFilter]);
   const filteredRooms = useMemo(() => rooms.filter((room) => {
     const query = searchQuery.trim().toLowerCase();
-    const matchesQuery = !query || `${room.soPhong} ${room.maPhong} ${room.loaiPhong} ${room.tenCoSo || ''} ${room.tenToaNha || ''}`.toLowerCase().includes(query);
+    const matchesQuery = !query || `${room.soPhong} ${room.maPhong} ${room.loaiPhong} ${room.tenKhu || ''} ${room.tenToaNha || ''}`.toLowerCase().includes(query);
     const matchesType = typeFilter === 'ALL' || room.loaiPhong === typeFilter;
     const matchesStatus = statusFilter === 'ALL' || room.trangThaiCSVC === statusFilter;
-    const matchesCampus = campusFilter === 'ALL' || room.maCoSo === campusFilter;
+    const matchesKhu = khuFilter === 'ALL' || room.maKhu === khuFilter;
     const matchesBuilding = buildingFilter === 'ALL' || room.maToaNha === buildingFilter;
     const matchesFloor = floorFilter === 'ALL' || String(room.tang) === floorFilter;
-    return matchesQuery && matchesType && matchesStatus && matchesCampus && matchesBuilding && matchesFloor;
-  }), [rooms, searchQuery, typeFilter, statusFilter, campusFilter, buildingFilter, floorFilter]);
+    return matchesQuery && matchesType && matchesStatus && matchesKhu && matchesBuilding && matchesFloor;
+  }), [rooms, searchQuery, typeFilter, statusFilter, khuFilter, buildingFilter, floorFilter]);
 
   useEffect(() => {
     if (!filteredRooms.some((room) => room.maPhong === selectedRoomId)) {
@@ -108,14 +110,14 @@ const RoomManagement = () => {
   const openCreateRoom = () => {
     setRoomFormError('');
     setRoomForm({
-      mode: 'create', maPhong: '', soPhong: '', loaiPhong: 'QUAT', soSinhVienToiDa: '8', maToaNha: '', tang: ''
+      mode: 'create', maPhong: '', soPhong: '', loaiPhong: 'CO_BAN', soSinhVienToiDa: '8', phiNoiTruThang: '', maToaNha: '', tang: ''
     });
   };
   const openEditRoom = (room) => {
     setRoomFormError('');
     setRoomForm({
       mode: 'edit', maPhong: room.maPhong, soPhong: room.soPhong || '', loaiPhong: room.loaiPhong,
-      soSinhVienToiDa: String(room.soSinhVienToiDa), maToaNha: room.maToaNha || '', tang: room.tang ? String(room.tang) : ''
+      soSinhVienToiDa: String(room.soSinhVienToiDa), phiNoiTruThang: room.phiNoiTruThang == null ? '' : String(room.phiNoiTruThang), maToaNha: room.maToaNha || '', tang: room.tang ? String(room.tang) : ''
     });
   };
 
@@ -130,6 +132,7 @@ const RoomManagement = () => {
       soPhong: roomForm.soPhong.trim(),
       loaiPhong: roomForm.loaiPhong,
       soSinhVienToiDa: Number(roomForm.soSinhVienToiDa),
+      phiNoiTruThang: roomForm.phiNoiTruThang === '' ? null : Number(roomForm.phiNoiTruThang),
       maToaNha: roomForm.maToaNha || null,
       tang: roomForm.tang ? Number(roomForm.tang) : null,
     };
@@ -213,11 +216,12 @@ const RoomManagement = () => {
     const roomRows = filteredRooms.map((room) => ({
       'Mã phòng': room.maPhong,
       'Phòng': room.soPhong,
-      'Cơ sở': room.tenCoSo || 'Chưa gán',
-      'Địa chỉ': room.diaChiCoSo || '',
+      'Khu': room.tenKhu || 'Chưa gán',
+      'Địa chỉ khu': room.diaChiKhu || '',
       'Tòa nhà': room.tenToaNha || 'Chưa gán',
       'Tầng': room.tang ?? '',
       'Loại phòng': roomTypeLabel(room.loaiPhong),
+      'Phí nội trú/người/tháng': room.phiNoiTruThang ?? '',
       'Số sinh viên hiện tại': room.soSinhVienHienTai,
       'Sức chứa tối đa': room.soSinhVienToiDa,
       'Chỗ còn trống': room.choConTrong,
@@ -239,7 +243,7 @@ const RoomManagement = () => {
     })));
     const workbook = XLSX.utils.book_new();
     [
-      ['Phòng', roomRows, ['Mã phòng', 'Phòng', 'Cơ sở', 'Địa chỉ', 'Tòa nhà', 'Tầng', 'Loại phòng', 'Số sinh viên hiện tại', 'Sức chứa tối đa', 'Chỗ còn trống', 'Trạng thái CSVC', 'Số thành viên', 'Thiết bị']],
+      ['Phòng', roomRows, ['Mã phòng', 'Phòng', 'Khu', 'Địa chỉ khu', 'Tòa nhà', 'Tầng', 'Loại phòng', 'Phí nội trú/người/tháng', 'Số sinh viên hiện tại', 'Sức chứa tối đa', 'Chỗ còn trống', 'Trạng thái CSVC', 'Số thành viên', 'Thiết bị']],
       ['Thành viên', memberRows, ['Mã phòng', 'Phòng', 'Mã sinh viên', 'Họ tên', 'Lớp', 'Điện thoại', 'Trạng thái nội trú', 'Trạng thái hợp đồng', 'Mã hợp đồng']],
       ['Thiết bị', facilityRows, ['Mã phòng', 'Phòng', 'Thiết bị', 'Số lượng', 'Tình trạng', 'Ghi chú']],
     ].forEach(([name, rows, headers]) => {
@@ -296,25 +300,16 @@ const RoomManagement = () => {
   };
 
   return (
-    <div className="flex h-screen overflow-hidden bg-gray-50 text-gray-800">
-      <aside className="flex h-full w-64 shrink-0 flex-col bg-blue-900 text-white shadow-lg">
-        <div className="flex items-center justify-center border-b border-blue-800 p-6"><Building className="mr-3 h-8 w-8" /><h1 className="text-xl font-bold tracking-wider">KTX GTVT</h1></div>
-        <nav className="flex-1 space-y-2 px-4 py-6">
-          <Link to="/" className="flex items-center rounded-lg px-4 py-3 text-blue-200 hover:bg-blue-800"><Home className="h-5 w-5" /><span className="ml-3">Trang chủ</span></Link>
-          <Link to="/students" className="flex items-center rounded-lg px-4 py-3 text-blue-200 hover:bg-blue-800"><UserPlus className="h-5 w-5" /><span className="ml-3">Quản lý Sinh viên</span></Link>
-          <Link to="/rooms" className="flex items-center rounded-lg bg-blue-800 px-4 py-3 font-medium text-white"><DoorOpen className="h-5 w-5" /><span className="ml-3">Quản lý Phòng & CSVC</span></Link>
-          <Link to="/contracts" className="flex items-center rounded-lg px-4 py-3 text-blue-200 hover:bg-blue-800"><FileSignature className="h-5 w-5" /><span className="ml-3">Quản lý Hợp đồng</span></Link>
-          <Link to="/tickets" className="flex items-center rounded-lg px-4 py-3 text-blue-200 hover:bg-blue-800"><Wrench className="h-5 w-5" /><span className="ml-3">Ticket báo hỏng</span></Link>
-          <Link to="/technician" className="flex items-center rounded-lg px-4 py-3 text-blue-200 hover:bg-blue-800"><Wrench className="h-5 w-5" /><span className="ml-3">Bảng kỹ thuật</span></Link>
-          <Link to="/financial-dashboard" className="flex items-center rounded-lg px-4 py-3 text-blue-200 hover:bg-blue-800"><Receipt className="h-5 w-5" /><span className="ml-3">Quản lý Hóa đơn & Điện nước</span></Link>
-          <Link to="/settings" className="flex items-center rounded-lg px-4 py-3 text-blue-200 hover:bg-blue-800"><Settings className="h-5 w-5" /><span className="ml-3">Cài đặt hệ thống</span></Link>
-        </nav>
-        <div className="border-t border-blue-800 p-4"><AdminUserProfile /></div><AdminLogoutButton />
-      </aside>
-
-      <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex h-16 shrink-0 items-center justify-between border-b bg-white px-5 shadow-sm sm:px-8"><h2 className="text-lg font-semibold sm:text-xl">Sơ đồ phòng & cơ sở vật chất</h2><div className="flex items-center gap-2"><button type="button" disabled={!filteredRooms.length} onClick={exportRooms} className="flex items-center gap-2 rounded-lg border border-green-200 px-3 py-2 text-sm font-semibold text-green-800 hover:bg-green-50 disabled:opacity-50"><Download className="h-4 w-4" /><span className="hidden sm:inline">Xuất Excel</span></button><button type="button" onClick={openCreateRoom} className="flex items-center gap-2 rounded-lg bg-blue-700 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-800"><Plus className="h-4 w-4" />Thêm phòng mới</button><button onClick={loadRooms} className="rounded-lg border px-3 py-2 text-sm hover:bg-gray-50">Làm mới</button></div></header>
-        <main className="flex flex-1 flex-col gap-4 overflow-y-auto p-4 lg:flex-row lg:overflow-hidden lg:p-6">
+    <FacilitiesLayout
+      title="Sơ đồ phòng & cơ sở vật chất"
+      description="Quản lý phòng và tình trạng thiết bị trong phạm vi được phân công."
+      actions={<>
+        <button type="button" disabled={!filteredRooms.length} onClick={exportRooms} className="flex items-center gap-2 rounded-lg border border-green-200 px-3 py-2 text-sm font-semibold text-green-800 hover:bg-green-50 disabled:opacity-50"><Download className="h-4 w-4" /><span className="hidden sm:inline">Xuất Excel</span></button>
+        {canManageRooms && <button type="button" onClick={openCreateRoom} className="flex items-center gap-2 rounded-lg bg-blue-700 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-800"><Plus className="h-4 w-4" />Thêm phòng mới</button>}
+        <button onClick={loadRooms} className="rounded-lg border px-3 py-2 text-sm hover:bg-gray-50">Làm mới</button>
+      </>}
+    >
+        <div className="flex min-h-0 flex-1 flex-col gap-4 lg:flex-row">
           <section className="flex min-h-[360px] min-w-0 flex-1 flex-col overflow-hidden rounded-xl border bg-white shadow-sm lg:min-h-0">
             <div className="grid grid-cols-2 gap-3 border-b p-4 sm:grid-cols-4">
               <div className="rounded-lg bg-blue-50 p-3"><p className="text-xs text-gray-500">Tổng số phòng</p><p className="mt-1 text-xl font-bold text-blue-800">{counts.total}</p></div>
@@ -324,11 +319,11 @@ const RoomManagement = () => {
             </div>
 
             <div className="flex flex-wrap gap-2 border-b p-4">
-              <select aria-label="Lọc theo cơ sở" value={campusFilter} onChange={(event) => { setCampusFilter(event.target.value); setBuildingFilter('ALL'); setFloorFilter('ALL'); }} className="rounded-lg border bg-white px-3 py-2 text-sm"><option value="ALL">Tất cả cơ sở</option>{locations.map((campus) => <option key={campus.maCoSo} value={campus.maCoSo}>{campus.tenCoSo}</option>)}</select>
+              <select aria-label="Lọc theo khu" value={khuFilter} onChange={(event) => { setKhuFilter(event.target.value); setBuildingFilter('ALL'); setFloorFilter('ALL'); }} className="rounded-lg border bg-white px-3 py-2 text-sm"><option value="ALL">Tất cả khu</option>{locations.map((khu) => <option key={khu.maKhu} value={khu.maKhu}>{khu.tenKhu}</option>)}</select>
               <select aria-label="Lọc theo tòa nhà" value={buildingFilter} onChange={(event) => { setBuildingFilter(event.target.value); setFloorFilter('ALL'); }} className="rounded-lg border bg-white px-3 py-2 text-sm"><option value="ALL">Tất cả tòa nhà</option>{buildingOptions.map((building) => <option key={building.maToaNha} value={building.maToaNha}>{building.tenHienThi || building.tenToaNha}</option>)}</select>
               <select aria-label="Lọc theo tầng" value={floorFilter} onChange={(event) => setFloorFilter(event.target.value)} className="rounded-lg border bg-white px-3 py-2 text-sm"><option value="ALL">Tất cả tầng</option>{floorOptions.map((floor) => <option key={floor} value={floor}>Tầng {floor}</option>)}</select>
               <label className="flex min-w-[200px] flex-1 items-center gap-2 rounded-lg border px-3"><Search className="h-4 w-4 text-gray-400" /><input value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder="Tìm số phòng, mã phòng..." className="w-full py-2 text-sm outline-none" /></label>
-              <select value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)} className="rounded-lg border bg-white px-3 py-2 text-sm"><option value="ALL">Tất cả loại phòng</option><option value="QUAT">Phòng quạt</option><option value="DIEU_HOA">Phòng điều hòa</option></select>
+              <select value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)} className="rounded-lg border bg-white px-3 py-2 text-sm"><option value="ALL">Tất cả loại phòng</option>{roomTypes.map((type) => <option key={type.value} value={type.value}>{type.label}</option>)}</select>
               <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} className="rounded-lg border bg-white px-3 py-2 text-sm"><option value="ALL">Tất cả trạng thái CSVC</option><option value="TOT">CSVC tốt</option><option value="CO_HU_HONG">Có thiết bị hư</option><option value="DANG_BAO_TRI">Đang bảo trì</option><option value="CHUA_CAP_NHAT">Chưa có dữ liệu</option></select>
             </div>
 
@@ -340,8 +335,8 @@ const RoomManagement = () => {
                   const fullness = room.soSinhVienToiDa > 0 ? Math.min(100, (room.soSinhVienHienTai / room.soSinhVienToiDa) * 100) : 0;
                   const full = room.soSinhVienHienTai >= room.soSinhVienToiDa;
                   return <button key={room.maPhong} onClick={() => setSelectedRoomId(room.maPhong)} className={`rounded-xl border-2 p-4 text-left transition hover:shadow-md ${selectedRoomId === room.maPhong ? 'border-blue-600 bg-blue-50/60 ring-2 ring-blue-100' : 'border-gray-200 bg-white hover:border-blue-300'}`}>
-                    <p className="mb-2 text-xs text-gray-500">{room.tenCoSo || 'Chưa gán cơ sở'} · {room.tenToaNha || 'Chưa gán tòa'}{room.tang ? ` · Tầng ${room.tang}` : ''}</p>
-                    <div className="flex items-start justify-between gap-2"><div><p className="text-xs font-semibold uppercase tracking-wide text-blue-700">{roomTypeLabel(room.loaiPhong)}</p><h3 className="mt-1 text-xl font-bold">{room.soPhong}</h3><p className="text-xs text-gray-500">Mã phòng: {room.maPhong}</p></div><span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${getRoomStatusClass(room.trangThaiCSVC)}`}>{roomStatusLabels[room.trangThaiCSVC]}</span></div>
+                    <p className="mb-2 text-xs text-gray-500">{room.tenKhu || 'Chưa gán khu'} · {room.tenToaNha || 'Chưa gán tòa'}{room.tang ? ` · Tầng ${room.tang}` : ''}</p>
+                    <div className="flex items-start justify-between gap-2"><div><p className="text-xs font-semibold uppercase tracking-wide text-blue-700">{roomTypeLabel(room.loaiPhong)}</p><h3 className="mt-1 text-xl font-bold">{room.soPhong}</h3><p className="text-xs text-gray-500">Mã phòng: {room.maPhong}</p>{room.phiNoiTruThang != null && <p className="mt-1 text-xs font-semibold text-slate-700">{Number(room.phiNoiTruThang).toLocaleString('vi-VN')} đ/người/tháng</p>}</div><span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${getRoomStatusClass(room.trangThaiCSVC)}`}>{roomStatusLabels[room.trangThaiCSVC]}</span></div>
                     <div className="mt-4"><div className="mb-1 flex justify-between text-xs"><span className="font-medium text-gray-500">Sức chứa</span><span className={`font-bold ${full ? 'text-red-700' : 'text-gray-800'}`}>{room.soSinhVienHienTai} / {room.soSinhVienToiDa}</span></div><div className="h-2 overflow-hidden rounded-full bg-gray-100"><div className={`h-full rounded-full ${full ? 'bg-red-500' : fullness >= 75 ? 'bg-amber-500' : 'bg-blue-600'}`} style={{ width: `${fullness}%` }} /></div><p className="mt-2 text-xs text-gray-500">{room.choConTrong} chỗ còn trống · {room.thietBis.length} nhóm thiết bị</p></div>
                   </button>;
                 })}
@@ -351,30 +346,29 @@ const RoomManagement = () => {
 
           <aside className="flex min-h-[280px] w-full shrink-0 flex-col overflow-visible rounded-xl border bg-white shadow-sm lg:min-h-0 lg:w-[390px] lg:overflow-hidden">
             {selectedRoom ? <>
-              <div className="border-b bg-gray-50 p-5"><div className="mb-3 flex justify-end gap-2"><button type="button" disabled={saving} onClick={() => openEditRoom(selectedRoom)} className="flex items-center gap-2 rounded-lg border px-3 py-2 text-sm text-blue-700 hover:bg-blue-50 disabled:opacity-50"><Pencil className="h-4 w-4" />Chỉnh sửa</button><button type="button" disabled={saving} onClick={deleteRoom} className="flex items-center gap-2 rounded-lg border border-red-200 px-3 py-2 text-sm text-red-600 hover:bg-red-50 disabled:opacity-50"><Trash2 className="h-4 w-4" />Xóa phòng</button></div><div className="flex items-start justify-between"><div><p className="text-xs font-semibold uppercase text-blue-700">{roomTypeLabel(selectedRoom.loaiPhong)}</p><h3 className="mt-1 text-2xl font-bold">Phòng {selectedRoom.soPhong}</h3><p className="text-xs text-gray-500">Mã phòng: {selectedRoom.maPhong}</p></div><span className={`rounded-full px-3 py-1 text-xs font-semibold ${getRoomStatusClass(selectedRoom.trangThaiCSVC)}`}>{roomStatusLabels[selectedRoom.trangThaiCSVC]}</span></div>
-                <div className="mt-4 rounded-xl border bg-white p-4"><div className="mb-2 flex items-center justify-between text-sm"><span className="flex items-center gap-2 text-gray-600"><Bed className="h-4 w-4" />Sức chứa hiện tại</span><strong>{selectedRoom.soSinhVienHienTai} / {selectedRoom.soSinhVienToiDa} sinh viên</strong></div><div className="h-2 overflow-hidden rounded-full bg-gray-100"><div className={`h-full ${selectedRoom.soSinhVienHienTai >= selectedRoom.soSinhVienToiDa ? 'bg-red-500' : 'bg-blue-600'}`} style={{ width: `${selectedRoom.soSinhVienToiDa > 0 ? Math.min(100, selectedRoom.soSinhVienHienTai / selectedRoom.soSinhVienToiDa * 100) : 0}%` }} /></div><p className="mt-2 text-xs text-gray-500">Còn {selectedRoom.choConTrong} chỗ</p></div>
+              <div className="border-b bg-gray-50 p-5">{canManageRooms && <div className="mb-3 flex justify-end gap-2"><button type="button" disabled={saving} onClick={() => openEditRoom(selectedRoom)} className="flex items-center gap-2 rounded-lg border px-3 py-2 text-sm text-blue-700 hover:bg-blue-50 disabled:opacity-50"><Pencil className="h-4 w-4" />Chỉnh sửa</button><button type="button" disabled={saving} onClick={deleteRoom} className="flex items-center gap-2 rounded-lg border border-red-200 px-3 py-2 text-sm text-red-600 hover:bg-red-50 disabled:opacity-50"><Trash2 className="h-4 w-4" />Xóa phòng</button></div>}<div className="flex items-start justify-between"><div><p className="text-xs font-semibold uppercase text-blue-700">{roomTypeLabel(selectedRoom.loaiPhong)}</p><h3 className="mt-1 text-2xl font-bold">Phòng {selectedRoom.soPhong}</h3><p className="text-xs text-gray-500">Mã phòng: {selectedRoom.maPhong}</p></div><span className={`rounded-full px-3 py-1 text-xs font-semibold ${getRoomStatusClass(selectedRoom.trangThaiCSVC)}`}>{roomStatusLabels[selectedRoom.trangThaiCSVC]}</span></div>
+                <div className="mt-4 rounded-xl border bg-white p-4"><div className="mb-2 flex items-center justify-between text-sm"><span className="flex items-center gap-2 text-gray-600"><Bed className="h-4 w-4" />Sức chứa hiện tại</span><strong>{selectedRoom.soSinhVienHienTai} / {selectedRoom.soSinhVienToiDa} sinh viên</strong></div><div className="h-2 overflow-hidden rounded-full bg-gray-100"><div className={`h-full ${selectedRoom.soSinhVienHienTai >= selectedRoom.soSinhVienToiDa ? 'bg-red-500' : 'bg-blue-600'}`} style={{ width: `${selectedRoom.soSinhVienToiDa > 0 ? Math.min(100, selectedRoom.soSinhVienHienTai / selectedRoom.soSinhVienToiDa * 100) : 0}%` }} /></div><p className="mt-2 text-xs text-gray-500">Còn {selectedRoom.choConTrong} chỗ</p>{selectedRoom.phiNoiTruThang != null && <p className="mt-2 border-t pt-2 text-sm font-semibold">Phí nội trú: {Number(selectedRoom.phiNoiTruThang).toLocaleString('vi-VN')} đ/người/tháng</p>}</div>
               </div>
               <div className="border-b p-4">
                 <div className="mb-3 flex items-center justify-between"><div><h4 className="flex items-center gap-2 font-semibold"><Users className="h-4 w-4 text-blue-700" />Thành viên trong phòng</h4><p className="text-xs text-gray-500">{selectedRoom.thanhVien.length} hồ sơ có hợp đồng đang hiệu lực hoặc chờ thanh toán</p></div><span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-bold text-blue-800">{selectedRoom.thanhVien.length}</span></div>
                 {selectedRoom.thanhVien.length === 0 ? <p className="rounded-lg bg-gray-50 p-3 text-sm text-gray-500">Chưa có thành viên được ghi nhận trong phòng.</p> : <div className="max-h-48 space-y-2 overflow-y-auto pr-1">
                   {selectedRoom.thanhVien.map((member) => <div key={member.maHopDong} className="rounded-lg border p-3">
-                    <div className="flex items-start justify-between gap-2"><div className="flex min-w-0 items-start gap-2"><div className="min-w-0"><p className="truncate text-sm font-semibold">{member.hoTen || 'Chưa có họ tên'}</p><p className="mt-0.5 text-xs text-gray-500">{member.maSinhVien}{member.lop ? ` · ${member.lop}` : ''}</p></div><button type="button" disabled={saving} onClick={() => setMemberMenuId((current) => current === member.maHopDong ? '' : member.maHopDong)} className="shrink-0 rounded-md p-1 text-gray-500 hover:bg-gray-100 hover:text-gray-900 disabled:opacity-50" aria-label={`Thao tác với ${member.hoTen}`} aria-expanded={memberMenuId === member.maHopDong}><MoreVertical className="h-4 w-4" /></button></div><span className={`shrink-0 rounded-full px-2 py-1 text-[10px] font-semibold ${['TAM_VANG', 'Tạm vắng', 'CHO_DUYET', 'CHO_THANH_TOAN'].includes(member.trangThaiNoiTru) ? 'bg-amber-100 text-amber-800' : member.trangThaiNoiTru === 'DA_ROI' || member.trangThaiNoiTru === 'Đã rời KTX' ? 'bg-gray-100 text-gray-700' : 'bg-green-100 text-green-800'}`}>{memberHousingStatusLabels[member.trangThaiNoiTru] || member.trangThaiNoiTru || 'Chưa cập nhật'}</span></div>
-                    {memberMenuId === member.maHopDong && <div className="mt-2 flex flex-wrap gap-2 border-t pt-2"><button type="button" disabled={saving} onClick={() => { const candidates = rooms.filter((room) => room.maPhong !== selectedRoom.maPhong && room.loaiPhong === selectedRoom.loaiPhong && room.soSinhVienHienTai < room.soSinhVienToiDa); setError(''); setMoveMember({ room: selectedRoom, member }); setMoveTargetRoomId(candidates[0]?.maPhong || ''); }} className="flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-medium text-blue-700 hover:bg-blue-50 disabled:opacity-50"><ArrowRightLeft className="h-3.5 w-3.5" />Chuyển phòng</button><button type="button" disabled={saving} onClick={() => removeMember(selectedRoom, member)} className="flex items-center gap-1.5 rounded-md border border-red-200 px-2.5 py-1.5 text-xs font-medium text-red-700 hover:bg-red-50 disabled:opacity-50"><Trash2 className="h-3.5 w-3.5" />Xóa khỏi phòng</button></div>}
+                    <div className="flex items-start justify-between gap-2"><div className="flex min-w-0 items-start gap-2"><div className="min-w-0"><p className="truncate text-sm font-semibold">{member.hoTen || 'Chưa có họ tên'}</p><p className="mt-0.5 text-xs text-gray-500">{member.maSinhVien}{member.lop ? ` · ${member.lop}` : ''}</p></div>{canManageRooms && <button type="button" disabled={saving} onClick={() => setMemberMenuId((current) => current === member.maHopDong ? '' : member.maHopDong)} className="shrink-0 rounded-md p-1 text-gray-500 hover:bg-gray-100 hover:text-gray-900 disabled:opacity-50" aria-label={`Thao tác với ${member.hoTen}`} aria-expanded={memberMenuId === member.maHopDong}><MoreVertical className="h-4 w-4" /></button>}</div><span className={`shrink-0 rounded-full px-2 py-1 text-[10px] font-semibold ${['TAM_VANG', 'Tạm vắng', 'CHO_DUYET', 'CHO_THANH_TOAN'].includes(member.trangThaiNoiTru) ? 'bg-amber-100 text-amber-800' : member.trangThaiNoiTru === 'DA_ROI' || member.trangThaiNoiTru === 'Đã rời KTX' ? 'bg-gray-100 text-gray-700' : 'bg-green-100 text-green-800'}`}>{memberHousingStatusLabels[member.trangThaiNoiTru] || member.trangThaiNoiTru || 'Chưa cập nhật'}</span></div>
+                    {canManageRooms && memberMenuId === member.maHopDong && <div className="mt-2 flex flex-wrap gap-2 border-t pt-2"><button type="button" disabled={saving} onClick={() => { const candidates = rooms.filter((room) => room.maPhong !== selectedRoom.maPhong && room.loaiPhong === selectedRoom.loaiPhong && room.soSinhVienHienTai < room.soSinhVienToiDa); setError(''); setMoveMember({ room: selectedRoom, member }); setMoveTargetRoomId(candidates[0]?.maPhong || ''); }} className="flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-medium text-blue-700 hover:bg-blue-50 disabled:opacity-50"><ArrowRightLeft className="h-3.5 w-3.5" />Chuyển phòng</button><button type="button" disabled={saving} onClick={() => removeMember(selectedRoom, member)} className="flex items-center gap-1.5 rounded-md border border-red-200 px-2.5 py-1.5 text-xs font-medium text-red-700 hover:bg-red-50 disabled:opacity-50"><Trash2 className="h-3.5 w-3.5" />Xóa khỏi phòng</button></div>}
                     <p className="mt-2 text-[11px] text-blue-700">{contractStatusLabels[member.trangThaiHopDong] || member.trangThaiHopDong} · HĐ {member.maHopDong}</p>
                   </div>)}
                 </div>}
               </div>
-              <div className="flex items-center justify-between border-b p-4"><div><h4 className="font-semibold">Cơ sở vật chất</h4><p className="text-xs text-gray-500">Tình trạng thiết bị ghi trong database</p></div><button onClick={openCreateFacility} className="flex items-center gap-1 rounded-lg bg-blue-700 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-800"><Plus className="h-4 w-4" />Thêm thiết bị</button></div>
+              <div className="flex items-center justify-between border-b p-4"><div><h4 className="font-semibold">Cơ sở vật chất</h4><p className="text-xs text-gray-500">Tình trạng thiết bị ghi trong database</p></div>{canManageRooms && <button onClick={openCreateFacility} className="flex items-center gap-1 rounded-lg bg-blue-700 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-800"><Plus className="h-4 w-4" />Thêm thiết bị</button>}</div>
               <div className="min-h-[160px] shrink-0 space-y-3 overflow-visible p-4 lg:min-h-0 lg:flex-1 lg:shrink lg:overflow-y-auto">
                 {selectedRoom.thietBis.length === 0 ? <div className="rounded-xl border border-dashed p-6 text-center"><AlertTriangle className="mx-auto mb-2 h-6 w-6 text-gray-400" /><p className="text-sm font-medium text-gray-700">Chưa có dữ liệu CSVC</p><p className="mt-1 text-xs text-gray-500">Thêm thiết bị thực tế để bắt đầu theo dõi tình trạng phòng.</p></div> : selectedRoom.thietBis.map((item) => <div key={item.maThietBi} className="rounded-xl border p-3">
-                  <div className="flex items-start justify-between gap-2"><div className="min-w-0"><p className="font-medium">{item.tenThietBi}</p><p className="mt-1 text-xs text-gray-500">Số lượng: {item.soLuong} · Cập nhật {new Date(item.ngayCapNhat).toLocaleDateString('vi-VN')}</p>{item.ghiChu && <p className="mt-1 text-xs text-gray-500">{item.ghiChu}</p>}</div><div className="flex shrink-0 gap-1"><button onClick={() => openEditFacility(item)} title="Sửa thiết bị" className="rounded p-1.5 text-blue-700 hover:bg-blue-50"><Pencil className="h-4 w-4" /></button><button disabled={saving} onClick={() => deleteFacility(item)} title="Xóa thiết bị" className="rounded p-1.5 text-red-600 hover:bg-red-50"><Trash2 className="h-4 w-4" /></button></div></div>
+                  <div className="flex items-start justify-between gap-2"><div className="min-w-0"><p className="font-medium">{item.tenThietBi}</p><p className="mt-1 text-xs text-gray-500">Số lượng: {item.soLuong} · Cập nhật {new Date(item.ngayCapNhat).toLocaleDateString('vi-VN')}</p>{item.ghiChu && <p className="mt-1 text-xs text-gray-500">{item.ghiChu}</p>}</div>{canManageRooms && <div className="flex shrink-0 gap-1"><button onClick={() => openEditFacility(item)} title="Sửa thiết bị" className="rounded p-1.5 text-blue-700 hover:bg-blue-50"><Pencil className="h-4 w-4" /></button><button disabled={saving} onClick={() => deleteFacility(item)} title="Xóa thiết bị" className="rounded p-1.5 text-red-600 hover:bg-red-50"><Trash2 className="h-4 w-4" /></button></div>}</div>
                   <span className={`mt-2 inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ${item.trangThai === 'TOT' ? 'bg-green-100 text-green-800' : item.trangThai === 'HU_HONG' ? 'bg-red-100 text-red-800' : 'bg-amber-100 text-amber-800'}`}>{item.trangThai === 'TOT' ? <CheckCircle2 className="h-3 w-3" /> : <AlertTriangle className="h-3 w-3" />}{facilityStatusLabels[item.trangThai]}</span>
                 </div>)}
               </div>
             </> : <div className="flex flex-1 flex-col items-center justify-center p-8 text-center text-gray-400"><DoorOpen className="mb-3 h-10 w-10" /><p>Chọn phòng trên sơ đồ để xem sức chứa và CSVC.</p></div>}
           </aside>
-        </main>
-      </div>
+        </div>
 
       {moveMember && <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/50 p-4" onMouseDown={(event) => { if (event.target === event.currentTarget && !saving) setMoveMember(null); }}>
         <form onSubmit={submitMoveMember} className="w-full max-w-md space-y-4 rounded-2xl bg-white p-6 shadow-xl">
@@ -391,10 +385,11 @@ const RoomManagement = () => {
           <div className="grid gap-4 sm:grid-cols-2">
             <label className="text-sm font-medium text-gray-700">Mã phòng<input required maxLength={100} disabled={roomForm.mode === 'edit'} value={roomForm.maPhong} onChange={(event) => setRoomForm({ ...roomForm, maPhong: event.target.value })} className="mt-1 w-full rounded-lg border p-2.5 disabled:bg-gray-100" placeholder="Ví dụ: T10PH01" /></label>
             <label className="text-sm font-medium text-gray-700">Số phòng hiển thị<input required maxLength={100} value={roomForm.soPhong} onChange={(event) => setRoomForm({ ...roomForm, soPhong: event.target.value })} className="mt-1 w-full rounded-lg border p-2.5" placeholder="Ví dụ: T10-01" /></label>
-            <label className="text-sm font-medium text-gray-700">Loại phòng<select value={roomForm.loaiPhong} onChange={(event) => setRoomForm({ ...roomForm, loaiPhong: event.target.value })} className="mt-1 w-full rounded-lg border bg-white p-2.5"><option value="QUAT">Phòng quạt</option><option value="DIEU_HOA">Phòng điều hòa</option></select></label>
+            <label className="text-sm font-medium text-gray-700">Loại phòng<select value={roomForm.loaiPhong} onChange={(event) => { const type = roomTypes.find((item) => item.value === event.target.value); setRoomForm({ ...roomForm, loaiPhong: event.target.value, soSinhVienToiDa: String(type?.capacities[0] || roomForm.soSinhVienToiDa) }); }} className="mt-1 w-full rounded-lg border bg-white p-2.5">{roomTypes.filter((type) => roomForm.maToaNha === 'A4' || !a4OnlyRoomTypeIds.has(type.value)).map((type) => <option key={type.value} value={type.value}>{type.label}</option>)}</select></label>
             <label className="text-sm font-medium text-gray-700">Sức chứa tối đa<input required min="1" max="200" type="number" value={roomForm.soSinhVienToiDa} onChange={(event) => setRoomForm({ ...roomForm, soSinhVienToiDa: event.target.value })} className="mt-1 w-full rounded-lg border p-2.5" /></label>
-            <label className="text-sm font-medium text-gray-700">Tòa nhà<select value={roomForm.maToaNha} onChange={(event) => setRoomForm({ ...roomForm, maToaNha: event.target.value, tang: '' })} className="mt-1 w-full rounded-lg border bg-white p-2.5"><option value="">Chưa gán tòa</option>{locations.flatMap((campus) => campus.toaNhas.map((building) => <option key={building.maToaNha} value={building.maToaNha}>{building.tenToaNha} · {campus.tenCoSo}</option>))}</select></label>
-            <label className="text-sm font-medium text-gray-700">Tầng<select required={Boolean(roomForm.maToaNha)} disabled={!roomForm.maToaNha} value={roomForm.tang} onChange={(event) => setRoomForm({ ...roomForm, tang: event.target.value })} className="mt-1 w-full rounded-lg border bg-white p-2.5 disabled:bg-gray-100"><option value="">{roomForm.maToaNha ? 'Chọn tầng' : 'Chọn tòa nhà trước'}</option>{(() => { const building = locations.flatMap((campus) => campus.toaNhas).find((item) => item.maToaNha === roomForm.maToaNha); return Array.from({ length: Number(building?.soTang) || 0 }, (_, index) => index + 1).map((floor) => <option key={floor} value={floor}>Tầng {floor}</option>); })()}</select></label>
+            <label className="text-sm font-medium text-gray-700">Phí nội trú mỗi người/tháng (đ)<input min="0" type="number" value={roomForm.phiNoiTruThang} onChange={(event) => setRoomForm({ ...roomForm, phiNoiTruThang: event.target.value })} className="mt-1 w-full rounded-lg border p-2.5" placeholder="Theo loại phòng và sức chứa" /></label>
+            <label className="text-sm font-medium text-gray-700">Tòa nhà<select value={roomForm.maToaNha} onChange={(event) => { const maToaNha = event.target.value; const loaiPhong = maToaNha !== 'A4' && a4OnlyRoomTypeIds.has(roomForm.loaiPhong) ? 'CO_BAN' : roomForm.loaiPhong; const type = roomTypes.find((item) => item.value === loaiPhong); setRoomForm({ ...roomForm, maToaNha, tang: '', loaiPhong, soSinhVienToiDa: String(type?.capacities[0] || roomForm.soSinhVienToiDa) }); }} className="mt-1 w-full rounded-lg border bg-white p-2.5"><option value="">Chưa gán tòa</option>{locations.flatMap((khu) => khu.toaNhas.filter((building) => !noDormBuildingIds.has(building.maToaNha)).map((building) => <option key={building.maToaNha} value={building.maToaNha}>{building.tenToaNha} · {khu.tenKhu}</option>))}</select></label>
+            <label className="text-sm font-medium text-gray-700">Tầng<select required={Boolean(roomForm.maToaNha)} disabled={!roomForm.maToaNha} value={roomForm.tang} onChange={(event) => setRoomForm({ ...roomForm, tang: event.target.value })} className="mt-1 w-full rounded-lg border bg-white p-2.5 disabled:bg-gray-100"><option value="">{roomForm.maToaNha ? 'Chọn tầng' : 'Chọn tòa nhà trước'}</option>{(() => { const building = locations.flatMap((khu) => khu.toaNhas).find((item) => item.maToaNha === roomForm.maToaNha); return Array.from({ length: Number(building?.soTang) || 0 }, (_, index) => index + 1).map((floor) => <option key={floor} value={floor}>Tầng {floor}</option>); })()}</select></label>
           </div>
           {roomFormError && <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{roomFormError}</p>}
           <div className="flex justify-end gap-2 border-t pt-4"><button type="button" onClick={() => setRoomForm(null)} className="rounded-lg border px-4 py-2 text-sm">Hủy</button><button disabled={saving} className="rounded-lg bg-blue-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">{saving ? 'Đang lưu...' : roomForm.mode === 'create' ? 'Thêm phòng' : 'Lưu thay đổi'}</button></div>
@@ -407,7 +402,7 @@ const RoomManagement = () => {
         <label className="block text-sm font-medium">Ghi chú<textarea maxLength={255} value={facilityForm.ghiChu} onChange={(event) => setFacilityForm({ ...facilityForm, ghiChu: event.target.value })} rows="2" className="mt-1 w-full rounded-lg border p-2.5" /></label>
         <div className="flex justify-end gap-2"><button type="button" onClick={() => setFacilityForm(null)} className="rounded-lg border px-4 py-2 text-sm">Hủy</button><button disabled={saving} className="rounded-lg bg-blue-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">{saving ? 'Đang lưu...' : 'Lưu vào database'}</button></div>
       </form></div>}
-    </div>
+    </FacilitiesLayout>
   );
 };
 

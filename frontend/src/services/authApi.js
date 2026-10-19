@@ -8,6 +8,7 @@ export const authApi = {
         return response.data; // Trả về data gồm: token và thông tin user
     },
     me: async () => (await api.get('/auth/me')).data,
+    adminTestAccounts: async () => (await api.get('/auth/admin-test/accounts', { skipAdminTestMode: true })).data,
     updateMyContact: async (contact) => (await api.patch('/auth/me/contact', contact)).data,
     changeMyPassword: async (passwords) => (await api.patch('/auth/me/password', passwords)).data,
     requestPasswordReset: async (identifier) => (await api.post('/auth/forgot-password', { identifier })).data,

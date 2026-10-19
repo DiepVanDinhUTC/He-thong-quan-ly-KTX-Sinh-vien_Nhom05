@@ -1,13 +1,10 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
-import { ArrowLeft, Settings } from 'lucide-react';
+import { Settings } from 'lucide-react';
+import AdminLayout from '../components/AdminLayout';
 
 const SystemSettings = () => (
-  <main className="min-h-screen bg-gray-50 p-6 sm:p-10">
+  <AdminLayout>
     <div className="mx-auto max-w-3xl">
-      <Link to="/" className="mb-6 inline-flex items-center gap-2 text-sm font-medium text-blue-700 hover:text-blue-900">
-        <ArrowLeft className="h-4 w-4" /> Quay lại trang quản lý
-      </Link>
       <section className="rounded-2xl border bg-white p-6 shadow-sm sm:p-8">
         <div className="flex items-center gap-3">
           <span className="rounded-xl bg-blue-50 p-3 text-blue-700"><Settings className="h-6 w-6" /></span>
@@ -22,7 +19,7 @@ const SystemSettings = () => (
         </div>
       </section>
     </div>
-  </main>
+  </AdminLayout>
 );
 
 export default SystemSettings;

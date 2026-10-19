@@ -48,7 +48,7 @@ const RequireRole = ({ allowedRoles, children }) => {
 
   if (loading) return <div className="flex min-h-screen items-center justify-center bg-gray-50 text-sm text-gray-500">Đang kiểm tra quyền truy cập...</div>;
   if (!user) return <Navigate to="/login" replace state={{ from: location }} />;
-  if (!allowedRoles.includes(user.role)) return <Navigate to={homeForRole(user.role)} replace />;
+  if (user.role !== 'ADMIN' && !allowedRoles.includes(user.role)) return <Navigate to={homeForRole(user.role)} replace />;
   return children;
 };
 

@@ -7,11 +7,11 @@ const hoDemNu = ['Nguyễn Thị', 'Trần Thu', 'Lê Ngọc', 'Phạm Khánh', 
 const tenNam = ['An', 'Bảo', 'Cường', 'Dũng', 'Đạt', 'Hải', 'Hiếu', 'Hưng', 'Khang', 'Long', 'Minh', 'Nam', 'Phong', 'Quân', 'Sơn'];
 const tenNu = ['Anh', 'Chi', 'Dung', 'Giang', 'Hà', 'Hạnh', 'Lan', 'Linh', 'Mai', 'My', 'Ngọc', 'Phương', 'Trang', 'Thảo', 'Vy'];
 const majors = [
-    { lop: 'CNTT', khoa: 'Công nghệ thông tin' },
-    { lop: 'KTXD', khoa: 'Công trình' },
-    { lop: 'KTVT', khoa: 'Vận tải - Kinh tế' },
-    { lop: 'KTDK', khoa: 'Điện - Điện tử' },
-    { lop: 'KCK', khoa: 'Cơ khí' }
+    { maKhoa: 'KHOA-CNTT', lop: 'CNTT', khoa: 'Công nghệ thông tin' },
+    { maKhoa: 'KHOA-CT', lop: 'KTXD', khoa: 'Công trình' },
+    { maKhoa: 'KHOA-VTK', lop: 'KTVT', khoa: 'Vận tải - Kinh tế' },
+    { maKhoa: 'KHOA-DT', lop: 'KTDK', khoa: 'Điện - Điện tử' },
+    { maKhoa: 'KHOA-CK', lop: 'KCK', khoa: 'Cơ khí' }
 ];
 const priorities = ['Không', 'Không', 'Không', 'Con thương binh', 'Hộ nghèo'];
 
@@ -32,6 +32,7 @@ const mockStudents = Array.from({ length: 50 }, (_, index) => {
         gioiTinh: !female,
         lop: `${major.lop}${(index % 4) + 1}-K${64 + (index % 3)}`,
         nienKhoa: `K${64 + (index % 3)}`,
+        maKhoa: major.maKhoa,
         khoa: major.khoa,
         cccd: `099${String(200300000 + number).padStart(9, '0')}`,
         phone,
@@ -40,10 +41,32 @@ const mockStudents = Array.from({ length: 50 }, (_, index) => {
     };
 });
 
+const batches = ['DOT-1', 'DOT-2'];
+const registrationStatuses = ['REGISTERED', 'CONFIRMED', 'ENROLLED', 'APPROVED'];
+const mockRegistrations = mockStudents.map((student, index) => ({
+    courseCode: 'GDQP101',
+    facultyCode: student.maKhoa,
+    batchCode: batches[index % batches.length],
+    registrationStatus: registrationStatuses[index % registrationStatuses.length],
+    student
+}));
+
+for (const student of mockStudents) {
+    student.courseRegistrations = mockRegistrations
+        .filter((registration) => registration.student.maSV === student.maSV)
+        .map(({ courseCode, facultyCode, batchCode, registrationStatus }) => ({
+            courseCode,
+            facultyCode,
+            batchCode,
+            registrationStatus
+        }));
+}
+
 router.get('/students', (req, res) => {
     res.status(200).json({
         success: true,
-        message: 'Đã lấy 50 hồ sơ sinh viên mẫu từ API SIS Phòng Đào tạo.',
+        message: 'Đã lấy 50 hồ sơ sinh viên mẫu và 50 đăng ký GDQP hợp lệ từ API SIS Phòng Đào tạo.',
+        meta: { totalStudents: mockStudents.length, eligibleGdqpRegistrations: mockRegistrations.length },
         data: mockStudents
     });
 });

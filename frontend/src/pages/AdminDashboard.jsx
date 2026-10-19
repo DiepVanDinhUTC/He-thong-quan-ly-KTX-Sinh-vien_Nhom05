@@ -1,17 +1,10 @@
-import AdminUserProfile from '../components/AdminUserProfile';
-import AdminLogoutButton from '../components/AdminLogoutButton';
-import Link from '../components/RoleLink';
 import React, { useState } from 'react';
+import Sidebar from '../components/Sidebar';
+import { useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { 
-  Building, 
-  Home, 
-  UserPlus, 
   DoorOpen, 
-  FileSignature, 
   Wrench, 
-  Receipt,
-  Settings,
   Search, 
   Bell, 
   FileText, 
@@ -24,6 +17,8 @@ import {
 } from 'lucide-react';
 
 const AdminDashboard = () => {
+  const role = useSelector((state) => state.auth.user?.role);
+  const isBoardLeader = ['BOARD_CHAIR', 'BOARD_DEPUTY'].includes(role);
   const [searchQuery, setSearchQuery] = useState('');
   const navigate = useNavigate();
 
@@ -39,49 +34,12 @@ const AdminDashboard = () => {
   ];
 
   return (
-    <div className="flex h-screen overflow-hidden bg-gray-100 text-gray-800 antialiased font-sans">
+    <div className="flex h-screen min-h-0 overflow-hidden bg-gray-100 text-gray-800 antialiased font-sans">
       
-      {/* Sidebar */}
-      <div className="w-64 bg-blue-900 text-white flex flex-col h-full shadow-lg flex-shrink-0">
-        <div className="p-6 flex items-center justify-center border-b border-blue-800">
-          <Building className="w-8 h-8 mr-3" />
-          <h1 className="text-xl font-bold tracking-wider">KTX GTVT</h1>
-        </div>
-        
-        <nav className="flex-1 px-4 py-6 space-y-2">
-          <Link to="/" className="flex items-center px-4 py-3 bg-blue-800 rounded-lg text-white font-medium">
-            <Home className="w-5 h-5" />
-            <span className="ml-3">Trang chủ</span>
-          </Link>
-          <Link to="/students" className="flex items-center px-4 py-3 text-blue-200 hover:bg-blue-800 hover:text-white rounded-lg transition-colors">
-            <UserPlus className="w-5 h-5" />
-            <span className="ml-3">Quản lý Sinh viên</span>
-          </Link>
-          <Link to="/rooms" className="flex items-center px-4 py-3 text-blue-200 hover:bg-blue-800 hover:text-white rounded-lg transition-colors">
-            <DoorOpen className="w-5 h-5" />
-            <span className="ml-3">Quản lý Phòng & CSVC</span>
-          </Link>
-          <Link to="/contracts" className="flex items-center px-4 py-3 text-blue-200 hover:bg-blue-800 hover:text-white rounded-lg transition-colors">
-            <FileSignature className="w-5 h-5" />
-            <span className="ml-3">Quản lý Hợp đồng</span>
-          </Link>
-          <Link to="/tickets" className="flex items-center px-4 py-3 text-blue-200 hover:bg-blue-800 hover:text-white rounded-lg transition-colors">
-            <Wrench className="w-5 h-5" />
-            <span className="ml-3">Ticket báo hỏng</span>
-          </Link>
-          <Link to="/technician" className="flex items-center px-4 py-3 text-blue-200 hover:bg-blue-800 hover:text-white rounded-lg transition-colors"><Wrench className="w-5 h-5" /><span className="ml-3">Bảng kỹ thuật</span></Link>
-          <Link to="/financial-dashboard" className="flex items-center px-4 py-3 text-blue-200 hover:bg-blue-800 hover:text-white rounded-lg transition-colors"><Receipt className="w-5 h-5" /><span className="ml-3">Quản lý Hóa đơn & Điện nước</span></Link>
-          <Link to="/settings" className="flex items-center px-4 py-3 text-blue-200 hover:bg-blue-800 hover:text-white rounded-lg transition-colors"><Settings className="w-5 h-5" /><span className="ml-3">Cài đặt hệ thống</span></Link>
-        </nav>
-
-        <div className="p-4 border-t border-blue-800">
-          <AdminUserProfile />
-        </div>
-        <AdminLogoutButton />
-      </div>
+      <Sidebar />
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col h-full overflow-hidden">
+      <div className="min-w-0 min-h-0 flex-1 flex flex-col h-full overflow-hidden">
         
         {/* Header */}
         <header className="bg-white shadow-sm h-16 flex items-center justify-between px-8 z-10 flex-shrink-0">
@@ -105,7 +63,7 @@ const AdminDashboard = () => {
         </header>
 
         {/* Scrollable Main */}
-        <main className="flex-1 overflow-auto p-8 space-y-6">
+        <main className="min-h-0 flex-1 overflow-y-auto p-8 space-y-6">
           
           {/* Quick Actions */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -213,9 +171,9 @@ const AdminDashboard = () => {
                           2312001 &bull; Xin vào A1
                         </p>
                       </div>
-                      <button className="px-3 py-1.5 bg-yellow-50 text-yellow-700 hover:bg-yellow-100 text-xs font-medium rounded-lg transition-colors border border-yellow-200">
+                      {!isBoardLeader && <button className="px-3 py-1.5 bg-yellow-50 text-yellow-700 hover:bg-yellow-100 text-xs font-medium rounded-lg transition-colors border border-yellow-200">
                         Duyệt
-                      </button>
+                      </button>}
                     </div>
                     <div className="flex justify-between items-center p-3 hover:bg-gray-50 rounded-xl transition-colors border border-gray-100 shadow-sm">
                       <div>
@@ -224,9 +182,9 @@ const AdminDashboard = () => {
                           2312002 &bull; Xin vào A1
                         </p>
                       </div>
-                      <button className="px-3 py-1.5 bg-yellow-50 text-yellow-700 hover:bg-yellow-100 text-xs font-medium rounded-lg transition-colors border border-yellow-200">
+                      {!isBoardLeader && <button className="px-3 py-1.5 bg-yellow-50 text-yellow-700 hover:bg-yellow-100 text-xs font-medium rounded-lg transition-colors border border-yellow-200">
                         Duyệt
-                      </button>
+                      </button>}
                     </div>
                   </div>
                 </div>
@@ -242,9 +200,9 @@ const AdminDashboard = () => {
                           <AlertTriangle className="w-3 h-3 mr-1" /> Quá SLA (48h)
                         </p>
                       </div>
-                      <button className="w-8 h-8 rounded-full bg-white border border-gray-200 text-blue-600 hover:bg-blue-50 hover:border-blue-200 transition-colors flex items-center justify-center" title="Phân công">
+                      {!isBoardLeader && <button className="w-8 h-8 rounded-full bg-white border border-gray-200 text-blue-600 hover:bg-blue-50 hover:border-blue-200 transition-colors flex items-center justify-center" title="Phân công">
                         <ArrowRight className="w-4 h-4" />
-                      </button>
+                      </button>}
                     </div>
                     <div className="flex justify-between items-center p-3 hover:bg-gray-50 rounded-xl transition-colors border border-gray-100 shadow-sm">
                       <div>
@@ -253,9 +211,9 @@ const AdminDashboard = () => {
                           <Clock className="w-3 h-3 mr-1" /> Vừa xong
                         </p>
                       </div>
-                      <button className="w-8 h-8 rounded-full bg-white border border-gray-200 text-blue-600 hover:bg-blue-50 hover:border-blue-200 transition-colors flex items-center justify-center" title="Phân công">
+                      {!isBoardLeader && <button className="w-8 h-8 rounded-full bg-white border border-gray-200 text-blue-600 hover:bg-blue-50 hover:border-blue-200 transition-colors flex items-center justify-center" title="Phân công">
                         <ArrowRight className="w-4 h-4" />
-                      </button>
+                      </button>}
                     </div>
                   </div>
                 </div>

@@ -1,8 +1,6 @@
-const axios = require('axios');
 const bcrypt = require('bcryptjs');
-const { PrismaClient } = require('@prisma/client');
-
-const prisma = new PrismaClient();
+const prisma = require('../config/prisma');
+const { fetchStudentsFromSis } = require('./sisStudentSource');
 
 const getCohort = (student) => {
     const supported = ['K62', 'K63', 'K64', 'K65', 'K66', 'K67'];
@@ -18,9 +16,7 @@ const getCohort = (student) => {
 
 exports.syncStudentsFromSis = async () => {
     try {
-        const response = await axios.get(process.env.SIS_UTC_API_URL, { timeout: 15000 });
-        const studentsData = response.data?.data;
-        if (!Array.isArray(studentsData)) throw new Error('API SIS không trả về danh sách hồ sơ hợp lệ.');
+        const studentsData = await fetchStudentsFromSis();
 
         const defaultPassword = process.env.SIS_STUDENT_DEFAULT_PASSWORD || 'Ktx@2026';
         const defaultPasswordHash = await bcrypt.hash(defaultPassword, 12);
@@ -83,7 +79,7 @@ exports.syncStudentsFromSis = async () => {
                 return { createdAccount };
             });
 
-        // Giới hạn số giao dịch chạy song song để tăng tốc mà không làm nghẽn SQL Server.
+        // Giới hạn số giao dịch chạy song song để tăng tốc mà không làm nghẽn PostgreSQL.
         const batchSize = 5;
         for (let index = 0; index < studentsData.length; index += batchSize) {
             const batchResults = await Promise.all(studentsData

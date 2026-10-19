@@ -4,6 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "test": "npm --prefix backend test",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "prepare": "husky",

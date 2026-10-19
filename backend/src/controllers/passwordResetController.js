@@ -1,26 +1,34 @@
 const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
-const { PrismaClient } = require('@prisma/client');
+const ROLES = require('../config/roles');
 
-const prisma = new PrismaClient();
+const prisma = require('../config/prisma');
 const RESET_TTL_MS = 10 * 60 * 1000;
 const MAX_ATTEMPTS = 5;
+const isStudentRole = (role) => [ROLES.STUDENT, ROLES.MILITARY_STUDENT].includes(role);
 const genericMessage = 'Nếu thông tin khớp với tài khoản sinh viên, hướng dẫn đặt lại mật khẩu sẽ được gửi.';
 
 const hashCode = (code) => crypto.createHash('sha256').update(code).digest('hex');
 const findStudentAccount = async (db, identifier) => {
-    const rows = await db.$queryRaw`
-        SELECT TOP (1) ua.id AS userId, ua.role, ua.isActive, sv.email, sv.hoTen
-        FROM SINH_VIEN AS sv
-        INNER JOIN USER_ACCOUNT AS ua ON ua.id = sv.userId
-        WHERE sv.maSV = ${identifier} OR LOWER(sv.email) = LOWER(${identifier})
-    `;
-    return rows[0] || null;
+    const student = await db.sinhVien.findFirst({
+        where: {
+            OR: [
+                { maSV: identifier },
+                { email: { equals: identifier, mode: 'insensitive' } }
+            ],
+            user: { is: { isActive: true } }
+        },
+        select: {
+            email: true,
+            hoTen: true,
+            user: { select: { id: true, role: true, isActive: true } }
+        }
+    });
+    if (!student?.user) return null;
+    return { userId: student.user.id, role: student.user.role, isActive: student.user.isActive, email: student.email, hoTen: student.hoTen };
 };
 
-const clearResetTokens = (db, userId) => db.$executeRaw`
-    DELETE FROM PASSWORD_RESET_TOKEN WHERE userId = ${userId}
-`;
+const clearResetTokens = (db, userId) => db.passwordResetToken.deleteMany({ where: { userId } });
 
 const safeHashMatch = (code, storedHash) => crypto.timingSafeEqual(
     Buffer.from(hashCode(code), 'hex'),
@@ -61,16 +69,20 @@ exports.requestReset = async (req, res) => {
     try {
         const student = await findStudentAccount(prisma, identifier);
 
-        if (!student || student.role !== 'STUDENT' || !student.isActive) {
+        if (!student || !isStudentRole(student.role) || !student.isActive) {
             return res.status(200).json({ success: true, message: genericMessage });
         }
 
         const code = String(crypto.randomInt(0, 1_000_000)).padStart(6, '0');
         await clearResetTokens(prisma, student.userId);
-        await prisma.$executeRaw`
-            INSERT INTO PASSWORD_RESET_TOKEN (id, userId, tokenHash, expiresAt, attempts, createdAt)
-            VALUES (${crypto.randomUUID()}, ${student.userId}, ${hashCode(code)}, ${new Date(Date.now() + RESET_TTL_MS)}, 0, SYSUTCDATETIME())
-        `;
+        await prisma.passwordResetToken.create({
+            data: {
+                id: crypto.randomUUID(),
+                userId: student.userId,
+                tokenHash: hashCode(code),
+                expiresAt: new Date(Date.now() + RESET_TTL_MS)
+            }
+        });
 
         if (emailConfigured) {
             try {
@@ -104,26 +116,21 @@ exports.confirmReset = async (req, res) => {
 
     try {
         const student = await findStudentAccount(prisma, identifier);
-        if (!student || student.role !== 'STUDENT' || !student.isActive) {
+        if (!student || !isStudentRole(student.role) || !student.isActive) {
             return res.status(400).json({ success: false, message: 'Mã xác minh không hợp lệ hoặc đã hết hạn.' });
         }
 
-        const resetRows = await prisma.$queryRaw`
-            SELECT TOP (1) id, tokenHash, expiresAt, attempts
-            FROM PASSWORD_RESET_TOKEN
-            WHERE userId = ${student.userId}
-            ORDER BY createdAt DESC
-        `;
-        const reset = resetRows[0];
+        const reset = await prisma.passwordResetToken.findFirst({
+            where: { userId: student.userId },
+            orderBy: { createdAt: 'desc' }
+        });
         if (!reset || reset.expiresAt <= new Date() || reset.attempts >= MAX_ATTEMPTS) {
             if (reset) await clearResetTokens(prisma, student.userId);
             return res.status(400).json({ success: false, message: 'Mã xác minh không hợp lệ hoặc đã hết hạn.' });
         }
 
         if (!safeHashMatch(code, reset.tokenHash)) {
-            await prisma.$executeRaw`
-                UPDATE PASSWORD_RESET_TOKEN SET attempts = attempts + 1 WHERE id = ${reset.id}
-            `;
+            await prisma.passwordResetToken.update({ where: { id: reset.id }, data: { attempts: { increment: 1 } } });
             if (reset.attempts + 1 >= MAX_ATTEMPTS) {
                 await clearResetTokens(prisma, student.userId);
             }
@@ -132,7 +139,7 @@ exports.confirmReset = async (req, res) => {
 
         const passwordHash = await bcrypt.hash(newPassword, 12);
         await prisma.$transaction(async (tx) => {
-            await tx.$executeRaw`UPDATE USER_ACCOUNT SET password = ${passwordHash} WHERE id = ${student.userId}`;
+            await tx.user.update({ where: { id: student.userId }, data: { password: passwordHash } });
             await clearResetTokens(tx, student.userId);
         });
         return res.status(200).json({ success: true, message: 'Đặt lại mật khẩu thành công. Bạn có thể đăng nhập bằng mật khẩu mới.' });

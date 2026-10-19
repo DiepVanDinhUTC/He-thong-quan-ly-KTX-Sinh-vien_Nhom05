@@ -1,16 +1,8 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { useSelector } from 'react-redux';
 import Link from '../components/RoleLink';
-import AdminUserProfile from '../components/AdminUserProfile';
-import AdminLogoutButton from '../components/AdminLogoutButton';
+import Sidebar from '../components/Sidebar';
 import { 
-  Building,
-  Home,
-  UserPlus,
-  DoorOpen,
-  FileSignature,
-  Wrench,
-  Receipt,
-  Settings,
   DollarSign, 
   TrendingUp, 
   AlertOctagon, 
@@ -26,9 +18,26 @@ import {
   Filter,
   Clock
 } from 'lucide-react';
+import { paymentApi } from '../services/paymentApi';
 
 const FinancialDashboard = () => {
+  const role = useSelector((state) => state.auth.user?.role);
+  const canManagePayments = ['ACCOUNTANT', 'TREASURER', 'ADMIN'].includes(role);
+  const canRecordMeters = ['ACCOUNTANT', 'ADMIN'].includes(role);
   const [activeTab, setActiveTab] = useState('invoices'); // 'invoices' | 'transactions'
+  const [monthlyChargeInvoices, setMonthlyChargeInvoices] = useState([]);
+  const [monthlyChargeError, setMonthlyChargeError] = useState('');
+
+  useEffect(() => {
+    if (!canManagePayments) return undefined;
+    let active = true;
+    paymentApi.monthlyInvoices().then((data) => {
+      if (active) setMonthlyChargeInvoices(data.monthlyInvoices || []);
+    }).catch((error) => {
+      if (active) setMonthlyChargeError(error.response?.data?.message || 'Không tải được các khoản đền bù theo hóa đơn tháng.');
+    });
+    return () => { active = false; };
+  }, [canManagePayments]);
 
   // Mock data Hóa đơn
   const invoices = [
@@ -59,25 +68,11 @@ const FinancialDashboard = () => {
   };
 
   return (
-    <div className="flex h-screen overflow-hidden bg-gray-50 text-gray-800">
-      <aside className="flex h-full w-64 shrink-0 flex-col bg-blue-900 text-white shadow-lg">
-        <div className="flex items-center justify-center border-b border-blue-800 p-6"><Building className="mr-3 h-8 w-8" /><h1 className="text-xl font-bold tracking-wider">KTX GTVT</h1></div>
-        <nav className="flex-1 space-y-2 overflow-y-auto px-4 py-6">
-          <Link to="/" className="flex items-center rounded-lg px-4 py-3 text-blue-200 hover:bg-blue-800"><Home className="h-5 w-5" /><span className="ml-3">Trang chủ</span></Link>
-          <Link to="/students" className="flex items-center rounded-lg px-4 py-3 text-blue-200 hover:bg-blue-800"><UserPlus className="h-5 w-5" /><span className="ml-3">Quản lý Sinh viên</span></Link>
-          <Link to="/rooms" className="flex items-center rounded-lg px-4 py-3 text-blue-200 hover:bg-blue-800"><DoorOpen className="h-5 w-5" /><span className="ml-3">Quản lý Phòng & CSVC</span></Link>
-          <Link to="/contracts" className="flex items-center rounded-lg px-4 py-3 text-blue-200 hover:bg-blue-800"><FileSignature className="h-5 w-5" /><span className="ml-3">Quản lý Hợp đồng</span></Link>
-          <Link to="/tickets" className="flex items-center rounded-lg px-4 py-3 text-blue-200 hover:bg-blue-800"><Wrench className="h-5 w-5" /><span className="ml-3">Ticket báo hỏng</span></Link>
-          <Link to="/technician" className="flex items-center rounded-lg px-4 py-3 text-blue-200 hover:bg-blue-800"><Wrench className="h-5 w-5" /><span className="ml-3">Bảng kỹ thuật</span></Link>
-          <Link to="/financial-dashboard" className="flex items-center rounded-lg bg-blue-800 px-4 py-3 font-medium text-white"><Receipt className="h-5 w-5" /><span className="ml-3">Quản lý Hóa đơn & Điện nước</span></Link>
-          <Link to="/settings" className="flex items-center rounded-lg px-4 py-3 text-blue-200 hover:bg-blue-800"><Settings className="h-5 w-5" /><span className="ml-3">Cài đặt hệ thống</span></Link>
-        </nav>
-        <div className="border-t border-blue-800 p-4"><AdminUserProfile /></div>
-        <AdminLogoutButton />
-      </aside>
-      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+    <div className="flex h-screen min-h-0 overflow-hidden bg-gray-50 text-gray-800">
+      <Sidebar />
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         <header className="flex h-16 shrink-0 items-center border-b bg-white px-5 shadow-sm sm:px-8"><h2 className="text-lg font-semibold sm:text-xl">Quản lý Hóa đơn & Điện nước</h2></header>
-        <main className="flex-1 overflow-y-auto p-4 sm:p-6">
+        <main className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6">
     <div className="space-y-6">
       
       {/* Tiêu đề & Cụm thao tác nhanh (Quick Actions) */}
@@ -87,17 +82,17 @@ const FinancialDashboard = () => {
           <p className="text-sm text-gray-500 mt-1">Kỳ thu phí: Tháng 09/2026</p>
         </div>
         
-        <div className="flex flex-wrap items-center gap-3">
-          <button className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-300 rounded-xl text-sm font-semibold text-gray-700 hover:bg-gray-50 hover:text-blue-700 shadow-sm transition-colors">
+        {canManagePayments && <div className="flex flex-wrap items-center gap-3">
+          {canRecordMeters && <Link to="/meter-readings" className="flex items-center gap-2 rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 shadow-sm transition-colors hover:bg-gray-50 hover:text-blue-700">
             <Zap className="w-4 h-4 text-yellow-500" /> Nhập số Điện/Nước
-          </button>
+          </Link>}
           <button className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-300 rounded-xl text-sm font-semibold text-gray-700 hover:bg-gray-50 hover:text-blue-700 shadow-sm transition-colors">
             <FileCheck className="w-4 h-4 text-blue-500" /> Lập hóa đơn hàng loạt
           </button>
           <button className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 shadow-sm transition-colors">
             <Send className="w-4 h-4" /> Gửi nhắc nợ tự động
           </button>
-        </div>
+        </div>}
       </div>
 
       {/* KPI Cards (Thẻ thống kê tài chính) */}
@@ -152,6 +147,11 @@ const FinancialDashboard = () => {
           </p>
         </div>
       </div>
+
+      {canManagePayments && <section className="overflow-hidden rounded-2xl border border-rose-200 bg-white shadow-sm">
+        <div className="border-b border-rose-100 bg-rose-50/60 px-5 py-4"><h2 className="font-bold text-rose-900">Khoản đền bù tài sản trong hóa đơn tháng</h2><p className="mt-1 text-sm text-rose-800">Các khoản được tạo từ ticket và cộng tự động vào kỳ hóa đơn tương ứng.</p></div>
+        {monthlyChargeError ? <p role="alert" className="p-5 text-sm text-rose-700">{monthlyChargeError}</p> : monthlyChargeInvoices.length === 0 ? <p className="p-5 text-sm text-gray-500">Chưa có khoản đền bù nào được ghi nhận.</p> : <div className="overflow-x-auto"><table className="w-full text-left text-sm"><thead className="bg-gray-50 text-xs uppercase text-gray-500"><tr><th className="px-4 py-3">Kỳ hóa đơn</th><th className="px-4 py-3">Sinh viên / phòng</th><th className="px-4 py-3">Ticket & căn cứ</th><th className="px-4 py-3 text-right">Chi phí</th><th className="px-4 py-3">Trạng thái</th></tr></thead><tbody className="divide-y">{monthlyChargeInvoices.flatMap((invoice) => (invoice.items || []).map((item) => <tr key={item.id}><td className="whitespace-nowrap px-4 py-3">Tháng {new Date(invoice.periodStart).getUTCMonth() + 1}/{new Date(invoice.periodStart).getUTCFullYear()}</td><td className="px-4 py-3">{invoice.sinhVien?.hoTen || invoice.maSinhVien}<p className="text-xs text-gray-500">{invoice.sinhVien?.maSV} · Phòng {invoice.hopDong?.phong?.soPhong || invoice.hopDong?.maPhong}</p></td><td className="max-w-md px-4 py-3"><p className="font-medium">{item.ticket?.title || 'Đền bù tài sản hư hỏng'}</p><p className="mt-1 whitespace-pre-wrap text-xs text-gray-500">{item.description}</p><p className="mt-1 text-xs text-gray-400">Ticket {item.ticket?.id || '—'}</p></td><td className="whitespace-nowrap px-4 py-3 text-right font-mono font-bold text-rose-700">{formatCurrency(item.amount)}</td><td className="px-4 py-3">{invoice.status === 'PAID' ? 'Đã thanh toán' : 'Chờ thanh toán'}</td></tr>))}</tbody></table></div>}
+      </section>}
 
       {/* Cảnh báo Đối soát (VNPAY Sync Errors) */}
       <div className="bg-red-50/50 border border-red-200 rounded-2xl p-5 shadow-sm">
@@ -271,9 +271,9 @@ const FinancialDashboard = () => {
                       <button className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded" title="Xem chi tiết HĐ">
                         <Eye className="w-4 h-4" />
                       </button>
-                      <button className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded" title="Gạch nợ thủ công (Tiền mặt)">
+                      {canManagePayments && <button className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded" title="Gạch nợ thủ công (Tiền mặt)">
                         <CheckCircle2 className="w-4 h-4" />
-                      </button>
+                      </button>}
                       <button className="p-1.5 text-gray-400 hover:text-gray-800 hover:bg-gray-200 rounded" title="Xuất biên lai PDF">
                         <Download className="w-4 h-4" />
                       </button>

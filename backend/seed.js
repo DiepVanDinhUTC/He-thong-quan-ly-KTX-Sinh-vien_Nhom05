@@ -43,12 +43,12 @@ async function main() {
     });
     console.log("✅ Đã tạo User Sinh viên:", studentUser.username);
 
-    // 2. Tạo tài khoản Quản lý (MANAGER)
+    // 2. Tạo tài khoản Quản lý tòa nhà (BUILDING_MANAGER)
     const managerUser = await prisma.user.create({
         data: {
             username: 'admin.manager',
             password: hashedPassword,
-            role: 'MANAGER',
+            role: 'BUILDING_MANAGER',
             nhanVien: {
                 create: {
                     maNhanVien: 'NV_MGR01',
@@ -58,7 +58,7 @@ async function main() {
                     queQuan: 'Hà Nội',
                     danToc: 'Kinh',
                     cccd: '001085111111',
-                    chucVu: 'Quản lý KTX',
+                    chucVu: 'Quản lý tòa nhà',
                     phone: '0911111111',
                     email: 'manager@utc.edu.vn'
                 }
@@ -91,12 +91,12 @@ async function main() {
     });
     console.log("✅ Đã tạo User Kế toán:", accountantUser.username);
 
-    // 4. Tạo tài khoản Kỹ thuật (TECHNICIAN)
+    // 4. Tạo tài khoản Cơ sở vật chất (FACILITIES_MANAGER)
     const technicianUser = await prisma.user.create({
         data: {
             username: 'admin.tech',
             password: hashedPassword,
-            role: 'TECHNICIAN',
+            role: 'FACILITIES_MANAGER',
             nhanVien: {
                 create: {
                     maNhanVien: 'NV_TEC01',
@@ -115,29 +115,29 @@ async function main() {
     });
     console.log("✅ Đã tạo User Kỹ thuật:", technicianUser.username);
 
-    // 5. Tạo tài khoản Giám đốc (DIRECTOR)
-    const directorUser = await prisma.user.create({
+    // 5. Tạo tài khoản quản trị dùng để kiểm thử thủ công (ADMIN)
+    const adminUser = await prisma.user.create({
         data: {
-            username: 'admin.director',
+            username: 'admin.test',
             password: hashedPassword,
-            role: 'DIRECTOR',
+            role: 'ADMIN',
             nhanVien: {
                 create: {
-                    maNhanVien: 'NV_DIR01',
-                    hoTen: 'Phạm Giám Đốc',
+                    maNhanVien: 'NV_ADMIN01',
+                    hoTen: 'Quản trị viên kiểm thử',
                     ngaySinh: new Date('1975-02-28'),
                     gioiTinh: true,
                     queQuan: 'Hà Nội',
                     danToc: 'Kinh',
                     cccd: '001075444444',
-                    chucVu: 'Giám đốc Trung tâm KTX',
+                    chucVu: 'Quản trị viên kiểm thử',
                     phone: '0944444444',
-                    email: 'director@utc.edu.vn'
+                    email: 'admin.test@utc.edu.vn'
                 }
             }
         }
     });
-    console.log("✅ Đã tạo User Giám đốc:", directorUser.username);
+    console.log("✅ Đã tạo User quản trị kiểm thử:", adminUser.username);
 }
 
 main()

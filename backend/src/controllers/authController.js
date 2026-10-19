@@ -1,8 +1,9 @@
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+const prisma = require('../config/prisma');
 const { deriveStudentHousingStatus } = require('../services/studentHousingStatus');
+const ROLES = require('../config/roles');
+const { KNOWN_ROLES, ROLE_LABELS } = ROLES;
 
 const studentProfileInclude = {
     hopDongs: {
@@ -56,6 +57,7 @@ const serializeUser = (account) => {
             maPhong: currentContract.maPhong,
             soPhong: currentContract.phong?.soPhong || null,
             loaiPhong: currentContract.phong?.loaiPhong || null,
+            phiNoiTruThang: currentContract.phong?.phiNoiTruThang ?? null,
             ngayBatDau: currentContract.ngayBatDau,
             ngayKetThuc: currentContract.ngayKetThuc,
             tongTien: currentContract.tongTien,
@@ -94,7 +96,7 @@ const sendAuthServerError = (res, error, action) => {
     if (isDatabaseUnavailable(error)) {
         return res.status(503).json({
             success: false,
-            message: 'Backend không kết nối được cơ sở dữ liệu. Hãy kiểm tra SQL Server và DATABASE_URL rồi thử lại.'
+            message: 'Backend không kết nối được cơ sở dữ liệu. Hãy kiểm tra DATABASE_URL và trạng thái Supabase rồi thử lại.'
         });
     }
     return res.status(500).json({ success: false, message: 'Có lỗi xảy ra khi xác thực. Vui lòng thử lại sau.' });
@@ -120,6 +122,10 @@ exports.login = async (req, res) => {
 
         if (!(await bcrypt.compare(password, account.password))) {
             return res.status(401).json({ success: false, message: 'Mật khẩu không chính xác.' });
+        }
+
+        if (!KNOWN_ROLES.has(account.role)) {
+            return res.status(403).json({ success: false, message: 'Tài khoản chưa được gán vai trò hợp lệ. Vui lòng liên hệ quản trị viên.' });
         }
 
         const user = serializeUser(account);
@@ -152,8 +158,51 @@ exports.me = async (req, res) => {
     }
 };
 
+exports.listAdminTestAccounts = async (req, res) => {
+    if (req.authUser?.role !== ROLES.ADMIN) {
+        return res.status(403).json({ success: false, message: 'Chỉ ADMIN mới được xem tài khoản kiểm thử.' });
+    }
+    if (String(process.env.NODE_ENV || '').toLowerCase() === 'production' && process.env.ALLOW_ADMIN_ROLE_TESTING !== 'true') {
+        return res.status(403).json({ success: false, message: 'Chế độ kiểm thử vai trò đang bị tắt trên production.' });
+    }
+
+    try {
+        const studentRoles = [ROLES.STUDENT, ROLES.MILITARY_STUDENT];
+        const employeeRoles = [...KNOWN_ROLES].filter((role) => role !== ROLES.ADMIN && !studentRoles.includes(role));
+        const accounts = await prisma.user.findMany({
+            where: {
+                isActive: true,
+                OR: [
+                    { role: { in: studentRoles }, sinhVien: { isNot: null } },
+                    { role: { in: employeeRoles }, nhanVien: { isNot: null } }
+                ]
+            },
+            select: {
+                username: true,
+                role: true,
+                sinhVien: { select: { hoTen: true } },
+                nhanVien: { select: { hoTen: true } }
+            },
+            orderBy: [{ role: 'asc' }, { username: 'asc' }],
+            take: 1000
+        });
+        return res.status(200).json({
+            success: true,
+            data: accounts.map((account) => ({
+                username: account.username,
+                role: account.role,
+                roleLabel: ROLE_LABELS[account.role] || account.role,
+                displayName: account.sinhVien?.hoTen || account.nhanVien?.hoTen || account.username
+            }))
+        });
+    } catch (error) {
+        console.error(`[auth.adminTestAccounts] ${error.code || 'ERROR'}: ${error.message}`);
+        return res.status(500).json({ success: false, message: 'Không thể tải danh sách tài khoản kiểm thử.' });
+    }
+};
+
 exports.updateMyContact = async (req, res) => {
-    if (req.user.role !== 'STUDENT') return res.status(403).json({ success: false, message: 'Chức năng này chỉ dành cho sinh viên.' });
+    if (![ROLES.STUDENT, ROLES.MILITARY_STUDENT].includes(req.user.role)) return res.status(403).json({ success: false, message: 'Chức năng này chỉ dành cho sinh viên và học viên quân sự.' });
     const email = String(req.body.email || '').trim();
     const phone = String(req.body.phone || '').trim();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 100) {
@@ -176,7 +225,7 @@ exports.updateMyContact = async (req, res) => {
 };
 
 exports.changeMyPassword = async (req, res) => {
-    if (req.user.role !== 'STUDENT') return res.status(403).json({ success: false, message: 'Chức năng này chỉ dành cho sinh viên.' });
+    if (![ROLES.STUDENT, ROLES.MILITARY_STUDENT].includes(req.user.role)) return res.status(403).json({ success: false, message: 'Chức năng này chỉ dành cho sinh viên và học viên quân sự.' });
     const { currentPassword, newPassword } = req.body;
     if (typeof currentPassword !== 'string' || !currentPassword || typeof newPassword !== 'string' || newPassword.length < 8 || newPassword.length > 128) {
         return res.status(400).json({ success: false, message: 'Mật khẩu mới cần có từ 8 đến 128 ký tự.' });

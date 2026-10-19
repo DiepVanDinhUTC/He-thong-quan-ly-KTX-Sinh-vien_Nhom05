@@ -1,5 +1,6 @@
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+const prisma = require('../config/prisma');
+const { ROOM_TYPES, LEGACY_ROOM_TYPE_CODES } = require('../config/roomTypes');
+const allowedRoomTypes = [...Object.keys(ROOM_TYPES), ...LEGACY_ROOM_TYPE_CODES];
 
 const getStudentForUser = async (userId) => prisma.sinhVien.findFirst({
     where: { userId },
@@ -8,7 +9,7 @@ const getStudentForUser = async (userId) => prisma.sinhVien.findFirst({
 
 exports.createApplication = async (req, res) => {
     const { loaiPhongYeuCau, maPhongYeuCau } = req.body;
-    if (!['QUAT', 'DIEU_HOA'].includes(loaiPhongYeuCau) || !maPhongYeuCau) {
+    if (!allowedRoomTypes.includes(loaiPhongYeuCau) || !maPhongYeuCau) {
         return res.status(400).json({ success: false, message: 'Vui lòng chọn loại phòng và phòng mong muốn.' });
     }
 
@@ -68,12 +69,13 @@ exports.createApplication = async (req, res) => {
 
 exports.getAvailableRooms = async (req, res) => {
     const { loaiPhong } = req.query;
-    if (!['QUAT', 'DIEU_HOA'].includes(loaiPhong)) {
+    if (!allowedRoomTypes.includes(loaiPhong)) {
         return res.status(400).json({ success: false, message: 'Loại phòng không hợp lệ.' });
     }
     try {
         const rooms = await prisma.phong.findMany({
             where: { loaiPhong },
+            include: { thietBis: true, toaNha: { include: { khu: true } } },
             orderBy: { soPhong: 'asc' }
         });
         const data = rooms

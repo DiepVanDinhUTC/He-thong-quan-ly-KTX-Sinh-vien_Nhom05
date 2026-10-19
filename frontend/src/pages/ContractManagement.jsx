@@ -1,17 +1,19 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import Link from '../components/RoleLink';
-import { Building, DoorOpen, FileSignature, Home, UserPlus, Wrench, Receipt, Settings, Search, Pencil, Check, X, ClipboardList } from 'lucide-react';
-import AdminUserProfile from '../components/AdminUserProfile';
-import AdminLogoutButton from '../components/AdminLogoutButton';
+import { useSelector } from 'react-redux';
+import { Search, Pencil, Check, X, ClipboardList } from 'lucide-react';
+import Sidebar from '../components/Sidebar';
 import { housingApi } from '../services/housingApi';
+import { roomTypeLabel } from '../utils/roomTypes';
 
 const today = () => new Date().toISOString().slice(0, 10);
 const afterTenMonths = () => { const date = new Date(); date.setMonth(date.getMonth() + 10); return date.toISOString().slice(0, 10); };
 const toDateInput = (value) => value ? new Date(value).toISOString().slice(0, 10) : '';
-const roomTypeLabel = (type) => type === 'DIEU_HOA' ? 'Điều hòa' : 'Quạt';
-const statusLabel = { PENDING: 'Chờ xác nhận', APPROVED: 'Đã xác nhận', REJECTED: 'Đã từ chối', PENDING_PAYMENT: 'Chờ thanh toán', ACTIVE: 'Có hiệu lực', PAID: 'Đã thanh toán', CANCELLED: 'Đã hủy' };
+const statusLabel = { PENDING: 'Chờ xác nhận', APPROVED: 'Đã xác nhận', REJECTED: 'Đã từ chối', PENDING_PAYMENT: 'Chờ thanh toán', ACTIVE: 'Có hiệu lực', PAID: 'Đã thanh toán', CANCELLED: 'Đã hủy', RETURNED: 'Đã trả phòng' };
 
 const ContractManagement = () => {
+  const role = useSelector((state) => state.auth.user?.role);
+  const canDecideApplications = ['BOARD_CHAIR', 'BOARD_DEPUTY', 'BUILDING_MANAGER', 'ADMIN'].includes(role);
+  const canEditContracts = ['ARCHIVIST', 'BUILDING_MANAGER', 'ADMIN'].includes(role);
   const [tab, setTab] = useState('applications');
   const [applications, setApplications] = useState([]);
   const [contracts, setContracts] = useState([]);
@@ -52,7 +54,7 @@ const ContractManagement = () => {
     const candidates = rooms.filter((room) => room.loaiPhong === application.loaiPhongYeuCau && room.soSinhVienHienTai < room.soSinhVienToiDa);
     const selectedRoom = candidates.find((room) => room.maPhong === application.maPhongYeuCau) || candidates[0];
     setSelectedApplication(application);
-    setApproval({ maPhong: selectedRoom?.maPhong || '', ngayBatDau: today(), ngayKetThuc: afterTenMonths(), tongTien: application.loaiPhongYeuCau === 'DIEU_HOA' ? '2000000' : '1200000' });
+    setApproval({ maPhong: selectedRoom?.maPhong || '', ngayBatDau: today(), ngayKetThuc: afterTenMonths(), tongTien: selectedRoom?.phiNoiTruThang ? String(selectedRoom.phiNoiTruThang * 10) : application.loaiPhongYeuCau === 'DIEU_HOA' ? '2000000' : '1200000' });
     setError('');
   };
 
@@ -115,25 +117,12 @@ const ContractManagement = () => {
   const pendingApplications = applications.filter((application) => application.trangThai === 'PENDING');
 
   return (
-    <div className="flex h-screen overflow-hidden bg-gray-50 text-gray-800">
-      <aside className="flex h-full w-64 shrink-0 flex-col bg-blue-900 text-white shadow-lg">
-        <div className="flex items-center justify-center border-b border-blue-800 p-6"><Building className="mr-3 h-8 w-8" /><h1 className="text-xl font-bold">KTX GTVT</h1></div>
-        <nav className="flex-1 space-y-2 px-4 py-6">
-          <Link to="/" className="flex items-center rounded-lg px-4 py-3 text-blue-200 hover:bg-blue-800"><Home className="h-5 w-5" /><span className="ml-3">Trang chủ</span></Link>
-          <Link to="/students" className="flex items-center rounded-lg px-4 py-3 text-blue-200 hover:bg-blue-800"><UserPlus className="h-5 w-5" /><span className="ml-3">Quản lý Sinh viên</span></Link>
-          <Link to="/rooms" className="flex items-center rounded-lg px-4 py-3 text-blue-200 hover:bg-blue-800"><DoorOpen className="h-5 w-5" /><span className="ml-3">Quản lý Phòng & CSVC</span></Link>
-          <Link to="/contracts" className="flex items-center rounded-lg bg-blue-800 px-4 py-3 font-medium text-white"><FileSignature className="h-5 w-5" /><span className="ml-3">Quản lý Hợp đồng</span></Link>
-          <Link to="/tickets" className="flex items-center rounded-lg px-4 py-3 text-blue-200 hover:bg-blue-800"><Wrench className="h-5 w-5" /><span className="ml-3">Ticket báo hỏng</span></Link>
-          <Link to="/technician" className="flex items-center rounded-lg px-4 py-3 text-blue-200 hover:bg-blue-800"><Wrench className="h-5 w-5" /><span className="ml-3">Bảng kỹ thuật</span></Link>
-          <Link to="/financial-dashboard" className="flex items-center rounded-lg px-4 py-3 text-blue-200 hover:bg-blue-800"><Receipt className="h-5 w-5" /><span className="ml-3">Quản lý Hóa đơn & Điện nước</span></Link>
-          <Link to="/settings" className="flex items-center rounded-lg px-4 py-3 text-blue-200 hover:bg-blue-800"><Settings className="h-5 w-5" /><span className="ml-3">Cài đặt hệ thống</span></Link>
-        </nav>
-        <div className="border-t border-blue-800 p-4"><AdminUserProfile /></div><AdminLogoutButton />
-      </aside>
+    <div className="flex h-screen min-h-0 overflow-hidden bg-gray-50 text-gray-800">
+      <Sidebar />
 
-      <div className="flex min-w-0 flex-1 flex-col">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         <header className="flex h-16 shrink-0 items-center justify-between border-b bg-white px-8 shadow-sm"><h2 className="text-xl font-semibold">Hợp đồng lưu trú</h2><button onClick={loadData} className="rounded-lg border px-3 py-2 text-sm hover:bg-gray-50">Làm mới</button></header>
-        <main className="flex-1 overflow-auto p-4 sm:p-8">
+        <main className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-8">
           {error && <p role="alert" className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>}
           {notice && <p role="status" className="mb-4 rounded-lg bg-green-50 p-3 text-sm text-green-700">{notice}</p>}
           <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
@@ -151,7 +140,7 @@ const ContractManagement = () => {
                     <td className="px-5 py-4"><p>Phòng {roomTypeLabel(application.loaiPhongYeuCau)}</p><p className="mt-1 text-xs text-gray-500">Nguyện vọng: {application.phongYeuCau?.soPhong || application.maPhongYeuCau || '—'}</p></td>
                     <td className="px-5 py-4">{new Date(application.ngayDangKy).toLocaleDateString('vi-VN')}</td>
                     <td className="px-5 py-4"><span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800">{statusLabel[application.trangThai]}</span></td>
-                    <td className="px-5 py-4 text-right"><div className="flex justify-end gap-2"><button disabled={saving} onClick={() => openApproval(application)} className="rounded-lg bg-blue-700 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-800 disabled:opacity-50">Xác nhận & lập hợp đồng</button><button disabled={saving} onClick={() => rejectApplication(application)} className="rounded-lg border border-red-200 px-3 py-2 text-xs font-semibold text-red-600 hover:bg-red-50 disabled:opacity-50">Từ chối</button></div></td>
+                    <td className="px-5 py-4 text-right">{canDecideApplications && <div className="flex justify-end gap-2"><button disabled={saving} onClick={() => openApproval(application)} className="rounded-lg bg-blue-700 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-800 disabled:opacity-50">Xác nhận & lập hợp đồng</button><button disabled={saving} onClick={() => rejectApplication(application)} className="rounded-lg border border-red-200 px-3 py-2 text-xs font-semibold text-red-600 hover:bg-red-50 disabled:opacity-50">Từ chối</button></div>}</td>
                   </tr>)}
                   {pendingApplications.length === 0 && <tr><td colSpan="5" className="px-5 py-12 text-center text-gray-500"><ClipboardList className="mx-auto mb-2 h-8 w-8 text-gray-300" />Không có đơn chờ xác nhận.</td></tr>}
                 </tbody>
@@ -161,7 +150,7 @@ const ContractManagement = () => {
                 <thead className="bg-gray-50 text-xs uppercase text-gray-500"><tr><th className="px-5 py-4">Mã hợp đồng</th><th className="px-5 py-4">Sinh viên</th><th className="px-5 py-4">Phòng</th><th className="px-5 py-4">Thời hạn</th><th className="px-5 py-4">Tổng tiền</th><th className="px-5 py-4">Trạng thái</th><th className="px-5 py-4"></th></tr></thead>
                 <tbody className="divide-y">
                   {filteredContracts.map((contract) => <tr key={contract.maHopDong}>
-                    <td className="px-5 py-4 font-semibold text-blue-700">{contract.maHopDong}</td><td className="px-5 py-4"><p className="font-semibold">{contract.sinhVien?.hoTen || '—'}</p><p className="text-xs text-gray-500">{contract.maSinhVien}</p></td><td className="px-5 py-4">{contract.phong?.soPhong || contract.maPhong} · {roomTypeLabel(contract.phong?.loaiPhong)}</td><td className="px-5 py-4">{new Date(contract.ngayBatDau).toLocaleDateString('vi-VN')} – {new Date(contract.ngayKetThuc).toLocaleDateString('vi-VN')}</td><td className="px-5 py-4">{Number(contract.tongTien).toLocaleString('vi-VN')} đ</td><td className="px-5 py-4"><span className={`rounded-full px-3 py-1 text-xs font-semibold ${contract.trangThai === 'PENDING_PAYMENT' ? 'bg-amber-100 text-amber-800' : contract.trangThai === 'ACTIVE' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'}`}>{statusLabel[contract.trangThai] || contract.trangThai}</span></td><td className="px-5 py-4 text-right">{contract.trangThai === 'PENDING_PAYMENT' && <button title="Chỉnh sửa hợp đồng nháp" onClick={() => openEdit(contract)} className="rounded-lg p-2 text-blue-700 hover:bg-blue-50"><Pencil className="h-4 w-4" /></button>}</td>
+                    <td className="px-5 py-4 font-semibold text-blue-700">{contract.maHopDong}</td><td className="px-5 py-4"><p className="font-semibold">{contract.sinhVien?.hoTen || '—'}</p><p className="text-xs text-gray-500">{contract.maSinhVien}</p></td><td className="px-5 py-4">{contract.phong?.soPhong || contract.maPhong} · {roomTypeLabel(contract.phong?.loaiPhong)}</td><td className="px-5 py-4">{new Date(contract.ngayBatDau).toLocaleDateString('vi-VN')} – {new Date(contract.ngayKetThuc).toLocaleDateString('vi-VN')}</td><td className="px-5 py-4">{Number(contract.tongTien).toLocaleString('vi-VN')} đ</td><td className="px-5 py-4"><span className={`rounded-full px-3 py-1 text-xs font-semibold ${contract.trangThai === 'PENDING_PAYMENT' ? 'bg-amber-100 text-amber-800' : contract.trangThai === 'ACTIVE' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'}`}>{statusLabel[contract.trangThai] || contract.trangThai}</span></td><td className="px-5 py-4 text-right">{canEditContracts && contract.trangThai === 'PENDING_PAYMENT' && <button title="Chỉnh sửa hợp đồng nháp" onClick={() => openEdit(contract)} className="rounded-lg p-2 text-blue-700 hover:bg-blue-50"><Pencil className="h-4 w-4" /></button>}</td>
                   </tr>)}
                   {filteredContracts.length === 0 && <tr><td colSpan="7" className="px-5 py-12 text-center text-gray-500">Chưa có hợp đồng phù hợp.</td></tr>}
                 </tbody>

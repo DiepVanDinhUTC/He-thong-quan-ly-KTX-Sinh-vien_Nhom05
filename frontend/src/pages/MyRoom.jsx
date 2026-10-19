@@ -4,8 +4,14 @@ import { BedDouble, Building, CalendarDays, DoorOpen, Fan, Wind } from 'lucide-r
 import { authApi } from '../services/authApi';
 import { useDispatch, useSelector } from 'react-redux';
 import { userUpdated } from '../store/authSlice';
+import HousingRequests from './HousingRequests';
+import { roomTypeLabel } from '../utils/roomTypes';
 
-const formatDate = (value) => value ? new Date(value).toLocaleDateString('vi-VN') : 'Chưa cập nhật';
+const formatDate = (value) => {
+  if (!value) return 'Chưa cập nhật';
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? 'Chưa cập nhật' : date.toLocaleDateString('vi-VN');
+};
 
 const MyRoom = () => {
   const navigate = useNavigate();
@@ -14,9 +20,12 @@ const MyRoom = () => {
   const [student, setStudent] = useState(cachedUser);
   const [loading, setLoading] = useState(!cachedUser);
   const [error, setError] = useState('');
+  const [reloadCount, setReloadCount] = useState(0);
 
   useEffect(() => {
     let active = true;
+    setLoading(true);
+    setError('');
     authApi.me().then((response) => {
       if (!active) return;
       setStudent(response.user);
@@ -27,27 +36,28 @@ const MyRoom = () => {
       if (active) setLoading(false);
     });
     return () => { active = false; };
-  }, [dispatch]);
+  }, [dispatch, reloadCount]);
 
   const room = student?.currentContract;
+  const isMilitaryStudent = student?.role === 'MILITARY_STUDENT';
   const members = room?.thanhVien || [];
   const isPending = room?.trangThai === 'PENDING_PAYMENT';
   const RoomTypeIcon = room?.loaiPhong === 'DIEU_HOA' ? Wind : Fan;
 
   return (
-    <div className="min-h-screen bg-gray-50 px-4 py-8 text-gray-800 sm:px-8">
+    <div className="bg-gray-50 px-4 py-8 text-gray-800 sm:px-8">
       <div className="mx-auto max-w-4xl">
         <header className="mb-6 flex items-center gap-3">
           <span className="rounded-xl bg-blue-100 p-3 text-blue-800"><BedDouble className="h-6 w-6" /></span>
-          <div><h1 className="text-2xl font-bold">Phòng của tôi</h1><p className="mt-1 text-sm text-gray-500">Thông tin phòng và thời gian lưu trú</p></div>
+          <div><h1 className="text-2xl font-bold">{isMilitaryStudent ? 'Tra cứu phòng được xếp' : 'Phòng của tôi'}</h1><p className="mt-1 text-sm text-gray-500">Thông tin phòng và thời gian lưu trú</p></div>
         </header>
-        {error && <p role="alert" className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>}
-        {loading ? <div className="rounded-2xl border bg-white p-8 text-center text-sm text-gray-500">Đang tải thông tin phòng...</div> : room ? <section className="rounded-2xl border bg-white p-6 shadow-sm sm:p-8">
+        {loading ? <div className="rounded-2xl border bg-white p-8 text-center text-sm text-gray-500"><span className="mx-auto mb-3 block h-6 w-6 animate-spin rounded-full border-2 border-blue-200 border-t-blue-700" />Đang tải thông tin phòng…</div> : error ? <section role="alert" className="rounded-2xl border border-rose-200 bg-white p-7 text-center shadow-sm"><p className="font-semibold text-rose-800">Chưa tải được thông tin phòng</p><p className="mt-1 text-sm text-slate-600">{error}</p><button type="button" onClick={() => setReloadCount((count) => count + 1)} className="mt-4 rounded-lg bg-blue-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-800">Thử lại</button></section> : room ? <section className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm sm:p-8">
           <div className="flex flex-wrap items-center justify-between gap-4 border-b pb-5">
             <div className="flex items-center gap-3"><span className="rounded-xl bg-blue-50 p-3 text-blue-700"><Building className="h-5 w-5" /></span><div><p className="text-sm text-gray-500">Phòng lưu trú</p><p className="mt-1 text-xl font-bold">{room.soPhong || room.maPhong || 'Chưa cập nhật'}</p></div></div>
-            <span className="flex items-center gap-2 rounded-full bg-gray-100 px-3 py-1.5 text-sm font-medium text-gray-700"><RoomTypeIcon className="h-4 w-4" />{room.loaiPhong === 'DIEU_HOA' ? 'Điều hòa' : room.loaiPhong === 'QUAT' ? 'Quạt' : 'Chưa cập nhật loại phòng'}</span>
+            <span className="flex items-center gap-2 rounded-full bg-gray-100 px-3 py-1.5 text-sm font-medium text-gray-700"><RoomTypeIcon className="h-4 w-4" />{roomTypeLabel(room.loaiPhong)}</span>
           </div>
           <div className="mt-5 flex items-center gap-2 text-sm font-semibold text-gray-800"><CalendarDays className="h-4 w-4 text-blue-700" />{isPending ? 'Thời gian lưu trú dự kiến' : 'Thời gian hiệu lực trong phòng'}</div>
+          {room.phiNoiTruThang != null && <p className="mt-3 text-sm font-semibold text-slate-700">Phí nội trú: {Number(room.phiNoiTruThang).toLocaleString('vi-VN')} đ/người/tháng</p>}
           <div className="mt-3 grid gap-3 sm:grid-cols-2">
             <div className="rounded-xl bg-gray-50 p-4"><p className="text-xs text-gray-500">Từ ngày</p><p className="mt-1 font-semibold">{formatDate(room.ngayBatDau)}</p></div>
             <div className="rounded-xl bg-gray-50 p-4"><p className="text-xs text-gray-500">Đến ngày</p><p className="mt-1 font-semibold">{formatDate(room.ngayKetThuc)}</p></div>
@@ -65,10 +75,11 @@ const MyRoom = () => {
           </div>
         </section> : <section className="rounded-2xl border bg-white p-8 text-center shadow-sm">
           <DoorOpen className="mx-auto h-9 w-9 text-gray-400" />
-          <h2 className="mt-3 font-semibold">Bạn chưa có phòng lưu trú</h2>
-          <p className="mt-1 text-sm text-gray-500">Đăng ký nội trú để gửi nguyện vọng phòng.</p>
-          <button type="button" onClick={() => navigate('/room-registration')} className="mt-4 rounded-lg bg-blue-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-800">Đăng ký nội trú</button>
+          <h2 className="mt-3 font-semibold">{isMilitaryStudent ? 'Bạn chưa được xếp phòng lưu trú' : 'Bạn chưa có phòng lưu trú'}</h2>
+          <p className="mt-1 text-sm text-gray-500">{isMilitaryStudent ? 'Thông tin phòng sẽ xuất hiện sau khi Ban quản lý bố trí.' : 'Đăng ký nội trú để gửi nguyện vọng phòng.'}</p>
+          {!isMilitaryStudent && <button type="button" onClick={() => navigate('/room-registration')} className="mt-4 rounded-lg bg-blue-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-800">Đăng ký nội trú</button>}
         </section>}
+        {!isMilitaryStudent && <HousingRequests embedded />}
       </div>
     </div>
   );

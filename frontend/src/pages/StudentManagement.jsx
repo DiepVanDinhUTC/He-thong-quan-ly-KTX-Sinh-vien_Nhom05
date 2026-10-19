@@ -1,19 +1,10 @@
-import AdminUserProfile from '../components/AdminUserProfile';
-import AdminLogoutButton from '../components/AdminLogoutButton';
-import Link from '../components/RoleLink';
 import React, { useEffect, useMemo, useState } from 'react';
+import AdminLayout from '../components/AdminLayout';
+import { useSelector } from 'react-redux';
 import { studentApi } from '../services/studentApi';
+import { studentRecordPermissions } from '../utils/accessControl';
 import {
-  Building,
-  Home,
-  UserPlus,
-  DoorOpen,
-  FileSignature,
-  Wrench,
-  Receipt,
-  Settings,
   Search,
-  Bell,
   Filter,
   RefreshCw,
   Plus,
@@ -23,6 +14,12 @@ import {
 } from 'lucide-react';
 
 const StudentManagement = () => {
+  const role = useSelector((state) => state.auth.user?.role);
+  const canCreate = studentRecordPermissions.create.includes(role);
+  const canUpdate = studentRecordPermissions.update.includes(role);
+  const canDelete = studentRecordPermissions.delete.includes(role);
+  const canSync = studentRecordPermissions.sync.includes(role);
+  const isReadOnly = !canCreate && !canUpdate && !canDelete && !canSync;
   const emptyForm = {
     maSV: '', hoTen: '', ngaySinh: '', gioiTinh: 'true', lop: '', nienKhoa: 'K64', khoa: '',
     cccd: '', phone: '', email: '', dienUuTien: '',
@@ -159,62 +156,15 @@ const StudentManagement = () => {
   };
 
   return (
-    <div className="flex h-screen overflow-hidden bg-gray-50 text-gray-800 antialiased font-sans">
-
-      {/* Sidebar */}
-      <div className="w-64 bg-blue-900 text-white flex flex-col h-full shadow-lg flex-shrink-0">
-        <div className="p-6 flex items-center justify-center border-b border-blue-800">
-          <Building className="w-8 h-8 mr-3" />
-          <h1 className="text-xl font-bold tracking-wider">KTX GTVT</h1>
-        </div>
-
-        <nav className="flex-1 px-4 py-6 space-y-2">
-          <Link to="/" className="flex items-center px-4 py-3 text-blue-200 hover:bg-blue-800 hover:text-white rounded-lg transition-colors">
-            <Home className="w-5 h-5" />
-            <span className="ml-3">Trang chủ</span>
-          </Link>
-          <Link to="/students" className="flex items-center px-4 py-3 bg-blue-800 rounded-lg text-white font-medium">
-            <UserPlus className="w-5 h-5" />
-            <span className="ml-3">Quản lý Sinh viên</span>
-          </Link>
-          <Link to="/rooms" className="flex items-center px-4 py-3 text-blue-200 hover:bg-blue-800 hover:text-white rounded-lg transition-colors">
-            <DoorOpen className="w-5 h-5" />
-            <span className="ml-3">Quản lý Phòng & CSVC</span>
-          </Link>
-          <Link to="/contracts" className="flex items-center px-4 py-3 text-blue-200 hover:bg-blue-800 hover:text-white rounded-lg transition-colors">
-            <FileSignature className="w-5 h-5" />
-            <span className="ml-3">Quản lý Hợp đồng</span>
-          </Link>
-          <Link to="/tickets" className="flex items-center px-4 py-3 text-blue-200 hover:bg-blue-800 hover:text-white rounded-lg transition-colors">
-            <Wrench className="w-5 h-5" />
-            <span className="ml-3">Ticket báo hỏng</span>
-          </Link>
-          <Link to="/technician" className="flex items-center px-4 py-3 text-blue-200 hover:bg-blue-800 hover:text-white rounded-lg transition-colors"><Wrench className="w-5 h-5" /><span className="ml-3">Bảng kỹ thuật</span></Link>
-          <Link to="/financial-dashboard" className="flex items-center px-4 py-3 text-blue-200 hover:bg-blue-800 hover:text-white rounded-lg transition-colors"><Receipt className="w-5 h-5" /><span className="ml-3">Quản lý Hóa đơn & Điện nước</span></Link>
-          <Link to="/settings" className="flex items-center px-4 py-3 text-blue-200 hover:bg-blue-800 hover:text-white rounded-lg transition-colors"><Settings className="w-5 h-5" /><span className="ml-3">Cài đặt hệ thống</span></Link>
-        </nav>
-
-        <div className="p-4 border-t border-blue-800">
-          <AdminUserProfile />
-        </div>
-        <AdminLogoutButton />
-      </div>
-
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col h-full overflow-hidden">
-
-        {/* Header */}
-        <header className="bg-white shadow-sm h-16 flex items-center justify-between px-8 z-10 flex-shrink-0 border-b border-gray-200">
-          <h2 className="text-xl font-semibold text-gray-800">Quản lý Hồ sơ Sinh viên</h2>
-          <div className="flex items-center gap-4">
-            <button className="relative p-2 text-gray-500 hover:text-blue-600 transition-colors">
-              <Bell className="w-6 h-6" />
-            </button>
+    <AdminLayout>
+      <div className="flex flex-col">
+          <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h1 className="text-2xl font-bold text-slate-900">Quản lý hồ sơ sinh viên</h1>
+              <p className="mt-1 text-sm text-slate-500">Tra cứu danh sách và thông tin lưu trú trong hệ thống KTX.</p>
+            </div>
+            {isReadOnly && <span className="rounded-full border border-slate-200 bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">Chế độ chỉ xem</span>}
           </div>
-        </header>
-
-        {/* Scrollable Main */}
-        <main className="flex-1 overflow-auto p-8 flex flex-col">
           {syncMessage && <div role="status" className="mb-4 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm font-medium text-green-800">{syncMessage}</div>}
 
           {/* Top Actions */}
@@ -237,18 +187,18 @@ const StudentManagement = () => {
             </div>
             <div className="flex items-center gap-3">
               {/* Nút Đồng bộ dữ liệu thiết kế theo tính năng API đã nêu trong dự án */}
-              <button
+              {canSync && <button
                 onClick={handleSync}
                 className="flex items-center gap-2 px-4 py-2.5 bg-white border border-blue-200 text-blue-700 rounded-lg text-sm font-medium hover:bg-blue-50 shadow-sm transition-colors"
                 disabled={isSyncing}
               >
                 <RefreshCw className={`w-4 h-4 ${isSyncing ? 'animate-spin' : ''}`} />
                 <span>{isSyncing ? 'Đang đồng bộ...' : 'Đồng bộ từ trường'}</span>
-              </button>
-              <button onClick={() => openForm('create')} className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 shadow-sm transition-colors">
+              </button>}
+              {canCreate && <button onClick={() => openForm('create')} className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 shadow-sm transition-colors">
                 <Plus className="w-4 h-4" />
                 <span>Thêm thủ công</span>
-              </button>
+              </button>}
             </div>
           </div>
 
@@ -261,6 +211,7 @@ const StudentManagement = () => {
                     <th className="px-6 py-4">Mã SV</th>
                     <th className="px-6 py-4">Họ và tên</th>
                     <th className="px-6 py-4">Niên khóa</th>
+                    <th className="px-6 py-4">Diện GDQP</th>
                     <th className="px-6 py-4">Ngày sinh</th>
                     <th className="px-6 py-4">Giới tính</th>
                     <th className="px-6 py-4">Phòng</th>
@@ -270,14 +221,17 @@ const StudentManagement = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 text-sm">
-                  {loading && <tr><td className="px-6 py-8 text-center" colSpan="9">Đang tải...</td></tr>}
-                  {!loading && error && <tr><td className="px-6 py-8 text-center text-red-600" colSpan="9">{error}</td></tr>}
-                  {!loading && !error && filteredStudents.length === 0 && <tr><td className="px-6 py-8 text-center text-gray-500" colSpan="9">Không có sinh viên phù hợp.</td></tr>}
+                  {loading && <tr><td className="px-6 py-8 text-center" colSpan="10">Đang tải...</td></tr>}
+                  {!loading && error && <tr><td className="px-6 py-8 text-center text-red-600" colSpan="10">{error}</td></tr>}
+                  {!loading && !error && filteredStudents.length === 0 && <tr><td className="px-6 py-8 text-center text-gray-500" colSpan="10">Không có sinh viên phù hợp.</td></tr>}
                   {!loading && !error && filteredStudents.map((student) => (
                     <tr key={student.maSV} className="hover:bg-gray-50/50 transition-colors">
                       <td className="px-6 py-4 font-medium text-blue-600">{student.maSV}</td>
                       <td className="px-6 py-4 font-semibold text-gray-800">{student.hoTen}</td>
                       <td className="px-6 py-4 text-gray-600">{student.nienKhoa || '—'}</td>
+                      <td className="px-6 py-4">{student.laHocVienQuanSu
+                        ? <span className="rounded-full bg-indigo-100 px-3 py-1 text-xs font-medium text-indigo-800">Học viên quân sự</span>
+                        : <span className="text-gray-500">Sinh viên</span>}</td>
                       <td className="px-6 py-4 text-gray-600">{student.ngaySinh ? new Date(student.ngaySinh).toLocaleDateString('vi-VN') : '—'}</td>
                       <td className="px-6 py-4 text-gray-600">{student.gioiTinh ? 'Nam' : 'Nữ'}</td>
                       <td className="px-6 py-4 text-gray-800 font-medium">{student.hopDongs?.[0]?.phong?.soPhong || '—'}</td>
@@ -288,12 +242,12 @@ const StudentManagement = () => {
                           <button onClick={() => viewStudent(student)} className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors" title="Xem chi tiết">
                             <Eye className="w-4 h-4" />
                           </button>
-                          <button onClick={() => openForm('edit', student)} className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded transition-colors" title="Chỉnh sửa">
+                          {canUpdate && <button onClick={() => openForm('edit', student)} className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded transition-colors" title="Chỉnh sửa">
                             <Edit className="w-4 h-4" />
-                          </button>
-                          <button onClick={() => deleteStudent(student)} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors" title="Xóa hồ sơ">
+                          </button>}
+                          {canDelete && <button onClick={() => deleteStudent(student)} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors" title="Xóa hồ sơ">
                             <Trash2 className="w-4 h-4" />
-                          </button>
+                          </button>}
                         </div>
                       </td>
                     </tr>
@@ -306,7 +260,6 @@ const StudentManagement = () => {
               Hiển thị {filteredStudents.length} / {students.length} sinh viên
             </div>
           </div>
-        </main>
       </div>
 
       {formMode && (
@@ -367,7 +320,7 @@ const StudentManagement = () => {
               <div className="flex justify-end gap-3 border-t border-gray-100 pt-4">
                 <button type="button" onClick={() => setFormMode(null)} className="rounded-lg border border-gray-300 px-4 py-2.5 font-medium text-gray-700 hover:bg-gray-50">{formMode === 'view' ? 'Đóng' : 'Hủy'}</button>
                 {formMode === 'view' ? (
-                  <button type="button" onClick={() => openForm('edit', students.find((student) => student.maSV === form.maSV))} className="rounded-lg bg-blue-600 px-4 py-2.5 font-semibold text-white hover:bg-blue-700">Chỉnh sửa</button>
+                  canUpdate && <button type="button" onClick={() => openForm('edit', students.find((student) => student.maSV === form.maSV))} className="rounded-lg bg-blue-600 px-4 py-2.5 font-semibold text-white hover:bg-blue-700">Chỉnh sửa</button>
                 ) : (
                   <button type="submit" disabled={isSaving} className="rounded-lg bg-blue-600 px-4 py-2.5 font-semibold text-white hover:bg-blue-700 disabled:opacity-60">{isSaving ? 'Đang lưu...' : formMode === 'create' ? 'Tạo hồ sơ' : 'Lưu thay đổi'}</button>
                 )}
@@ -376,7 +329,7 @@ const StudentManagement = () => {
           </section>
         </div>
       )}
-    </div>
+    </AdminLayout>
   );
 };
 
