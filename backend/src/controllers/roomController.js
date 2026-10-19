@@ -402,3 +402,79 @@ exports.removeRoomMember = async (req, res) => {
         return res.status(error.status || 500).json({ success: false, message: error.message || 'Không thể xóa sinh viên khỏi phòng.' });
     }
 };
+
+exports.getArchiveRoomCandidates = async (req, res) => {
+    try {
+        const students = await prisma.sinhVien.findMany({
+            where: {
+                hopDongs: { none: { trangThai: { in: liveContractStatuses } } },
+                dangKyKTXs: { none: { trangThai: 'PENDING' } }
+            },
+            select: { maSV: true, hoTen: true, lop: true, phone: true },
+            orderBy: { hoTen: 'asc' }
+        });
+        return res.status(200).json({ success: true, data: students });
+    } catch (error) {
+        console.error(`[room.getArchiveRoomCandidates] ${error.code || 'ERROR'}: ${error.message}`);
+        return res.status(500).json({ success: false, message: 'Không thể tải danh sách sinh viên chưa được xếp phòng.' });
+    }
+};
+
+exports.assignArchiveRoom = async (req, res) => {
+    const maSinhVien = String(req.body?.maSinhVien || '').trim();
+    const maPhong = String(req.body?.maPhong || '').trim();
+    const ngayBatDau = new Date(req.body?.ngayBatDau);
+    const ngayKetThuc = new Date(req.body?.ngayKetThuc);
+    const tongTien = Number(req.body?.tongTien);
+
+    if (!maSinhVien || !maPhong || Number.isNaN(ngayBatDau.getTime()) || Number.isNaN(ngayKetThuc.getTime())
+        || ngayBatDau >= ngayKetThuc || !Number.isFinite(tongTien) || tongTien <= 0) {
+        return res.status(400).json({ success: false, message: 'Sinh viên, phòng, thời hạn và tổng tiền xếp phòng phải hợp lệ.' });
+    }
+
+    try {
+        const contract = await prisma.$transaction(async (tx) => {
+            const [student, room, existingContract, pendingApplication] = await Promise.all([
+                tx.sinhVien.findUnique({ where: { maSV: maSinhVien }, select: { maSV: true } }),
+                tx.phong.findUnique({ where: { maPhong } }),
+                tx.hopDong.findFirst({
+                    where: { maSinhVien, trangThai: { in: liveContractStatuses } },
+                    select: { maHopDong: true }
+                }),
+                tx.dangKyKTX.findFirst({ where: { maSinhVien, trangThai: 'PENDING' }, select: { maDangKy: true } })
+            ]);
+            if (!student) throw Object.assign(new Error('Không tìm thấy hồ sơ sinh viên.'), { status: 404 });
+            if (!room) throw Object.assign(new Error('Không tìm thấy phòng được chọn.'), { status: 404 });
+            if (existingContract) throw Object.assign(new Error('Sinh viên đã có hợp đồng đang chờ thanh toán hoặc còn hiệu lực.'), { status: 409 });
+            if (pendingApplication) throw Object.assign(new Error('Sinh viên đang có đơn lưu trú chờ xét duyệt. Hãy xử lý đơn trước khi xếp phòng thủ công.'), { status: 409 });
+
+            const roomUpdate = await tx.phong.updateMany({
+                where: { maPhong, soSinhVienHienTai: { lt: room.soSinhVienToiDa } },
+                data: { soSinhVienHienTai: { increment: 1 } }
+            });
+            if (roomUpdate.count !== 1) throw Object.assign(new Error('Phòng được chọn đã đủ sức chứa.'), { status: 409 });
+
+            return tx.hopDong.create({
+                data: {
+                    maSinhVien,
+                    maPhong,
+                    ngayBatDau,
+                    ngayKetThuc,
+                    tongTien,
+                    trangThai: 'PENDING_PAYMENT'
+                }
+            });
+        }, { isolationLevel: 'Serializable' });
+
+        return res.status(201).json({
+            success: true,
+            data: contract,
+            message: 'Đã xếp phòng và tạo hợp đồng chờ thanh toán.'
+        });
+    } catch (error) {
+        if (error.status) return res.status(error.status).json({ success: false, message: error.message });
+        if (error.code === 'P2034') return res.status(409).json({ success: false, message: 'Phòng vừa được thay đổi bởi thao tác khác. Vui lòng tải lại và thử lại.' });
+        console.error(`[room.assignArchiveRoom] ${error.code || 'ERROR'}: ${error.message}`);
+        return res.status(500).json({ success: false, message: 'Không thể xếp phòng cho sinh viên.' });
+    }
+};

@@ -24,6 +24,7 @@ import SecurityMedicalManagement from './pages/SecurityMedicalManagement';
 import MeterReadingManagement from './pages/MeterReadingManagement';
 import StaffAccountManagement from './pages/StaffAccountManagement';
 import MilitaryManagement from './pages/MilitaryManagement';
+import ArchivistManagement from './pages/ArchivistManagement';
 import RequireRole from './components/RequireRole';
 import AdminTestSwitcher from './components/AdminTestSwitcher';
 import { rolePermissions } from './utils/accessControl';
@@ -47,6 +48,7 @@ function App() {
       <Route path="/self-service" element={<RequireRole allowedRoles={rolePermissions['/self-service']}><SelfServiceManagement /></RequireRole>} />
       <Route path="/security-medical" element={<RequireRole allowedRoles={rolePermissions['/security-medical']}><SecurityMedicalManagement /></RequireRole>} />
       <Route path="/military-management" element={<RequireRole allowedRoles={rolePermissions['/military-management']}><MilitaryManagement /></RequireRole>} />
+      <Route path="/archive-management" element={<RequireRole allowedRoles={rolePermissions['/archive-management']}><ArchivistManagement /></RequireRole>} />
       <Route element={<RequireRole allowedRoles={rolePermissions['/student-portal']}><StudentLayout /></RequireRole>}>
         <Route path="/student-portal" element={<StudentPortal />} />
         <Route path="/my-room" element={<MyRoom />} />

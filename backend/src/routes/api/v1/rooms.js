@@ -6,6 +6,19 @@ const { restrictTo, requirePermission, restrictBuildingAccess } = require('../..
 const ROLES = require('../../../config/roles');
 
 router.use(protect);
+const archiveRoomScope = (req, res, next) => {
+    if ([ROLES.ARCHIVIST, ROLES.ADMIN].includes(req.user.role)) {
+        req.buildingScope = null;
+        return next();
+    }
+    return restrictBuildingAccess(req, res, next);
+};
+
+router.get('/archive-management', requirePermission('archive-rooms:read'), archiveRoomScope, controller.getRooms);
+router.get('/archive-management/students', requirePermission('archive-rooms:read'), archiveRoomScope, controller.getArchiveRoomCandidates);
+router.post('/archive-assignments', requirePermission('archive-rooms:assign'), archiveRoomScope, controller.assignArchiveRoom);
+router.patch('/archive-assignments/:maPhong/:maHopDong/move', requirePermission('archive-rooms:move'), archiveRoomScope, controller.moveRoomMember);
+
 router.get('/locations', requirePermission('rooms:read'), restrictBuildingAccess, controller.getLocations);
 router.post('/buildings', restrictTo(...ROLES.ROOM_PERMISSIONS.write), controller.createBuilding);
 router.patch('/buildings/:maToaNha', restrictTo(...ROLES.ROOM_PERMISSIONS.write), restrictBuildingAccess, controller.updateBuilding);

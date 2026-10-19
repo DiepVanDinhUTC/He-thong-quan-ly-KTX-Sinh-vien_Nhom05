@@ -40,11 +40,12 @@ const Sidebar = ({ additionalMenuItems = [] }) => {
     { id: 'assets', path: '/assets', label: 'Danh mục Tài sản', icon: Wrench, roles: ['FACILITIES_MANAGER', 'BUILDING_MANAGER', 'ADMIN'] },
     { id: 'meter-readings', path: '/meter-readings', label: 'Ghi chỉ số điện nước', icon: Zap, roles: ['FACILITIES_MANAGER', 'BUILDING_MANAGER', 'ACCOUNTANT', 'ADMIN'] },
     { id: 'contracts', path: '/contracts', label: 'Quản lý Hợp đồng', icon: Receipt, roles: ['BOARD_CHAIR', 'BOARD_DEPUTY', 'ARCHIVIST', 'BUILDING_MANAGER', 'ADMIN'] },
-    { id: 'billing', path: '/financial-dashboard', label: 'Quản lý Hóa đơn & Điện nước', icon: Receipt, roles: ['ACCOUNTANT', 'TREASURER', 'BOARD_CHAIR', 'BOARD_DEPUTY', 'ADMIN'] },
+    { id: 'billing', path: '/financial-dashboard', label: 'Thu phí & Đối soát', icon: Receipt, roles: ['ACCOUNTANT', 'TREASURER', 'BOARD_CHAIR', 'BOARD_DEPUTY', 'ADMIN'] },
     { id: 'tickets', path: '/tickets', label: 'Yêu cầu sửa chữa', icon: Wrench, roles: ['BOARD_CHAIR', 'BOARD_DEPUTY', 'FACILITIES_MANAGER', 'BUILDING_MANAGER', 'SECURITY', 'SERVICE_PROVIDER', 'ADMIN'] },
     { id: 'self-service', path: '/self-service', label: role === 'SERVICE_PROVIDER' ? 'Đăng ký dịch vụ' : 'Yêu cầu tự phục vụ', icon: ClipboardList, roles: ['BOARD_CHAIR', 'BOARD_DEPUTY', 'BUILDING_MANAGER', 'SERVICE_PROVIDER', 'ADMIN'] },
     { id: 'security-medical', path: '/security-medical', label: role === 'MEDICAL_OFFICER' ? 'Quản lý y tế' : 'Trật tự - trị an', icon: ShieldCheck, roles: ['SECURITY', 'MEDICAL_OFFICER', 'ADMIN'] },
     { id: 'military-management', path: '/military-management', label: 'Quản lý học viên quân sự', icon: ShieldCheck, roles: ['MILITARY_OFFICER', 'ADMIN'] },
+    { id: 'archive-management', path: '/archive-management', label: 'Quản lý hồ sơ lưu trữ', icon: ClipboardList, roles: ['ARCHIVIST'] },
   ];
   const customMenuItems = additionalMenuItems.map(({ to, label, Icon }) => ({
     id: `custom-${to}`,
