@@ -52,6 +52,22 @@ model PasswordResetToken {
 }
 
 model SinhVien {
+  maSV            String   @id @db.VarChar(20)
+  hoTen           String   @db.NVarChar(100)
+  ngaySinh        DateTime @db.Date
+  gioiTinh        Boolean  // true: Nam, false: Nữ
+  lop             String   @db.VarChar(50)
+  khoa            String   @db.NVarChar(100)
+  cccd            String   @unique @db.VarChar(20)
+  phone           String   @db.VarChar(15)
+  email           String   @db.VarChar(100)
+  dienUuTien      String?  @db.NVarChar(50)
+  trangThaiNoiTru String   @db.NVarChar(50)
+  role            String   @default("STUDENT") @db.VarChar(20)
+
+  dangKyKTXs      DangKyKTX[]
+  hopDongs        HopDong[]
+  baoHongs        BaoHong[]
   maSV   String  @id @db.VarChar(20)
   userId String? @unique
   user   User?   @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
@@ -150,6 +166,39 @@ model Phong {
   soPhong           String
   loaiPhong         String
   soSinhVienToiDa   Int
+  soSinhVienHienTai Int          @default(0) // Mặc định phòng trống là 0
+  hopDongs          HopDong[]
+  thietBis          ThietBi[]
+}
+
+model ThietBi {
+  maThietBi String    @id @db.VarChar(20)
+  maPhong   String?
+  tenThietBi String   @db.NVarChar(100)
+  moTa      String?   @db.NVarChar(255)
+  trangThai String    @default("ACTIVE") @db.VarChar(30)
+
+  phong     Phong?    @relation(fields: [maPhong], references: [maPhong])
+  baoHongs  BaoHong[]
+
+  @@map("THIET_BI")
+}
+
+model BaoHong {
+  maBaoHong             String   @id @default(uuid())
+  maSinhVien            String   @db.VarChar(20)
+  maThietBi             String   @db.VarChar(20)
+  moTa                  String   @db.NVarChar(1000)
+  anhHienTrang          String?  @db.NVarChar(500)
+  anhHienTrangPublicId  String?  @db.VarChar(255)
+  trangThai             String   @default("PENDING") @db.VarChar(30)
+  ngayBaoHong           DateTime @default(now())
+  ngayCapNhat           DateTime @updatedAt
+
+  sinhVien              SinhVien @relation(fields: [maSinhVien], references: [maSV])
+  thietBi               ThietBi  @relation(fields: [maThietBi], references: [maThietBi])
+
+  @@map("BAO_HONG")
   soSinhVienHienTai Int     @default(0)
   phiNoiTruThang    Int?
   maToaNha          String? @db.VarChar(20)
@@ -324,6 +373,8 @@ model MonthlyInvoiceItem {
   invoice MonthlyInvoice     @relation(fields: [invoiceId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   ticket  MaintenanceTicket? @relation(fields: [ticketId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
+  hopDong       HopDong  @relation(fields: [maHopDong], references: [maHopDong])
+  nhanVien      NhanVien @relation(fields: [nguoiThu], references: [maNhanVien])
   @@index([invoiceId, type])
   @@map("MONTHLY_INVOICE_ITEM")
 }
