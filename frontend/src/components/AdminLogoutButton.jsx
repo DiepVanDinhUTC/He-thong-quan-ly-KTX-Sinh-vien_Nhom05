@@ -17,7 +17,7 @@ const AdminLogoutButton = () => {
     <button
       type="button"
       onClick={handleLogout}
-      className="mx-4 mb-4 mt-3 flex w-[calc(100%-2rem)] items-center gap-3 rounded-lg bg-red-600 px-4 py-3 text-left font-semibold text-white transition-colors hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-300"
+      className="mx-4 mb-4 mt-3 flex w-[calc(100%-2rem)] shrink-0 items-center gap-3 rounded-lg bg-red-600 px-4 py-3 text-left font-semibold text-white transition-colors hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-300"
     >
       <LogOut className="h-5 w-5" />
       <span>Đăng xuất</span>

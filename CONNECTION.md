@@ -2,15 +2,17 @@
 
 ## 1. Cấu hình backend
 
-Tại thư mục `backend`, sao chép `.env.example` thành `.env` và điền thông tin SQL Server vào `DATABASE_URL`. Đặt `JWT_SECRET` thành chuỗi bí mật riêng của máy.
+Tạo project PostgreSQL trên Supabase. Trong Dashboard, chọn **Connect** rồi sao chép connection string **Session pooler** (cổng `5432`). Đây là lựa chọn phù hợp cho backend Node.js chạy liên tục trên mạng IPv4. Thay password placeholder, mã hóa URL các ký tự đặc biệt trong password, rồi đặt string vào `DATABASE_URL` trong `backend/.env`. Không đưa connection string hoặc password lên Git.
 
 ```powershell
 cd backend
 npm install
 npx prisma generate
-npx prisma db push
+npx prisma migrate deploy
 npm run dev
 ```
+
+Migration khởi tạo trong `backend/prisma/migrations` tạo schema ứng dụng trên database Supabase trống. Các script SQL trong `backend/migrations` là bản cũ dành cho SQL Server Somee; không chạy chúng trên Supabase.
 
 Backend chạy ở `http://localhost:5000`; kiểm tra kết nối tại `http://localhost:5000/api/health`.
 

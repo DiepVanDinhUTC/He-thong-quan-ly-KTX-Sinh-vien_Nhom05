@@ -1,40 +1,33 @@
 require('dotenv').config();
-const { PrismaClient } = require('@prisma/client');
+const prisma = require('./src/config/prisma');
 
-const prisma = new PrismaClient();
+const validCohorts = new Set(['K62', 'K63', 'K64', 'K65', 'K66', 'K67']);
+
+const inferCohort = ({ maSV, lop }) => {
+    const fromClass = String(lop || '').toUpperCase().match(/K6[2-7]/);
+    if (fromClass) return fromClass[0];
+
+    const studentCode = String(maSV || '').toUpperCase();
+    const yearPrefix = Number(studentCode.slice(0, 2));
+    if (yearPrefix >= 21 && yearPrefix <= 26) return `K${yearPrefix + 41}`;
+
+    const sisYear = studentCode.match(/^SIS(2[1-6])/);
+    if (sisYear) return `K${Number(sisYear[1]) + 41}`;
+
+    const stableHash = [...studentCode].reduce((sum, character) => sum + character.charCodeAt(0), 0);
+    return `K${62 + (stableHash % 6)}`;
+};
 
 async function main() {
-    await prisma.$transaction(async (tx) => {
-        const columns = await tx.$queryRaw`SELECT COL_LENGTH('dbo.SINH_VIEN', 'nienKhoa') AS columnLength`;
-        if (columns[0]?.columnLength === null) {
-            await tx.$executeRawUnsafe('ALTER TABLE [dbo].[SINH_VIEN] ADD [nienKhoa] NVARCHAR(3) NULL');
-        }
-
-        await tx.$executeRawUnsafe(`UPDATE [dbo].[SINH_VIEN]
-            SET [nienKhoa] = CASE
-                WHEN PATINDEX('%K6[2-7]%', UPPER(ISNULL([lop], ''))) > 0
-                    THEN SUBSTRING(UPPER([lop]), PATINDEX('%K6[2-7]%', UPPER(ISNULL([lop], ''))), 3)
-                WHEN TRY_CONVERT(INT, LEFT([maSV], 2)) BETWEEN 21 AND 26
-                    THEN CONCAT('K', TRY_CONVERT(INT, LEFT([maSV], 2)) + 41)
-                WHEN [maSV] LIKE 'SIS2[1-6]%'
-                    THEN CONCAT('K', TRY_CONVERT(INT, SUBSTRING([maSV], 4, 2)) + 41)
-                ELSE CONCAT('K', 62 + ABS(CHECKSUM([maSV]) % 6))
-            END
-            WHERE [nienKhoa] IS NULL OR [nienKhoa] NOT IN ('K62', 'K63', 'K64', 'K65', 'K66', 'K67')`);
-
-        await tx.$executeRawUnsafe('ALTER TABLE [dbo].[SINH_VIEN] ALTER COLUMN [nienKhoa] NVARCHAR(3) NOT NULL');
-        const defaults = await tx.$queryRaw`SELECT 1 AS hasDefault
-            FROM sys.default_constraints AS dc
-            INNER JOIN sys.columns AS c ON c.object_id = dc.parent_object_id AND c.column_id = dc.parent_column_id
-            WHERE dc.parent_object_id = OBJECT_ID('dbo.SINH_VIEN') AND c.name = 'nienKhoa'`;
-        if (!defaults.length) {
-            await tx.$executeRawUnsafe("ALTER TABLE [dbo].[SINH_VIEN] ADD CONSTRAINT [DF_SINH_VIEN_nienKhoa] DEFAULT ('K64') FOR [nienKhoa]");
-        }
-    }, { timeout: 60000 });
-
-    const distribution = await prisma.$queryRaw`SELECT nienKhoa, COUNT(*) AS soLuong
-        FROM [SINH_VIEN] GROUP BY nienKhoa ORDER BY nienKhoa`;
-    console.log('Đã hoàn tất bổ sung niên khóa. Phân bố:', distribution);
+    const students = await prisma.sinhVien.findMany({ select: { maSV: true, lop: true, nienKhoa: true } });
+    let updated = 0;
+    for (const student of students) {
+        if (validCohorts.has(student.nienKhoa)) continue;
+        await prisma.sinhVien.update({ where: { maSV: student.maSV }, data: { nienKhoa: inferCohort(student) } });
+        updated += 1;
+    }
+    const distribution = await prisma.sinhVien.groupBy({ by: ['nienKhoa'], _count: { _all: true }, orderBy: { nienKhoa: 'asc' } });
+    console.log(`Đã cập nhật niên khóa cho ${updated} sinh viên. Phân bố:`, distribution);
 }
 
 main().catch((error) => {

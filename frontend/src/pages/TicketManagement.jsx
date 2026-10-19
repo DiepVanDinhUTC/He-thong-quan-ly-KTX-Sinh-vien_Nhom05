@@ -1,386 +1,226 @@
-import AdminUserProfile from '../components/AdminUserProfile';
-import AdminLogoutButton from '../components/AdminLogoutButton';
-import Link from '../components/RoleLink';
-import React, { useState } from 'react';
-import {
-  Building,
-  Home,
-  UserPlus,
-  DoorOpen,
-  FileSignature,
-  Wrench,
-  Receipt,
-  Settings,
-  User,
-  Search,
-  Bell,
-  Filter,
-  AlertTriangle,
-  Clock,
-  CheckCircle2,
-  Image as ImageIcon,
-  ArrowRight,
-  MoreVertical,
-  AlertCircle,
-  Timer,
-  HardHat,
-  MessageSquare,
-  MapPin
-} from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { useSelector } from 'react-redux';
+import { Check, CheckCircle2, Clock3, ImagePlus, Loader2, RefreshCw, X } from 'lucide-react';
+import FacilitiesLayout from '../components/FacilitiesLayout';
+import { ticketApi } from '../services/ticketApi';
+import { formatSlaDuration, getTicketSla, SLA_PRIORITY_OPTIONS, SLA_STATE_CLASSES, SLA_STATE_LABELS } from '../utils/ticketSla';
+
+const STATUS = {
+  PENDING: ['Chờ duyệt', 'bg-amber-100 text-amber-800'],
+  APPROVED: ['Đã duyệt', 'bg-blue-100 text-blue-800'],
+  SCHEDULED: ['Đã lên lịch', 'bg-indigo-100 text-indigo-800'],
+  IN_PROGRESS: ['Đang xử lý', 'bg-sky-100 text-sky-800'],
+  WAITING_ACCEPTANCE: ['Chờ sinh viên nghiệm thu', 'bg-violet-100 text-violet-800'],
+  COMPLETED: ['Hoàn thành', 'bg-emerald-100 text-emerald-800'],
+  REJECTED: ['Từ chối', 'bg-rose-100 text-rose-800'],
+};
+
+const readPhotos = (files) => Promise.all([...files].map((file) => new Promise((resolve, reject) => {
+  if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > 2 * 1024 * 1024) {
+    reject(new Error('Chỉ nhận ảnh JPG, PNG, WEBP tối đa 2 MB mỗi ảnh.'));
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = () => resolve({ fileName: file.name, mimeType: file.type, data: reader.result });
+  reader.onerror = () => reject(new Error(`Không đọc được ảnh ${file.name}.`));
+  reader.readAsDataURL(file);
+})));
+
+const formatDate = (value) => value ? new Date(value).toLocaleString('vi-VN') : 'Chưa có';
+const formatInvoicePeriod = (value) => {
+  if (!value) return 'Chưa xác định';
+  const date = new Date(value);
+  return `Tháng ${date.getUTCMonth() + 1}/${date.getUTCFullYear()}`;
+};
 
 const TicketManagement = () => {
-  const [selectedTicketId, setSelectedTicketId] = useState('TK-2609-02');
-  const [searchQuery, setSearchQuery] = useState('');
+  const role = useSelector((state) => state.auth.user?.role);
+  const canManage = ['FACILITIES_MANAGER', 'BUILDING_MANAGER', 'ADMIN'].includes(role);
+  const canUpdate = ['FACILITIES_MANAGER', 'SERVICE_PROVIDER', 'ADMIN'].includes(role);
+  const canOverrideCompletion = role === 'ADMIN';
+  const canAssessCompensation = ['FACILITIES_MANAGER', 'BUILDING_MANAGER', 'ADMIN'].includes(role);
+  const [tickets, setTickets] = useState([]);
+  const [selectedId, setSelectedId] = useState('');
+  const [ticket, setTicket] = useState(null);
+  const [priority, setPriority] = useState('MEDIUM');
+  const [appointmentAt, setAppointmentAt] = useState('');
+  const [appointmentNote, setAppointmentNote] = useState('');
+  const [progressNote, setProgressNote] = useState('');
+  const [compensationAmount, setCompensationAmount] = useState('');
+  const [compensationReason, setCompensationReason] = useState('');
+  const [studentAtFaultConfirmed, setStudentAtFaultConfirmed] = useState(false);
+  const [photos, setPhotos] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
+  const [slaClock, setSlaClock] = useState(() => Date.now());
 
-  // Dữ liệu mẫu (Mock data)
-  const tickets = [
-    { 
-      id: 'TK-2609-01', 
-      room: '104 - A1', 
-      studentName: 'Phạm Văn Hùng',
-      phone: '0904567890',
-      issue: 'Hỏng điều hòa (không lên nguồn)', 
-      category: 'Điện lạnh',
-      status: 'pending', // Chờ tiếp nhận
-      priority: 'high',
-      createdAt: '29/09/2026 08:30',
-      slaHours: 48,
-      elapsedHours: 2,
-    },
-    { 
-      id: 'TK-2609-02', 
-      room: '205 - A5', 
-      studentName: 'Hoàng Bích Ngọc',
-      phone: '0905678901',
-      issue: 'Tắc bồn cầu nhà vệ sinh', 
-      category: 'Nước',
-      status: 'processing', // Đang xử lý
-      priority: 'medium',
-      technician: 'Nguyễn Xuân Thành',
-      createdAt: '28/09/2026 14:15',
-      slaHours: 24,
-      elapsedHours: 26, // Quá SLA
-    },
-    { 
-      id: 'TK-2609-03', 
-      room: '102 - A1', 
-      studentName: 'Lê Minh Tuấn',
-      phone: '0902345678',
-      issue: 'Cháy 2 bóng đèn tuýp', 
-      category: 'Điện',
-      status: 'reviewing', // Chờ nghiệm thu
-      priority: 'low',
-      technician: 'Phạm Đức Bội',
-      createdAt: '28/09/2026 16:00',
-      slaHours: 24,
-      elapsedHours: 20,
-    },
-    { 
-      id: 'TK-2609-04', 
-      room: '301 - A6', 
-      studentName: 'Trần Văn C',
-      phone: '0987654321',
-      issue: 'Gãy bản lề cửa sổ', 
-      category: 'Nội thất',
-      status: 'completed', // Hoàn thành
-      priority: 'low',
-      technician: 'Nguyễn Xuân Thành',
-      createdAt: '27/09/2026 09:00',
-      slaHours: 48,
-      elapsedHours: 24,
-    },
-  ];
+  const applyTicket = (nextTicket) => {
+    setTicket(nextTicket);
+    setPriority(nextTicket.priority || 'MEDIUM');
+    setProgressNote(nextTicket.progressNote || '');
+    setAppointmentAt(nextTicket.appointmentAt ? new Date(nextTicket.appointmentAt).toISOString().slice(0, 16) : '');
+    setAppointmentNote(nextTicket.appointmentNote || '');
+    setCompensationAmount(nextTicket.compensationItem ? String(nextTicket.compensationItem.amount) : '');
+    setCompensationReason(nextTicket.compensationItem?.description || '');
+    setStudentAtFaultConfirmed(false);
+  };
 
-  const selectedTicket = tickets.find(t => t.id === selectedTicketId);
-
-  const getStatusDisplay = (status) => {
-    switch (status) {
-      case 'pending': return { label: 'Chờ tiếp nhận', color: 'bg-gray-100 text-gray-700 border-gray-200', icon: Clock };
-      case 'processing': return { label: 'Đang xử lý', color: 'bg-blue-100 text-blue-700 border-blue-200', icon: Wrench };
-      case 'reviewing': return { label: 'Chờ nghiệm thu', color: 'bg-yellow-100 text-yellow-700 border-yellow-200', icon: CheckCircle2 };
-      case 'completed': return { label: 'Hoàn thành', color: 'bg-green-100 text-green-700 border-green-200', icon: CheckCircle2 };
-      default: return { label: 'Không rõ', color: 'bg-gray-100 text-gray-700', icon: AlertCircle };
+  const load = async (keepSelected = true) => {
+    setLoading(true);
+    setError('');
+    try {
+      const response = await ticketApi.list();
+      const items = response.tickets || [];
+      setTickets(items);
+      const nextId = keepSelected && items.some((item) => item.id === selectedId) ? selectedId : items[0]?.id || '';
+      setSelectedId(nextId);
+      if (nextId) {
+        const details = await ticketApi.detail(nextId);
+        applyTicket(details.ticket);
+      } else {
+        setTicket(null);
+      }
+    } catch (requestError) {
+      setError(requestError.response?.data?.message || 'Không tải được danh sách yêu cầu sửa chữa.');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const renderSlaBadge = (ticket) => {
-    if (ticket.status === 'completed') {
-      return <span className="text-xs font-medium text-green-600 flex items-center"><CheckCircle2 className="w-3 h-3 mr-1"/> Đạt SLA</span>;
+  useEffect(() => { load(false); }, []);
+  useEffect(() => {
+    const timer = setInterval(() => setSlaClock(Date.now()), 60000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const selectTicket = async (id) => {
+    setSelectedId(id);
+    setError('');
+    try {
+      const response = await ticketApi.detail(id);
+      applyTicket(response.ticket);
+      setPhotos([]);
+    } catch (requestError) {
+      setError(requestError.response?.data?.message || 'Không tải được chi tiết yêu cầu.');
     }
-    if (ticket.elapsedHours > ticket.slaHours) {
-      return <span className="text-xs font-medium text-red-600 flex items-center bg-red-50 px-2 py-1 rounded"><AlertTriangle className="w-3 h-3 mr-1"/> Quá hạn {ticket.elapsedHours - ticket.slaHours}h</span>;
-    }
-    return <span className="text-xs font-medium text-gray-500 flex items-center"><Timer className="w-3 h-3 mr-1"/> Còn {ticket.slaHours - ticket.elapsedHours}h</span>;
   };
+
+  const perform = async (action, successMessage) => {
+    if (!ticket) return;
+    setBusy(true);
+    setError('');
+    setNotice('');
+    try {
+      await action(ticket.id);
+      setNotice(successMessage);
+      await load(true);
+      const refreshed = await ticketApi.detail(ticket.id);
+      applyTicket(refreshed.ticket);
+    } catch (requestError) {
+      setError(requestError.response?.data?.message || requestError.message || 'Không thể cập nhật yêu cầu.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const uploadSelection = async (event) => {
+    setError('');
+    try {
+      const selected = await readPhotos(event.target.files || []);
+      if (selected.length > 3) throw new Error('Tải lên tối đa 3 ảnh cho mỗi lần cập nhật.');
+      setPhotos(selected);
+    } catch (uploadError) {
+      setPhotos([]);
+      setError(uploadError.message);
+    }
+    event.target.value = '';
+  };
+
+  const status = STATUS[ticket?.status] || ['Không rõ', 'bg-gray-100 text-gray-700'];
+  const currentSla = getTicketSla(ticket, slaClock);
+  const overdueCount = tickets.filter((item) => getTicketSla(item, slaClock)?.state === 'OVERDUE').length;
 
   return (
-    <div className="flex h-screen overflow-hidden bg-gray-50 text-gray-800 antialiased font-sans">
-      
-      {/* Sidebar */}
-      <div className="w-64 bg-blue-900 text-white flex flex-col h-full shadow-lg flex-shrink-0">
-        <div className="p-6 flex items-center justify-center border-b border-blue-800">
-          <Building className="w-8 h-8 mr-3" />
-          <h1 className="text-xl font-bold tracking-wider">KTX GTVT</h1>
-        </div>
-        
-        <nav className="flex-1 px-4 py-6 space-y-2">
-          <Link to="/" className="flex items-center px-4 py-3 text-blue-200 hover:bg-blue-800 hover:text-white rounded-lg transition-colors">
-            <Home className="w-5 h-5" />
-            <span className="ml-3">Trang chủ</span>
-          </Link>
-          <Link to="/students" className="flex items-center px-4 py-3 text-blue-200 hover:bg-blue-800 hover:text-white rounded-lg transition-colors">
-            <UserPlus className="w-5 h-5" />
-            <span className="ml-3">Quản lý Sinh viên</span>
-          </Link>
-          <Link to="/rooms" className="flex items-center px-4 py-3 text-blue-200 hover:bg-blue-800 hover:text-white rounded-lg transition-colors">
-            <DoorOpen className="w-5 h-5" />
-            <span className="ml-3">Quản lý Phòng & CSVC</span>
-          </Link>
-          <Link to="/contracts" className="flex items-center px-4 py-3 text-blue-200 hover:bg-blue-800 hover:text-white rounded-lg transition-colors">
-            <FileSignature className="w-5 h-5" />
-            <span className="ml-3">Quản lý Hợp đồng</span>
-          </Link>
-          <Link to="/tickets" className="flex items-center px-4 py-3 bg-blue-800 rounded-lg text-white font-medium shadow-inner border-l-4 border-blue-400">
-            <Wrench className="w-5 h-5 text-blue-400" />
-            <span className="ml-3">Ticket báo hỏng</span>
-          </Link>
-          <Link to="/technician" className="flex items-center px-4 py-3 text-blue-200 hover:bg-blue-800 hover:text-white rounded-lg transition-colors"><Wrench className="w-5 h-5" /><span className="ml-3">Bảng kỹ thuật</span></Link>
-          <Link to="/financial-dashboard" className="flex items-center px-4 py-3 text-blue-200 hover:bg-blue-800 hover:text-white rounded-lg transition-colors"><Receipt className="w-5 h-5" /><span className="ml-3">Quản lý Hóa đơn & Điện nước</span></Link>
-          <Link to="/settings" className="flex items-center px-4 py-3 text-blue-200 hover:bg-blue-800 hover:text-white rounded-lg transition-colors"><Settings className="w-5 h-5" /><span className="ml-3">Cài đặt hệ thống</span></Link>
-        </nav>
-
-        <div className="p-4 border-t border-blue-800">
-          <AdminUserProfile />
-        </div>
-        <AdminLogoutButton />
-      </div>
-
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col h-full overflow-hidden">
-        
-        {/* Header */}
-        <header className="bg-white shadow-sm h-16 flex items-center justify-between px-8 z-10 flex-shrink-0 border-b border-gray-200">
-          <h2 className="text-xl font-semibold text-gray-800">Quản lý Sự cố & Bảo trì (Ticket)</h2>
-          <div className="flex items-center gap-4">
-            <button className="relative p-2 text-gray-500 hover:text-blue-600 transition-colors">
-              <Bell className="w-6 h-6" />
-              <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white"></span>
-            </button>
+    <FacilitiesLayout title="Yêu cầu sửa chữa" description="Theo dõi và cập nhật tiến độ xử lý các sự cố cơ sở vật chất được phân công.">
+      <div className="mx-auto grid max-w-7xl gap-5 lg:grid-cols-[360px_1fr]">
+        {overdueCount > 0 && <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm font-semibold text-rose-800 lg:col-span-2">Có {overdueCount} yêu cầu đã quá thời hạn SLA. Hãy ưu tiên kiểm tra và cập nhật tiến độ.</div>}
+        <section className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+          <div className="flex items-center justify-between border-b p-4"><div><h2 className="font-bold">Yêu cầu sửa chữa</h2><p className="text-xs text-slate-500">{tickets.length} yêu cầu</p></div><button onClick={() => load(true)} title="Tải lại" className="rounded-lg p-2 text-slate-500 hover:bg-slate-100"><RefreshCw className="h-4 w-4" /></button></div>
+          <div className="max-h-[75vh] overflow-y-auto p-2">
+            {loading && <div className="flex items-center justify-center gap-2 p-8 text-sm text-slate-500"><Loader2 className="h-4 w-4 animate-spin" />Đang tải</div>}
+            {!loading && tickets.length === 0 && <p className="p-8 text-center text-sm text-slate-500">Chưa có yêu cầu nào trong phạm vi được phân công.</p>}
+            {tickets.map((item) => {
+              const itemStatus = STATUS[item.status] || ['Không rõ', 'bg-gray-100 text-gray-700'];
+              const itemSla = getTicketSla(item, slaClock);
+              return <button key={item.id} onClick={() => selectTicket(item.id)} className={`mb-2 w-full rounded-lg border p-3 text-left hover:border-blue-400 ${selectedId === item.id ? 'border-blue-500 bg-blue-50' : 'border-slate-200'}`}>
+                <div className="flex items-center justify-between gap-2"><span className="truncate font-semibold">{item.title}</span><span className={`shrink-0 rounded-full px-2 py-1 text-xs ${itemStatus[1]}`}>{itemStatus[0]}</span></div>
+                <p className="mt-2 text-sm text-slate-600">Phòng {item.phong?.soPhong || item.maPhong} · {item.phong?.toaNha?.tenToaNha || item.phong?.maToaNha}</p>
+                <div className="mt-2 flex flex-wrap items-center gap-2"><span className="text-xs text-slate-400">{formatDate(item.createdAt)}</span>{itemSla && <span className={`rounded-full px-2 py-1 text-[11px] font-semibold ${SLA_STATE_CLASSES[itemSla.state]}`}>{SLA_STATE_LABELS[itemSla.state]}</span>}</div>
+              </button>;
+            })}
           </div>
-        </header>
+        </section>
 
-        {/* Scrollable Main Area */}
-        <main className="flex-1 overflow-hidden flex flex-col md:flex-row p-6 gap-6">
-          
-          {/* Left Column: Ticket List */}
-          <div className="w-full md:w-5/12 lg:w-1/3 flex flex-col bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-            
-            {/* Toolbar */}
-            <div className="p-4 border-b border-gray-200 bg-gray-50/50">
-              <div className="relative mb-3">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                <input 
-                  type="text" 
-                  placeholder="Tìm theo mã ticket, phòng..." 
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-full bg-white shadow-sm"
-                />
-              </div>
-              <div className="flex gap-2">
-                <select className="border border-gray-300 rounded-lg text-xs px-2 py-1.5 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-700 flex-1">
-                  <option>Tất cả trạng thái</option>
-                  <option>Chờ tiếp nhận</option>
-                  <option>Đang xử lý</option>
-                  <option>Quá hạn SLA</option>
-                </select>
-                <button className="flex items-center justify-center p-1.5 border border-gray-300 rounded-lg text-gray-600 hover:bg-gray-100 bg-white shadow-sm transition-colors">
-                  <Filter className="w-4 h-4" />
-                </button>
-              </div>
+        <section className="min-h-[70vh] overflow-y-auto rounded-xl border border-gray-200 bg-white shadow-sm">
+          {!ticket ? <div className="p-10 text-center text-slate-500">{loading ? 'Đang tải yêu cầu…' : 'Chọn một yêu cầu để xem chi tiết.'}</div> : <>
+            <div className="border-b p-5 sm:p-6">
+              <div className="flex flex-wrap items-start justify-between gap-3"><div><div className="mb-2 flex items-center gap-2"><h2 className="text-xl font-bold">{ticket.title}</h2><span className={`rounded-full px-2.5 py-1 text-xs ${status[1]}`}>{status[0]}</span></div><p className="text-sm text-slate-500">Mã {ticket.id} · {ticket.category} · Tạo lúc {formatDate(ticket.createdAt)}</p></div><div className="rounded-lg bg-slate-100 px-3 py-2 text-sm">Phòng {ticket.phong?.soPhong || ticket.maPhong} · {ticket.phong?.toaNha?.tenToaNha || ticket.phong?.maToaNha}</div></div>
+              <p className="mt-4 whitespace-pre-wrap text-sm leading-6">{ticket.description}</p>
+              <p className="mt-3 text-sm text-slate-500">Người báo: {ticket.sinhVien?.hoTen || ticket.maSinhVien} · {ticket.sinhVien?.phone || 'Không có số điện thoại'}</p>
+              {ticket.rejectionReason && <p className="mt-3 rounded-lg bg-rose-50 p-3 text-sm text-rose-800">Lý do từ chối: {ticket.rejectionReason}</p>}
+              <div className="mt-4 flex flex-wrap gap-3 text-sm"><span className="flex items-center gap-1 text-slate-600"><Clock3 className="h-4 w-4" />Lịch hẹn: {formatDate(ticket.appointmentAt)}</span>{ticket.appointmentNote && <span className="text-slate-600">· {ticket.appointmentNote}</span>}</div>
+              {currentSla && <div className={`mt-4 rounded-xl border p-4 ${['OVERDUE', 'BREACHED'].includes(currentSla.state) ? 'border-rose-200 bg-rose-50' : currentSla.state === 'DUE_SOON' ? 'border-amber-200 bg-amber-50' : 'border-slate-200 bg-slate-50'}`}><div className="flex flex-wrap items-center justify-between gap-2"><h3 className="font-semibold">Theo dõi SLA · {currentSla.hours} giờ</h3><span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${SLA_STATE_CLASSES[currentSla.state]}`}>{SLA_STATE_LABELS[currentSla.state]}</span></div><p className="mt-1 text-sm">Hạn xử lý: {formatDate(currentSla.deadlineAt)}</p>{currentSla.state === 'OVERDUE' && <p className="mt-1 text-sm font-semibold text-rose-800">Quá hạn {formatSlaDuration(currentSla.overdueMs)}. Cảnh báo đã được ghi nhận.</p>}{currentSla.state === 'DUE_SOON' && <p className="mt-1 text-sm text-amber-900">Còn {formatSlaDuration(currentSla.remainingMs)} để hoàn thành.</p>}{['MET', 'BREACHED'].includes(currentSla.state) && <p className="mt-1 text-sm">Hoàn tất sửa chữa: {formatDate(currentSla.resolvedAt)}</p>}</div>}
             </div>
 
-            {/* Ticket List */}
-            <div className="flex-1 overflow-y-auto p-3 space-y-2">
-              {tickets.map((ticket) => {
-                const statusInfo = getStatusDisplay(ticket.status);
-                const StatusIcon = statusInfo.icon;
-                return (
-                  <div 
-                    key={ticket.id}
-                    onClick={() => setSelectedTicketId(ticket.id)}
-                    className={`border rounded-xl p-3 cursor-pointer transition-all ${
-                      selectedTicketId === ticket.id ? 'ring-2 ring-blue-500 border-blue-500 bg-blue-50/20 shadow-md' : 'border-gray-200 hover:border-blue-300 hover:shadow-sm bg-white'
-                    }`}
-                  >
-                    <div className="flex justify-between items-start mb-2">
-                      <span className="text-xs font-bold text-gray-500">{ticket.id}</span>
-                      {renderSlaBadge(ticket)}
-                    </div>
-                    
-                    <h4 className="font-semibold text-gray-800 text-sm mb-1 truncate">{ticket.issue}</h4>
-                    <p className="text-xs text-gray-600 mb-3 flex items-center">
-                      <MapPin className="w-3 h-3 mr-1"/> Phòng {ticket.room}
-                    </p>
-                    
-                    <div className="flex justify-between items-center mt-2 pt-2 border-t border-gray-100">
-                      <span className={`flex items-center px-2 py-0.5 rounded text-[11px] font-medium border ${statusInfo.color}`}>
-                        <StatusIcon className="w-3 h-3 mr-1" />
-                        {statusInfo.label}
-                      </span>
-                      <span className="text-[10px] text-gray-400">{ticket.createdAt.split(' ')[0]}</span>
-                    </div>
-                  </div>
-                );
-              })}
+            <div className="space-y-5 p-5 sm:p-6">
+              <div><h3 className="mb-2 font-semibold">Ảnh hiện trạng và nghiệm thu</h3><div className="flex flex-wrap gap-3">
+                {(ticket.photos || []).map((photo) => <a key={photo.id} href={`data:${photo.mimeType};base64,${photo.data}`} target="_blank" rel="noreferrer" className="group relative"><img src={`data:${photo.mimeType};base64,${photo.data}`} alt={photo.fileName} className="h-28 w-28 rounded-lg border object-cover" /><span className="absolute inset-x-0 bottom-0 rounded-b-lg bg-black/60 px-1 py-1 text-center text-[10px] text-white">{photo.kind === 'COMPLETION' ? 'Nghiệm thu' : 'Hiện trạng'}</span></a>)}
+                {ticket.photos?.length === 0 && <span className="text-sm text-slate-400">Chưa có ảnh.</span>}
+              </div></div>
+              {ticket.progressNote && <div className="rounded-lg bg-blue-50 p-3"><h3 className="text-sm font-semibold text-blue-900">Cập nhật gần nhất</h3><p className="mt-1 whitespace-pre-wrap text-sm text-blue-900">{ticket.progressNote}</p></div>}
+              {ticket.studentReworkNote && <div className="rounded-lg border border-amber-200 bg-amber-50 p-3"><h3 className="text-sm font-semibold text-amber-900">Yêu cầu sửa lại từ sinh viên</h3><p className="mt-1 whitespace-pre-wrap text-sm text-amber-900">{ticket.studentReworkNote}</p>{ticket.studentReworkAt && <p className="mt-1 text-xs text-amber-800">Gửi lúc {formatDate(ticket.studentReworkAt)}</p>}</div>}
+              {ticket.rating != null && <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3"><h3 className="text-sm font-semibold text-emerald-900">Đánh giá của sinh viên: {ticket.rating}/5</h3>{ticket.ratingNote && <p className="mt-1 whitespace-pre-wrap text-sm text-emerald-900">{ticket.ratingNote}</p>}</div>}
+              {ticket.compensationItem && <div className="rounded-lg border border-rose-200 bg-rose-50 p-3"><h3 className="text-sm font-semibold text-rose-900">Chi phí đền bù đã cộng vào hóa đơn</h3><p className="mt-1 text-sm font-bold text-rose-900">{Number(ticket.compensationItem.amount).toLocaleString('vi-VN')} ₫ · {formatInvoicePeriod(ticket.compensationItem.invoice?.periodStart)}</p><p className="mt-1 whitespace-pre-wrap text-sm text-rose-900">{ticket.compensationItem.description}</p><p className="mt-1 text-xs text-rose-800">Hóa đơn hiện có tổng phát sinh {Number(ticket.compensationItem.invoice?.totalAmount || 0).toLocaleString('vi-VN')} ₫ · ghi nhận lúc {formatDate(ticket.compensationItem.assessedAt)}</p></div>}
+
+              {canManage && ticket.status === 'PENDING' && <div className="flex flex-wrap items-end gap-3 border-t pt-5"><label className="min-w-64 flex-1 text-sm font-medium">Xác nhận mức độ sự cố<select value={priority} onChange={(event) => setPriority(event.target.value)} className="mt-1 block w-full rounded-lg border bg-white px-3 py-2">{SLA_PRIORITY_OPTIONS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label><button disabled={busy} onClick={() => perform((id) => ticketApi.approve(id, priority), 'Đã duyệt yêu cầu và áp dụng SLA.')} className="inline-flex items-center gap-2 rounded-lg bg-blue-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"><Check className="h-4 w-4" />Duyệt & áp dụng SLA</button><button disabled={busy} onClick={() => { const reason = window.prompt('Nhập lý do từ chối:'); if (reason?.trim()) perform((id) => ticketApi.reject(id, reason), 'Đã từ chối yêu cầu.'); }} className="inline-flex items-center gap-2 rounded-lg border border-rose-300 px-4 py-2 text-sm font-semibold text-rose-700 disabled:opacity-50"><X className="h-4 w-4" />Từ chối</button></div>}
+
+              {canManage && ['APPROVED', 'SCHEDULED'].includes(ticket.status) && <form className="grid gap-3 border-t pt-5 sm:grid-cols-[1fr_1fr_auto]" onSubmit={(event) => { event.preventDefault(); if (!appointmentAt) return setError('Hãy chọn lịch hẹn sửa chữa.'); perform((id) => ticketApi.schedule(id, new Date(appointmentAt).toISOString(), appointmentNote), 'Đã cập nhật lịch hẹn.'); }}>
+                <label className="text-sm font-medium">Lịch hẹn<input type="datetime-local" value={appointmentAt} onChange={(event) => setAppointmentAt(event.target.value)} required className="mt-1 block w-full rounded-lg border px-3 py-2" /></label>
+                <label className="text-sm font-medium">Ghi chú<textarea value={appointmentNote} onChange={(event) => setAppointmentNote(event.target.value)} rows="1" maxLength="500" className="mt-1 block w-full rounded-lg border px-3 py-2" placeholder="Thông tin chuẩn bị / liên hệ" /></label>
+                <button disabled={busy} className="self-end rounded-lg bg-blue-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">Lưu lịch</button>
+              </form>}
+
+              {canUpdate && ['SCHEDULED', 'IN_PROGRESS'].includes(ticket.status) && <form className="space-y-3 border-t pt-5" onSubmit={(event) => { event.preventDefault(); perform((id) => ticketApi.progress(id, progressNote), 'Đã cập nhật tiến độ.'); }}>
+                <h3 className="font-semibold">Cập nhật tiến độ sự cố</h3><textarea required minLength="3" maxLength="2000" value={progressNote} onChange={(event) => setProgressNote(event.target.value)} rows="3" className="w-full rounded-lg border px-3 py-2 text-sm" placeholder="Mô tả công việc đã thực hiện, vật tư cần thêm, tiến độ…" /><button disabled={busy} className="rounded-lg border border-blue-300 px-4 py-2 text-sm font-semibold text-blue-800 disabled:opacity-50">Lưu tiến độ</button>
+              </form>}
+
+              {canUpdate && ['SCHEDULED', 'IN_PROGRESS'].includes(ticket.status) && <form className="space-y-3 border-t pt-5" onSubmit={async (event) => { event.preventDefault(); try { if (!photos.length) return setError('Tải lên ít nhất một ảnh nghiệm thu.'); await perform((id) => ticketApi.submitCompletion(id, progressNote, photos), 'Đã gửi ảnh nghiệm thu, chờ ban quản lý xác nhận.'); setPhotos([]); } catch (uploadError) { setError(uploadError.message); } }}>
+                <h3 className="font-semibold">Gửi nghiệm thu hoàn thành</h3><p className="text-sm text-slate-500">Cần ảnh JPG, PNG hoặc WEBP (tối đa 3 ảnh, 2 MB mỗi ảnh). Sau khi gửi, sinh viên sẽ kiểm tra thực tế và nghiệm thu.</p>
+                <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-dashed border-slate-400 px-4 py-3 text-sm hover:border-blue-500"><ImagePlus className="h-4 w-4" />Chọn ảnh nghiệm thu<input type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={uploadSelection} className="sr-only" /></label>
+                {photos.length > 0 && <p className="text-sm text-slate-600">Đã chọn {photos.length} ảnh: {photos.map((photo) => photo.fileName).join(', ')}</p>}
+                <button disabled={busy || photos.length === 0} className="ml-3 rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">Gửi nghiệm thu</button>
+              </form>}
+
+              {canAssessCompensation && ['WAITING_ACCEPTANCE', 'COMPLETED'].includes(ticket.status) && !ticket.compensationItem && <form className="space-y-3 border-t pt-5" onSubmit={(event) => { event.preventDefault(); const amount = Number(compensationAmount); if (!studentAtFaultConfirmed) return setError('Hãy xác nhận đã xác minh trách nhiệm của sinh viên.'); if (!Number.isSafeInteger(amount) || amount <= 0) return setError('Chi phí đền bù phải là số nguyên dương.'); perform((id) => ticketApi.assessCompensation(id, amount, compensationReason, studentAtFaultConfirmed), 'Đã ghi nhận chi phí đền bù và cộng vào hóa đơn tháng.'); }}>
+                <h3 className="font-semibold">Ghi nhận đền bù tài sản hỏng</h3><p className="text-sm text-slate-500">Chỉ lập khoản thu sau khi kiểm tra ticket và xác định trách nhiệm; mỗi ticket chỉ được tính một lần.</p>
+                <label className="block text-sm font-medium">Chi phí đền bù (₫)<input type="number" required min="1" max="1000000000" step="1" value={compensationAmount} onChange={(event) => setCompensationAmount(event.target.value)} className="mt-1 block w-full rounded-lg border px-3 py-2" placeholder="Ví dụ: 250000" /></label>
+                <label className="block text-sm font-medium">Căn cứ / mô tả hư hỏng<textarea required minLength={5} maxLength={1000} value={compensationReason} onChange={(event) => setCompensationReason(event.target.value)} rows="3" className="mt-1 block w-full rounded-lg border px-3 py-2" placeholder="Mô tả tài sản hỏng, nguyên nhân và cách xác định mức đền bù…" /></label>
+                <label className="flex items-start gap-2 text-sm"><input type="checkbox" checked={studentAtFaultConfirmed} onChange={(event) => setStudentAtFaultConfirmed(event.target.checked)} className="mt-1 h-4 w-4 accent-rose-700" /><span>Đã xác minh hư hỏng do lỗi sinh viên và có căn cứ xác định khoản đền bù.</span></label>
+                <button disabled={busy || !studentAtFaultConfirmed || !compensationAmount || !compensationReason.trim()} className="rounded-lg bg-rose-700 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50">Cộng vào hóa đơn tháng</button>
+              </form>}
+
+              {ticket.status === 'WAITING_ACCEPTANCE' && <div className="flex flex-wrap items-center justify-between gap-3 border-t pt-5"><p className="text-sm text-slate-600">Đang chờ sinh viên kiểm tra thực tế, đánh giá hiệu quả và nghiệm thu.</p>{canOverrideCompletion && <button disabled={busy} onClick={() => perform(ticketApi.acceptCompletion, 'Quản trị viên đã xác nhận hoàn thành thay sinh viên.')} className="inline-flex items-center gap-2 rounded-lg border border-emerald-700 px-4 py-2 text-sm font-semibold text-emerald-800 disabled:opacity-50"><CheckCircle2 className="h-4 w-4" />Quản trị viên xác nhận thay</button>}</div>}
+
+              {error && <p role="alert" className="rounded-lg bg-rose-50 p-3 text-sm text-rose-800">{error}</p>}
+              {notice && <p role="status" className="rounded-lg bg-emerald-50 p-3 text-sm text-emerald-800">{notice}</p>}
+              {busy && <p className="flex items-center gap-2 text-sm text-slate-500"><Loader2 className="h-4 w-4 animate-spin" />Đang lưu cập nhật…</p>}
             </div>
-          </div>
-
-          {/* Right Column: Ticket Details */}
-          <div className="w-full md:w-7/12 lg:w-2/3 bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col overflow-hidden">
-            {selectedTicket ? (
-              <>
-                {/* Detail Header */}
-                <div className="p-6 border-b border-gray-200">
-                  <div className="flex justify-between items-start mb-4">
-                    <div>
-                      <div className="flex items-center gap-3 mb-2">
-                        <h3 className="text-xl font-bold text-gray-800">{selectedTicket.id}</h3>
-                        {(() => {
-                          const statusInfo = getStatusDisplay(selectedTicket.status);
-                          return (
-                            <span className={`px-2.5 py-1 rounded-md text-xs font-semibold border ${statusInfo.color}`}>
-                              {statusInfo.label}
-                            </span>
-                          );
-                        })()}
-                      </div>
-                      <h2 className="text-lg font-medium text-gray-700">{selectedTicket.issue}</h2>
-                    </div>
-                    <button className="p-2 text-gray-400 hover:text-gray-600 transition-colors">
-                      <MoreVertical className="w-5 h-5" />
-                    </button>
-                  </div>
-
-                  <div className="flex flex-wrap gap-4 mt-4">
-                    <div className="flex items-center text-sm text-gray-600 bg-gray-50 px-3 py-1.5 rounded-lg border border-gray-100">
-                      <Building className="w-4 h-4 mr-2 text-blue-600" />
-                      Phòng: <span className="font-semibold text-gray-800 ml-1">{selectedTicket.room}</span>
-                    </div>
-                    <div className="flex items-center text-sm text-gray-600 bg-gray-50 px-3 py-1.5 rounded-lg border border-gray-100">
-                      <Wrench className="w-4 h-4 mr-2 text-orange-600" />
-                      Nhóm lỗi: <span className="font-semibold text-gray-800 ml-1">{selectedTicket.category}</span>
-                    </div>
-                    <div className="flex items-center text-sm text-gray-600 bg-gray-50 px-3 py-1.5 rounded-lg border border-gray-100">
-                      <Clock className="w-4 h-4 mr-2 text-gray-500" />
-                      Gửi lúc: <span className="font-semibold text-gray-800 ml-1">{selectedTicket.createdAt}</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex-1 overflow-y-auto">
-                  {/* Reporter Info & Description */}
-                  <div className="p-6 border-b border-gray-100">
-                    <h4 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-4">Thông tin báo cáo</h4>
-                    
-                    <div className="bg-blue-50/50 border border-blue-100 rounded-xl p-4 mb-4">
-                      <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center border border-blue-200 text-blue-600">
-                          <User className="w-5 h-5" />
-                        </div>
-                        <div>
-                          <p className="font-bold text-gray-800">{selectedTicket.studentName}</p>
-                          <p className="text-sm text-gray-600">SĐT: {selectedTicket.phone}</p>
-                        </div>
-                        <button className="ml-auto flex items-center justify-center px-3 py-1.5 bg-white border border-blue-200 rounded-lg text-sm text-blue-600 hover:bg-blue-50 transition-colors">
-                          <MessageSquare className="w-4 h-4 mr-1.5" /> Chat
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className="mb-4">
-                      <p className="text-sm text-gray-600 font-medium mb-2">Mô tả chi tiết:</p>
-                      <p className="text-sm text-gray-800 bg-gray-50 p-3 rounded-lg border border-gray-100">
-                        Bồn cầu bị tắc từ tối qua, nước không thoát được và có mùi hôi. Mong ban quản lý xử lý sớm giúp phòng em ạ.
-                      </p>
-                    </div>
-
-                    <div>
-                      <p className="text-sm text-gray-600 font-medium mb-2 flex items-center">
-                        <ImageIcon className="w-4 h-4 mr-1.5" /> Hình ảnh đính kèm (1)
-                      </p>
-                      <div className="flex gap-2">
-                        <div className="w-24 h-24 bg-gray-200 rounded-lg border border-gray-300 flex items-center justify-center text-gray-400 overflow-hidden cursor-pointer hover:opacity-90">
-                          {/* Placeholder cho ảnh thực tế */}
-                          <ImageIcon className="w-8 h-8" />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Processing & Assignment */}
-                  <div className="p-6 bg-gray-50">
-                    <h4 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-4">Xử lý & Phân công</h4>
-                    
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
-                      <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
-                        <label className="block text-xs font-medium text-gray-500 mb-1">Kỹ thuật viên phụ trách</label>
-                        {selectedTicket.technician ? (
-                          <div className="flex items-center justify-between">
-                            <span className="text-sm font-bold text-gray-800 flex items-center">
-                              <HardHat className="w-4 h-4 text-orange-500 mr-1.5" />
-                              {selectedTicket.technician}
-                            </span>
-                            <button className="text-xs text-blue-600 hover:underline">Đổi</button>
-                          </div>
-                        ) : (
-                          <select className="w-full border border-gray-300 rounded-lg text-sm px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-                            <option value="">-- Chọn kỹ thuật viên --</option>
-                            <option value="1">Nguyễn Xuân Thành</option>
-                            <option value="2">Phạm Đức Bội</option>
-                          </select>
-                        )}
-                      </div>
-
-                      <div className={`p-4 rounded-xl border shadow-sm ${selectedTicket.elapsedHours > selectedTicket.slaHours ? 'bg-red-50 border-red-200' : 'bg-white border-gray-200'}`}>
-                        <label className="block text-xs font-medium text-gray-500 mb-1 flex justify-between">
-                          Cam kết thời gian (SLA)
-                          <span className="font-bold text-gray-700">{selectedTicket.slaHours}h</span>
-                        </label>
-                        {selectedTicket.elapsedHours > selectedTicket.slaHours ? (
-                          <p className="text-sm font-bold text-red-600 flex items-center">
-                            <AlertTriangle className="w-4 h-4 mr-1.5" /> Quá hạn {selectedTicket.elapsedHours - selectedTicket.slaHours} tiếng
-                          </p>
-                        ) : (
-                          <p className="text-sm font-bold text-green-600 flex items-center">
-                            <Timer className="w-4 h-4 mr-1.5" /> Còn {selectedTicket.slaHours - selectedTicket.elapsedHours} tiếng
-                          </p>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Action Buttons */}
-                    <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
-                      <button className="px-4 py-2 border border-red-300 text-red-600 rounded-lg text-sm font-medium hover:bg-red-50 transition-colors bg-white">
-                        Phạt đền bù (Lỗi SV)
-                      </button>
-                      <button className="px-6 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 shadow-sm transition-colors flex items-center">
-                        Cập nhật trạng thái <ArrowRight className="w-4 h-4 ml-2" />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </>
-            ) : (
-              <div className="flex-1 flex flex-col items-center justify-center p-8 text-gray-400">
-                <Wrench className="w-12 h-12 mb-4 text-gray-300" />
-                <p className="text-center font-medium">Chọn một ticket từ danh sách để xem chi tiết và xử lý.</p>
-              </div>
-            )}
-          </div>
-        </main>
+          </>}
+        </section>
       </div>
-    </div>
+    </FacilitiesLayout>
   );
 };
 

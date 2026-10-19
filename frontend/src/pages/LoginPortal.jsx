@@ -3,6 +3,7 @@ import { useDispatch } from 'react-redux';
 import { Link, useNavigate } from 'react-router-dom';
 import { authApi } from '../services/authApi';
 import { loginSuccess } from '../store/authSlice';
+import { homeForRole } from '../utils/accessControl';
 import {
   Building,
   User,
@@ -47,13 +48,8 @@ const LoginPortal = () => {
         token: data.token 
       }));
 
-      // Điều hướng dựa trên vai trò
       const loggedInUser = data.user || data.data;
-      if (loggedInUser.role === 'STUDENT') {
-        navigate('/student-portal');
-      } else {
-        navigate('/');
-      }
+      navigate(homeForRole(loggedInUser.role));
 
     } catch (err) {
       // Bắt lỗi từ backend trả về hoặc hiện lỗi mặc định

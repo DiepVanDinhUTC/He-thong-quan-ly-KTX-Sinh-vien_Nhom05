@@ -1,43 +1,66 @@
+/* eslint-disable react/prop-types */
 import React, { useState } from 'react';
-import { useSelector } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { logout } from '../store/authSlice';
 import { 
   Building2, 
+  ClipboardList,
   LayoutDashboard, 
   Users, 
+  UserCog,
   DoorOpen, 
   Receipt, 
   Wrench, 
   Settings, 
+  ShieldCheck,
+  Zap,
   LogOut, 
   ChevronLeft, 
-  ChevronRight 
+  ChevronRight
 } from 'lucide-react';
+import AdminUserProfile from './AdminUserProfile';
 
-const Sidebar = () => {
+const Sidebar = ({ additionalMenuItems = [] }) => {
   // Trạng thái thu gọn/mở rộng thanh điều hướng
   const [isCollapsed, setIsCollapsed] = useState(false);
   const navigate = useNavigate();
+  const dispatch = useDispatch();
   const location = useLocation();
   const role = useSelector((state) => state.auth.user?.role);
   
   // Trạng thái lưu mục đang được chọn (Active)
   // Danh sách các mục menu chính
   const mainMenuItems = [
-    { id: 'dashboard', path: '/', label: 'Tổng quan', icon: LayoutDashboard, roles: ['MANAGER', 'DIRECTOR'] },
-    { id: 'students', path: '/students', label: 'Quản lý Sinh viên', icon: Users, roles: ['MANAGER', 'DIRECTOR'] },
-    { id: 'rooms', path: '/rooms', label: 'Quản lý Phòng & CSVC', icon: DoorOpen, roles: ['MANAGER', 'DIRECTOR'] },
-    { id: 'contracts', path: '/contracts', label: 'Quản lý Hợp đồng', icon: Receipt, roles: ['MANAGER', 'DIRECTOR'] },
-    { id: 'billing', path: '/financial-dashboard', label: 'Quản lý Hóa đơn & Điện nước', icon: Receipt, roles: ['ACCOUNTANT', 'DIRECTOR'] },
-    { id: 'tickets', path: '/tickets', label: 'Yêu cầu sửa chữa', icon: Wrench, roles: ['MANAGER', 'DIRECTOR'] },
-    { id: 'technician', path: '/technician', label: 'Bảng kỹ thuật', icon: Wrench, roles: ['MANAGER', 'TECHNICIAN'] },
+    { id: 'dashboard', path: '/', label: 'Tổng quan', icon: LayoutDashboard, roles: ['BOARD_CHAIR', 'BOARD_DEPUTY', 'ADMIN'] },
+    { id: 'students', path: '/students', label: 'Quản lý Sinh viên', icon: Users, roles: ['BOARD_CHAIR', 'BOARD_DEPUTY', 'ARCHIVIST', 'BUILDING_MANAGER', 'MEDICAL_OFFICER', 'ADMIN'] },
+    { id: 'staff-accounts', path: '/staff-accounts', label: 'Quản lý tài khoản nhân viên', icon: UserCog, roles: ['BOARD_CHAIR', 'BOARD_DEPUTY'] },
+    { id: 'rooms', path: '/rooms', label: 'Quản lý Phòng & CSVC', icon: DoorOpen, roles: ['BOARD_CHAIR', 'BOARD_DEPUTY', 'FACILITIES_MANAGER', 'BUILDING_MANAGER', 'SECURITY', 'ADMIN'] },
+    { id: 'buildings', path: '/buildings', label: 'Danh mục Tòa nhà', icon: Building2, roles: ['FACILITIES_MANAGER', 'BUILDING_MANAGER', 'ADMIN'] },
+    { id: 'assets', path: '/assets', label: 'Danh mục Tài sản', icon: Wrench, roles: ['FACILITIES_MANAGER', 'BUILDING_MANAGER', 'ADMIN'] },
+    { id: 'meter-readings', path: '/meter-readings', label: 'Ghi chỉ số điện nước', icon: Zap, roles: ['FACILITIES_MANAGER', 'BUILDING_MANAGER', 'ACCOUNTANT', 'ADMIN'] },
+    { id: 'contracts', path: '/contracts', label: 'Quản lý Hợp đồng', icon: Receipt, roles: ['BOARD_CHAIR', 'BOARD_DEPUTY', 'ARCHIVIST', 'BUILDING_MANAGER', 'ADMIN'] },
+    { id: 'billing', path: '/financial-dashboard', label: 'Quản lý Hóa đơn & Điện nước', icon: Receipt, roles: ['ACCOUNTANT', 'TREASURER', 'BOARD_CHAIR', 'BOARD_DEPUTY', 'ADMIN'] },
+    { id: 'tickets', path: '/tickets', label: 'Yêu cầu sửa chữa', icon: Wrench, roles: ['BOARD_CHAIR', 'BOARD_DEPUTY', 'FACILITIES_MANAGER', 'BUILDING_MANAGER', 'SECURITY', 'SERVICE_PROVIDER', 'ADMIN'] },
+    { id: 'self-service', path: '/self-service', label: role === 'SERVICE_PROVIDER' ? 'Đăng ký dịch vụ' : 'Yêu cầu tự phục vụ', icon: ClipboardList, roles: ['BOARD_CHAIR', 'BOARD_DEPUTY', 'BUILDING_MANAGER', 'SERVICE_PROVIDER', 'ADMIN'] },
+    { id: 'security-medical', path: '/security-medical', label: role === 'MEDICAL_OFFICER' ? 'Quản lý y tế' : 'Trật tự - trị an', icon: ShieldCheck, roles: ['SECURITY', 'MEDICAL_OFFICER', 'ADMIN'] },
+    { id: 'military-management', path: '/military-management', label: 'Quản lý học viên quân sự', icon: ShieldCheck, roles: ['MILITARY_OFFICER', 'ADMIN'] },
   ];
-  const visibleMenuItems = mainMenuItems.filter((item) => item.roles.includes(role));
-  const activeItem = mainMenuItems.find((item) => item.path === location.pathname)?.id;
+  const customMenuItems = additionalMenuItems.map(({ to, label, Icon }) => ({
+    id: `custom-${to}`,
+    path: to,
+    label,
+    icon: Icon,
+    roles: role ? [role] : [],
+  }));
+  const allMenuItems = [...mainMenuItems, ...customMenuItems]
+    .filter((item, index, items) => items.findIndex((candidate) => candidate.path === item.path) === index);
+  const visibleMenuItems = allMenuItems.filter((item) => role === 'ADMIN' || item.roles.includes(role));
+  const activeItem = allMenuItems.find((item) => item.path === location.pathname)?.id;
 
   return (
     <div 
-      className={`h-screen bg-white border-r border-gray-200 flex flex-col transition-all duration-300 ease-in-out font-sans ${
+      className={`h-full min-h-0 shrink-0 bg-white border-r border-gray-200 flex flex-col transition-all duration-300 ease-in-out font-sans ${
         isCollapsed ? 'w-20' : 'w-72'
       }`}
     >
@@ -57,7 +80,7 @@ const Sidebar = () => {
       </div>
 
       {/* 2. Main Navigation Menu */}
-      <nav className="flex-1 overflow-y-auto py-6 px-3 space-y-1.5 scrollbar-hide">
+      <nav className="min-h-0 flex-1 overflow-y-auto py-6 px-3 space-y-1.5 scrollbar-hide">
         {!isCollapsed && (
           <p className="px-3 text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">
             Menu Chính
@@ -103,8 +126,12 @@ const Sidebar = () => {
 
       {/* 3. Bottom Section (Settings, Logout, Collapse Toggle) */}
       <div className="p-3 border-t border-gray-100 bg-gray-50/50 shrink-0 space-y-1.5">
+
+        <div className={`pb-3 ${isCollapsed ? 'px-0' : 'px-1'}`}>
+          <AdminUserProfile compact={isCollapsed} light />
+        </div>
         
-        {role === 'DIRECTOR' && <button
+        {role === 'ADMIN' && <button
           title={isCollapsed ? 'Cài đặt hệ thống' : ''}
           onClick={() => navigate('/settings')}
           className={`
@@ -118,6 +145,7 @@ const Sidebar = () => {
 
         <button
           title={isCollapsed ? 'Đăng xuất' : ''}
+          onClick={() => { dispatch(logout()); navigate('/login', { replace: true }); }}
           className={`
             w-full flex items-center gap-3 px-3 py-3 rounded-xl text-slate-500 hover:bg-red-50 hover:text-red-600 transition-all duration-200 group
             ${isCollapsed ? 'justify-center' : 'justify-start'}

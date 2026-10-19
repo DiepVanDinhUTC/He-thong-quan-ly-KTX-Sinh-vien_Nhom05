@@ -11,6 +11,10 @@ api.interceptors.request.use(
     (config) => {
         const token = localStorage.getItem('accessToken');
         if (token) config.headers.Authorization = `Bearer ${token}`;
+        const skipAdminTestMode = config.skipAdminTestMode === true;
+        delete config.skipAdminTestMode;
+        const testAccount = localStorage.getItem('adminTestAccount');
+        if (!skipAdminTestMode && testAccount) config.headers['X-Admin-Test-Account'] = testAccount;
         return config;
     },
     (error) => Promise.reject(error)

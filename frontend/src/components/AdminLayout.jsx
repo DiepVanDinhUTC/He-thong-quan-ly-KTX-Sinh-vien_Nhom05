@@ -1,3 +1,4 @@
+/* eslint-disable react/prop-types */
 import React from 'react';
 import Sidebar from './Sidebar'; // Component Sidebar vừa được tạo
 import { Bell, Search } from 'lucide-react';
@@ -5,13 +6,13 @@ import AdminUserProfile from './AdminUserProfile';
 
 const AdminLayout = ({ children }) => {
   return (
-    <div className="flex h-screen bg-gray-50 overflow-hidden font-sans">
+    <div className="flex h-screen min-h-0 overflow-hidden bg-gray-50 font-sans">
       
       {/* 1. Cột trái: Component Sidebar Điều hướng */}
       <Sidebar />
 
       {/* 2. Cột phải: Khu vực Nội dung chính (Main Area) */}
-      <div className="flex-1 flex flex-col h-full overflow-hidden relative">
+      <div className="relative flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         
         {/* Topbar / Header chung cho mọi trang */}
         <header className="bg-white/90 backdrop-blur-md shadow-sm h-16 flex items-center justify-between px-6 sm:px-8 z-10 border-b border-gray-200 shrink-0">
@@ -42,7 +43,7 @@ const AdminLayout = ({ children }) => {
 
         {/* 3. Vùng chứa Nội dung động (Dynamic Content) */}
         {/* Nơi này sẽ render các trang con như Quản lý Sinh viên, Quản lý Phòng, Dashboard... */}
-        <main className="flex-1 overflow-auto bg-gray-50 p-6 sm:p-8">
+        <main className="min-h-0 flex-1 overflow-y-auto bg-gray-50 p-6 sm:p-8">
           <div className="max-w-7xl mx-auto w-full h-full animate-in fade-in duration-500">
             {children}
           </div>

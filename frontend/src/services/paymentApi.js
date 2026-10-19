@@ -2,8 +2,7 @@
 import api from './api';
 
 export const paymentApi = {
-    getQRCode: async (maHopDong) => {
-        const response = await api.get(`/payments/${maHopDong}/qr`);
-        return response.data; // Trả về { success, data: { tongTien, noiDungCK, qrCodeImage } }
-    }
+    mine: async () => (await api.get('/payments/mine')).data,
+    monthlyInvoices: async () => (await api.get('/payments/monthly-invoices')).data,
+    createVnpayPayment: async (invoiceType, invoiceId) => (await api.post('/payments/vnpay/create', { invoiceType, invoiceId })).data
 };

@@ -19,7 +19,10 @@ async function main() {
             : `test10_nv${String(sequence).padStart(2, '0')}`;
         const role = isStudent
             ? 'STUDENT'
-            : ['MANAGER', 'ACCOUNTANT', 'TECHNICIAN', 'DIRECTOR', 'MANAGER'][((sequence - 1) % 5)];
+            : [
+                'BUILDING_MANAGER', 'ACCOUNTANT', 'FACILITIES_MANAGER', 'SECURITY', 'TREASURER',
+                'ARCHIVIST', 'SERVICE_PROVIDER', 'MILITARY_OFFICER', 'MEDICAL_OFFICER', 'ADMIN'
+            ][sequence - 1];
         currentFixtureStep = `user ${username}`;
         users.push(await prisma.user.upsert({
             where: { username },
@@ -61,7 +64,10 @@ async function main() {
     for (let index = 1; index <= 10; index += 1) {
         const suffix = String(index).padStart(2, '0');
         currentFixtureStep = `employee T10NV${suffix}`;
-        const roles = ['Quản lý KTX', 'Kế toán', 'Kỹ thuật viên', 'Giám đốc', 'Quản lý KTX'];
+        const roles = [
+            'Quản lý tòa nhà', 'Kế toán', 'Cơ sở vật chất', 'Trật tự - trị an', 'Thủ quỹ',
+            'Hồ sơ lưu trữ', 'Nhà cung cấp dịch vụ', 'Cán bộ Quản lý quân sự', 'Cán bộ y tế', 'Quản trị viên kiểm thử'
+        ];
         employees.push(await prisma.nhanVien.upsert({
             where: { maNhanVien: `T10NV${suffix}` },
             update: {

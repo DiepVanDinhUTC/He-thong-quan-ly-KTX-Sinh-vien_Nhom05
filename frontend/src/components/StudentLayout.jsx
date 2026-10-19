@@ -3,9 +3,10 @@ import { useDispatch, useSelector } from 'react-redux';
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import {
   BedDouble, Building, ChevronDown, Home, LockKeyhole,
-  LogOut, Mail, Receipt, UserRound, Wrench, X
+  LogOut, Mail, PackageCheck, Receipt, UserRound, Wrench, X,
 } from 'lucide-react';
 import { authApi } from '../services/authApi';
+import StudentNotificationBell from './StudentNotificationBell';
 import { logout, userUpdated } from '../store/authSlice';
 
 const navLinkClass = ({ isActive }) => `flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition ${
@@ -26,12 +27,13 @@ const StudentLayout = () => {
   const [message, setMessage] = useState({ type: '', text: '' });
   const studentName = student?.hoTen || student?.username || 'Sinh viên';
   const initials = studentName.split(/\s+/).slice(-2).map((part) => part[0]).join('').toUpperCase();
+  const roleLabel = student?.role === 'MILITARY_STUDENT' ? 'Học viên quân sự' : 'Sinh viên';
 
   useEffect(() => {
     let active = true;
     authApi.me().then((response) => {
       if (!active) return;
-      if (response.user.role !== 'STUDENT') {
+      if (!['STUDENT', 'MILITARY_STUDENT'].includes(response.user.role)) {
         navigate('/', { replace: true });
         return;
       }
@@ -96,40 +98,72 @@ const StudentLayout = () => {
     }
   };
 
-  return (
-    <div className="flex min-h-screen bg-gray-50 text-gray-800">
-      <aside className="sticky top-0 flex h-screen w-16 shrink-0 flex-col border-r bg-white px-2 py-4 sm:w-64 sm:px-4">
-        <Link to="/student-portal" className="mb-5 flex items-center justify-center gap-3 rounded-xl px-1 py-2 sm:justify-start sm:px-2" aria-label="Cổng sinh viên KTX">
-          <span className="rounded-xl bg-blue-900 p-2.5 text-white"><Building className="h-5 w-5" /></span>
-          <span className="hidden min-w-0 sm:block"><span className="block truncate font-bold text-blue-900">Cổng sinh viên KTX</span><span className="text-xs text-gray-500">ĐH GTVT</span></span>
-        </Link>
-        <nav className="flex-1 space-y-1 overflow-y-auto">
-          <NavLink to="/student-portal" end className={navLinkClass} title="Tổng quan"><Home className="h-5 w-5 shrink-0" /><span className="hidden sm:inline">Tổng quan</span></NavLink>
-          <NavLink to="/room-registration" className={navLinkClass} title="Đăng ký nội trú"><Building className="h-5 w-5 shrink-0" /><span className="hidden sm:inline">Đăng ký nội trú</span></NavLink>
-          <NavLink to="/my-room" className={navLinkClass} title="Phòng của tôi"><BedDouble className="h-5 w-5 shrink-0" /><span className="hidden sm:inline">Phòng của tôi</span></NavLink>
-          <NavLink to="/bill-payment" className={navLinkClass} title="Hóa đơn & Thanh toán"><Receipt className="h-5 w-5 shrink-0" /><span className="hidden sm:inline">Hóa đơn & Thanh toán</span></NavLink>
-          <NavLink to="/ticket-report" className={navLinkClass} title="Báo cáo sửa chữa"><Wrench className="h-5 w-5 shrink-0" /><span className="hidden sm:inline">Báo cáo sửa chữa</span></NavLink>
-        </nav>
+  const mobileLinks = [
+    { to: '/student-portal', label: 'Trang chủ', Icon: Home, end: true },
+    { to: '/my-room', label: 'Phòng ở', Icon: BedDouble },
+    { to: '/service-registration', label: 'Dịch vụ', Icon: PackageCheck },
+    { to: '/bill-payment', label: 'Hóa đơn', Icon: Receipt },
+    { to: '/ticket-report', label: 'Báo hỏng', Icon: Wrench },
+  ];
 
-        <div className="relative border-t pt-3">
-          {profileMenuOpen && <div className="absolute bottom-full left-0 z-30 mb-2 w-56 rounded-xl border bg-white p-2 shadow-xl sm:left-0">
-            <p className="truncate px-3 py-2 text-xs text-gray-500">{student?.maSV || student?.username}</p>
-            <button type="button" onClick={() => startProfileAction('contact')} className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm hover:bg-gray-50"><Mail className="h-4 w-4" />Thông tin liên lạc</button>
-            <button type="button" onClick={() => startProfileAction('password')} className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm hover:bg-gray-50"><LockKeyhole className="h-4 w-4" />Đổi mật khẩu</button>
-            <button type="button" onClick={() => { dispatch(logout()); navigate('/login', { replace: true }); }} className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50"><LogOut className="h-4 w-4" />Đăng xuất</button>
-          </div>}
-          <button type="button" onClick={() => setProfileMenuOpen((open) => !open)} aria-expanded={profileMenuOpen} className="flex w-full items-center justify-center gap-3 rounded-xl p-2 text-left hover:bg-gray-50 sm:justify-start">
+  return (
+    <div className="flex h-screen min-h-0 overflow-hidden bg-slate-50 text-slate-800">
+      <aside className="hidden h-full min-h-0 w-64 shrink-0 flex-col border-r bg-white px-4 py-4 md:flex">
+        <Link to="/student-portal" className="mb-5 flex shrink-0 items-center gap-3 rounded-xl px-2 py-2" aria-label="Cổng sinh viên KTX">
+          <span className="rounded-xl bg-blue-900 p-2.5 text-white"><Building className="h-5 w-5" /></span>
+          <span className="min-w-0"><span className="block truncate font-bold text-blue-900">Cổng sinh viên KTX</span><span className="text-xs text-gray-500">ĐH GTVT</span></span>
+        </Link>
+        <nav aria-label="Điều hướng chính" className="min-h-0 flex-1 space-y-1 overflow-y-auto">
+          <NavLink to="/student-portal" end className={navLinkClass}><Home className="h-5 w-5 shrink-0" />Tổng quan</NavLink>
+          {student?.role === 'STUDENT' && <NavLink to="/room-registration" className={navLinkClass}><Building className="h-5 w-5 shrink-0" />Đăng ký nội trú</NavLink>}
+          <NavLink to="/my-room" className={navLinkClass}><BedDouble className="h-5 w-5 shrink-0" />{student?.role === 'MILITARY_STUDENT' ? 'Tra cứu phòng' : 'Phòng ở & yêu cầu'}</NavLink>
+          <NavLink to="/service-registration" className={navLinkClass}><PackageCheck className="h-5 w-5 shrink-0" />Đăng ký dịch vụ</NavLink>
+          <NavLink to="/bill-payment" className={navLinkClass}><Receipt className="h-5 w-5 shrink-0" />Hóa đơn & thanh toán</NavLink>
+          <NavLink to="/ticket-report" className={navLinkClass}><Wrench className="h-5 w-5 shrink-0" />Báo hỏng CSVC</NavLink>
+        </nav>
+        <div className="shrink-0 border-t pt-3">
+          <button type="button" onClick={() => setProfileMenuOpen((open) => !open)} aria-expanded={profileMenuOpen} className="flex w-full items-center gap-3 rounded-xl p-2 text-left hover:bg-gray-50">
             <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-100 text-sm font-bold text-blue-800">{initials || <UserRound className="h-5 w-5" />}</span>
-            <span className="hidden min-w-0 flex-1 sm:block"><span className="block truncate text-sm font-semibold">{studentName}</span><span className="block truncate text-xs text-gray-500">{student?.maSV || student?.username || ''}</span></span>
-            <ChevronDown className="hidden h-4 w-4 text-gray-400 sm:block" />
+            <span className="min-w-0 flex-1"><span className="block truncate text-sm font-semibold">{studentName}</span><span className="block truncate text-xs text-gray-500">{student?.maSV || student?.username || ''}</span></span>
+            <ChevronDown className="h-4 w-4 text-gray-400" />
           </button>
         </div>
       </aside>
 
-      <div className="min-w-0 flex-1">
+      <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden pb-20 md:pb-0">
+        <header className="z-30 flex h-16 shrink-0 items-center justify-between border-b bg-white px-4 py-3 shadow-sm sm:px-6">
+          <Link to="/student-portal" className="flex min-w-0 items-center gap-2" aria-label="Về trang chủ sinh viên">
+            <span className="rounded-lg bg-blue-900 p-2 text-white"><Building className="h-4 w-4" /></span>
+            <span className="min-w-0"><span className="block truncate text-sm font-bold text-blue-950">Cổng sinh viên KTX</span><span className="block text-xs text-slate-500">{roleLabel}</span></span>
+          </Link>
+          <div className="flex shrink-0 items-center gap-2 sm:gap-3">
+            <StudentNotificationBell />
+            <button type="button" onClick={() => setProfileMenuOpen((open) => !open)} aria-label="Mở tài khoản" aria-expanded={profileMenuOpen} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-100 text-sm font-bold text-blue-800 ring-2 ring-white">
+              {initials || <UserRound className="h-5 w-5" />}
+            </button>
+          </div>
+        </header>
         {message.text && !profileModal && <div role="status" className={`fixed right-4 top-4 z-40 rounded-lg px-4 py-3 text-sm shadow-lg ${message.type === 'error' ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'}`}>{message.text}</div>}
-        <Outlet />
+        <main className="min-h-0 flex-1 overflow-y-auto">
+          <Outlet />
+        </main>
       </div>
+
+      {profileMenuOpen && <>
+        <button type="button" aria-label="Đóng menu tài khoản" className="fixed inset-0 z-40 cursor-default" onClick={() => setProfileMenuOpen(false)} />
+        <div className="fixed right-3 top-16 z-50 w-64 rounded-xl border bg-white p-2 shadow-xl">
+          <p className="truncate px-3 py-2 text-xs text-gray-500">{studentName} · {student?.maSV || student?.username}</p>
+          <button type="button" onClick={() => startProfileAction('contact')} className="flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-left text-sm hover:bg-gray-50"><Mail className="h-4 w-4" />Thông tin liên lạc</button>
+          <button type="button" onClick={() => startProfileAction('password')} className="flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-left text-sm hover:bg-gray-50"><LockKeyhole className="h-4 w-4" />Đổi mật khẩu</button>
+          <button type="button" onClick={() => { dispatch(logout()); navigate('/login', { replace: true }); }} className="flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-left text-sm text-red-600 hover:bg-red-50"><LogOut className="h-4 w-4" />Đăng xuất</button>
+        </div>
+      </>}
+
+      <nav aria-label="Điều hướng nhanh" className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t bg-white/95 px-1 pb-[env(safe-area-inset-bottom)] pt-1 shadow-[0_-4px_16px_rgba(15,23,42,0.08)] backdrop-blur md:hidden">
+        {mobileLinks.map(({ to, label, Icon, end }) => <NavLink key={to} to={to} end={end} className={({ isActive }) => `flex min-w-0 flex-col items-center gap-1 rounded-lg px-1 py-2 text-[10px] font-medium ${isActive ? 'text-blue-800' : 'text-slate-500'}`}>
+          {({ isActive }) => <><Icon className={`h-5 w-5 ${isActive ? 'stroke-[2.5]' : ''}`} /><span className="max-w-full truncate">{label}</span></>}
+        </NavLink>)}
+      </nav>
 
       {profileModal && <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4" onMouseDown={(event) => { if (event.target === event.currentTarget && !saving) setProfileModal(''); }}>
         <form onSubmit={profileModal === 'contact' ? saveContact : savePassword} className="w-full max-w-md space-y-4 rounded-2xl bg-white p-6 shadow-2xl">

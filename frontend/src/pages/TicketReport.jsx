@@ -1,236 +1,193 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  ArrowLeft,
-  Wrench,
-  Image as ImageIcon,
-  Zap,
-  Droplets,
-  Wind,
-  Bed,
-  CheckCircle2,
-  X,
-  UploadCloud,
-  MapPin,
-  AlertCircle
-} from 'lucide-react';
+import { ArrowLeft, CheckCircle2, ImagePlus, Loader2, MapPin, Star, Wrench } from 'lucide-react';
+import { ticketApi } from '../services/ticketApi';
+import { formatSlaDuration, getTicketSla, SLA_PRIORITY_OPTIONS, SLA_STATE_CLASSES, SLA_STATE_LABELS } from '../utils/ticketSla';
+
+const STATUS = {
+  PENDING: 'Chờ duyệt', APPROVED: 'Đã duyệt', SCHEDULED: 'Đã lên lịch',
+  IN_PROGRESS: 'Đang xử lý', WAITING_ACCEPTANCE: 'Chờ bạn kiểm tra và nghiệm thu', COMPLETED: 'Đã nghiệm thu', REJECTED: 'Từ chối',
+};
+const formatDateTime = (value) => {
+  if (!value) return '';
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? '' : date.toLocaleString('vi-VN');
+};
 
 const TicketReport = () => {
   const navigate = useNavigate();
-  const [isSubmitted, setIsSubmitted] = useState(false);
-  const [images, setImages] = useState([]);
-  const [formData, setFormData] = useState({
-    category: '',
-    title: '',
-    description: '',
-  });
+  const [category, setCategory] = useState('');
+  const [priority, setPriority] = useState('LOW');
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [photos, setPhotos] = useState([]);
+  const [tickets, setTickets] = useState([]);
+  const [ticketsLoading, setTicketsLoading] = useState(true);
+  const [ticketsError, setTicketsError] = useState('');
+  const [selectedId, setSelectedId] = useState('');
+  const [selectedTicket, setSelectedTicket] = useState(null);
+  const [detailBusy, setDetailBusy] = useState(false);
+  const [createdTicket, setCreatedTicket] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
+  const [inspected, setInspected] = useState(false);
+  const [rating, setRating] = useState(5);
+  const [ratingNote, setRatingNote] = useState('');
+  const [reworkReason, setReworkReason] = useState('');
+  const [slaClock, setSlaClock] = useState(() => Date.now());
 
-  const categories = [
-    { id: 'dien', name: 'Điện', icon: Zap, color: 'text-yellow-600', bg: 'bg-yellow-50', border: 'border-yellow-200' },
-    { id: 'nuoc', name: 'Nước', icon: Droplets, color: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-200' },
-    { id: 'dieu-hoa', name: 'Làm mát', icon: Wind, color: 'text-cyan-600', bg: 'bg-cyan-50', border: 'border-cyan-200' },
-    { id: 'noi-that', name: 'Nội thất', icon: Bed, color: 'text-orange-600', bg: 'bg-orange-50', border: 'border-orange-200' },
-  ];
-
-  // Giả lập chọn ảnh
-  const handleImageAdd = () => {
-    if (images.length < 3) {
-      setImages([...images, 'blob:preview-' + Date.now()]);
+  const loadMine = async () => {
+    setTicketsLoading(true);
+    setTicketsError('');
+    try {
+      setTickets((await ticketApi.mine()).tickets || []);
+      return true;
+    } catch (requestError) {
+      setTicketsError(requestError.response?.data?.message || 'Không thể tải danh sách yêu cầu. Hãy thử tải lại.');
+      return false;
+    } finally {
+      setTicketsLoading(false);
     }
   };
+  useEffect(() => {
+    loadMine();
+    const timer = setInterval(() => setSlaClock(Date.now()), 60000);
+    return () => clearInterval(timer);
+  }, []);
 
-  const handleImageRemove = (index) => {
-    setImages(images.filter((_, i) => i !== index));
-  };
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    // Validate cơ bản (Bắt buộc phải có ảnh theo yêu cầu dự án)
-    if (images.length === 0) {
-      alert("Vui lòng đính kèm ít nhất 1 hình ảnh hiện trạng!");
+  const handleFiles = async (event) => {
+    setError('');
+    const files = [...(event.target.files || [])];
+    if (files.length > 3 || files.some((file) => !['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > 2 * 1024 * 1024)) {
+      setError('Chọn tối đa 3 ảnh JPG, PNG hoặc WEBP, mỗi ảnh không quá 2 MB.');
+      event.target.value = '';
       return;
     }
-    setIsSubmitted(true);
+    try {
+      const values = await Promise.all(files.map((file) => new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve({ fileName: file.name, mimeType: file.type, data: reader.result });
+        reader.onerror = () => reject(new Error('Không thể đọc ảnh đã chọn.'));
+        reader.readAsDataURL(file);
+      })));
+      setPhotos(values);
+    } catch (readError) { setError(readError.message); }
+    event.target.value = '';
   };
 
-  return (
-    <div className="min-h-screen bg-gray-50 text-gray-800 font-sans pb-10">
-      
-      {/* Header */}
-      <header className="bg-white/80 backdrop-blur-md sticky top-0 z-50 border-b border-gray-200 px-4 py-3 sm:px-6 lg:px-8">
-        <div className="max-w-3xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <button onClick={() => navigate('/student-portal')} className="p-2 -ml-2 text-gray-500 hover:bg-gray-100 rounded-full transition-colors">
-              <ArrowLeft className="w-5 h-5" />
-            </button>
-            <h1 className="text-lg font-bold text-gray-800">Báo hỏng cơ sở vật chất</h1>
-          </div>
-          <div className="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center shadow-sm hidden sm:flex">
-            <Wrench className="w-4 h-4 text-orange-600" />
-          </div>
-        </div>
-      </header>
+  const submit = async (event) => {
+    event.preventDefault();
+    setBusy(true);
+    setError('');
+    try {
+      const response = await ticketApi.create({ category, priority, title, description, photos });
+      setCreatedTicket(response.ticket);
+      setCategory(''); setPriority('LOW'); setTitle(''); setDescription(''); setPhotos([]);
+      await loadMine();
+    } catch (requestError) {
+      setError(requestError.response?.data?.message || 'Không gửi được yêu cầu sửa chữa.');
+    } finally { setBusy(false); }
+  };
 
-      <main className="max-w-2xl mx-auto px-4 sm:px-6 mt-6">
-        
-        {!isSubmitted ? (
-          <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
-            <div className="p-6 sm:p-8">
-              
-              <div className="flex items-start gap-3 p-4 bg-blue-50 border border-blue-100 rounded-2xl mb-8">
-                <MapPin className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
-                <div>
-                  <p className="text-sm text-gray-600">Vị trí cần sửa chữa:</p>
-                  <p className="font-bold text-blue-900">Phòng 101 - Tòa A1 (Phòng của bạn)</p>
-                </div>
-              </div>
+  const selectTicket = async (id) => {
+    setSelectedId(id);
+    setSelectedTicket(null);
+    setInspected(false);
+    setRating(5);
+    setRatingNote('');
+    setReworkReason('');
+    setError('');
+    setNotice('');
+    setDetailBusy(true);
+    try {
+      const response = await ticketApi.mineDetail(id);
+      setSelectedTicket(response.ticket);
+    } catch (requestError) {
+      setError(requestError.response?.data?.message || 'Không tải được chi tiết yêu cầu.');
+    } finally { setDetailBusy(false); }
+  };
 
-              <form onSubmit={handleSubmit} className="space-y-6">
-                
-                {/* Phân loại */}
-                <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-3">
-                    Phân loại sự cố <span className="text-red-500">*</span>
-                  </label>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                    {categories.map((cat) => {
-                      const Icon = cat.icon;
-                      const isSelected = formData.category === cat.id;
-                      return (
-                        <div 
-                          key={cat.id}
-                          onClick={() => setFormData({...formData, category: cat.id})}
-                          className={`flex flex-col items-center justify-center p-4 rounded-2xl border-2 cursor-pointer transition-all ${
-                            isSelected 
-                              ? `${cat.border} ${cat.bg} ring-2 ring-offset-1 ring-${cat.color.split('-')[1]}-500 shadow-sm` 
-                              : 'border-gray-100 hover:border-gray-300 bg-white'
-                          }`}
-                        >
-                          <Icon className={`w-8 h-8 mb-2 ${isSelected ? cat.color : 'text-gray-400'}`} />
-                          <span className={`text-sm font-semibold ${isSelected ? cat.color : 'text-gray-600'}`}>{cat.name}</span>
-                        </div>
-                      )
-                    })}
-                  </div>
-                </div>
+  const finishStudentAction = async (action, successMessage) => {
+    if (!selectedTicket) return;
+    setBusy(true);
+    setError('');
+    setNotice('');
+    try {
+      await action(selectedTicket.id);
+      setNotice(successMessage);
+      setInspected(false);
+      setReworkReason('');
+      try {
+        const details = await ticketApi.mineDetail(selectedTicket.id);
+        setSelectedTicket(details.ticket);
+      } catch {
+        setSelectedTicket(null);
+        setError('Đã lưu thao tác. Không tải lại được chi tiết; hãy chọn ticket để thử lại.');
+      }
+      await loadMine();
+    } catch (requestError) {
+      setError(requestError.response?.data?.message || 'Không cập nhật được yêu cầu sửa chữa.');
+    } finally { setBusy(false); }
+  };
 
-                {/* Vấn đề */}
-                <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-2">
-                    Tên thiết bị hỏng <span className="text-red-500">*</span>
-                  </label>
-                  <input 
-                    type="text" 
-                    required
-                    placeholder="VD: Bóng đèn tuýp, Vòi nước bồn rửa mặt..." 
-                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors text-sm"
-                    value={formData.title}
-                    onChange={(e) => setFormData({...formData, title: e.target.value})}
-                  />
-                </div>
+  return <main className="bg-slate-50 px-4 py-6 text-slate-800">
+    <div className="mx-auto max-w-3xl">
+      <button onClick={() => navigate('/student-portal')} className="mb-5 inline-flex items-center gap-2 text-sm text-blue-700"><ArrowLeft className="h-4 w-4" />Về trang chủ</button>
+      <section className="rounded-2xl border bg-white p-5 shadow-sm sm:p-7">
+        <div className="mb-6 flex items-center gap-3"><Wrench className="h-6 w-6 text-orange-600" /><div><h1 className="text-xl font-bold">Báo hỏng cơ sở vật chất</h1><p className="text-sm text-slate-500">Yêu cầu sẽ gắn với phòng nội trú hiện tại của bạn.</p></div></div>
+        <div className="mb-5 flex items-start gap-3 rounded-xl bg-blue-50 p-4 text-sm text-blue-900"><MapPin className="mt-0.5 h-5 w-5 shrink-0" /><p>Hệ thống tự xác định tòa nhà và phòng từ hợp đồng nội trú đang hiệu lực.</p></div>
+        {createdTicket && <div role="status" className="mb-5 flex items-start gap-2 rounded-lg bg-emerald-50 p-3 text-sm text-emerald-800"><CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" /><p>Đã gửi yêu cầu {createdTicket.id}. SLA dự kiến {createdTicket.sla?.hours || createdTicket.slaHours || 'đang được xác nhận'} giờ{formatDateTime(createdTicket.sla?.deadlineAt || createdTicket.slaDeadlineAt) ? `, hạn xử lý ${formatDateTime(createdTicket.sla?.deadlineAt || createdTicket.slaDeadlineAt)}` : ''}.</p></div>}
+        <form onSubmit={submit} className="space-y-4">
+          <label className="block text-sm font-semibold">Nhóm sự cố<select required value={category} onChange={(event) => setCategory(event.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 font-normal focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"><option value="">Chọn nhóm sự cố</option><option value="dien">Điện</option><option value="nuoc">Nước</option><option value="dieu-hoa">Điều hòa</option><option value="noi-that">Nội thất</option><option value="khac">Khác</option></select></label>
+          <label className="block text-sm font-semibold">Mức độ sự cố<select required value={priority} onChange={(event) => setPriority(event.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 font-normal focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100">{SLA_PRIORITY_OPTIONS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select><span className="mt-1 block text-xs font-normal text-slate-500">Thời hạn xử lý dự kiến sẽ được tính theo mức độ; Ban quản lý có thể xác nhận lại khi tiếp nhận.</span></label>
+          <label className="block text-sm font-semibold">Tên thiết bị / sự cố<input required minLength="3" maxLength="160" value={title} onChange={(event) => setTitle(event.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2.5 font-normal focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100" placeholder="Ví dụ: Vòi nước bị rò rỉ" /></label>
+          <label className="block text-sm font-semibold">Mô tả<textarea required minLength="5" maxLength="2000" rows="4" value={description} onChange={(event) => setDescription(event.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2.5 font-normal focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100" placeholder="Mô tả biểu hiện, thời điểm xảy ra và lưu ý khi sửa chữa…" /><span className="mt-1 block text-right text-xs font-normal text-slate-400">{description.length}/2000</span></label>
+          <div><p className="mb-2 text-sm font-semibold">Ảnh hiện trạng <span className="font-normal text-slate-500">(bắt buộc, tối đa 3 ảnh, 2 MB mỗi ảnh)</span></p><label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-700 transition hover:border-blue-400 hover:bg-blue-50"><ImagePlus className="h-4 w-4 text-blue-700" />Chọn ảnh<input type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={handleFiles} className="sr-only" /></label>{photos.length > 0 && <div className="mt-3 grid grid-cols-3 gap-2 sm:max-w-md">{photos.map((photo, index) => <div key={`${photo.fileName}-${index}`} className="group relative overflow-hidden rounded-xl border bg-white"><img src={photo.data} alt={`Ảnh hiện trạng ${index + 1}: ${photo.fileName}`} className="aspect-square w-full object-cover" /><button type="button" onClick={() => setPhotos((current) => current.filter((_, photoIndex) => photoIndex !== index))} aria-label={`Xóa ảnh ${photo.fileName}`} className="absolute right-1 top-1 rounded-full bg-slate-950/75 px-2 py-1 text-xs font-semibold text-white opacity-100 sm:opacity-0 sm:transition group-hover:opacity-100">Xóa</button></div>)}</div>}<p className="mt-2 text-xs text-slate-500">Ảnh giúp đội ngũ kỹ thuật xác định sự cố trước khi đến kiểm tra.</p></div>
+          {error && <p role="alert" className="rounded-lg bg-rose-50 p-3 text-sm text-rose-800">{error}</p>}
+          <button disabled={busy || photos.length === 0} className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-blue-700 px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto">{busy && <Loader2 className="h-4 w-4 animate-spin" />}Gửi phiếu báo hỏng</button>
+        </form>
+      </section>
+      <section className="mt-6 rounded-2xl border bg-white p-5 shadow-sm sm:p-7">
+        <h2 className="mb-4 font-bold">Yêu cầu đã gửi</h2>
+        {ticketsLoading ? <p className="flex items-center gap-2 py-3 text-sm text-slate-500"><Loader2 className="h-4 w-4 animate-spin" />Đang tải yêu cầu…</p> : ticketsError ? <div role="alert" className="rounded-xl bg-rose-50 p-4 text-sm text-rose-800"><p>{ticketsError}</p><button type="button" onClick={loadMine} className="mt-2 font-semibold underline underline-offset-2">Tải lại danh sách</button></div> : tickets.length === 0 ? <div className="rounded-xl bg-slate-50 p-5 text-center"><Wrench className="mx-auto h-7 w-7 text-slate-400" /><p className="mt-2 font-medium text-slate-700">Bạn chưa gửi yêu cầu sửa chữa nào</p><p className="mt-1 text-sm text-slate-500">Khi cần hỗ trợ trong phòng, hãy điền thông tin sự cố ở biểu mẫu phía trên.</p></div> : <div className="space-y-3">{tickets.map((ticket) => { const sla = getTicketSla(ticket, slaClock); return <article key={ticket.id} className={`rounded-lg border p-3 ${selectedId === ticket.id ? 'border-blue-400 bg-blue-50/40' : ''}`}>
+          <div className="flex flex-wrap items-center justify-between gap-3"><div><p className="font-semibold">{ticket.title}</p><p className="text-xs text-slate-500">{ticket.id} · Phòng {ticket.phong?.soPhong || ticket.maPhong}</p></div><div className="flex flex-wrap gap-2"><span className="rounded-full bg-slate-100 px-3 py-1 text-xs">{STATUS[ticket.status] || ticket.status}</span>{sla && <span className={`rounded-full px-3 py-1 text-xs font-semibold ${SLA_STATE_CLASSES[sla.state]}`}>{SLA_STATE_LABELS[sla.state]}</span>}</div></div>
+          {sla && <p className="mt-2 text-xs text-slate-600">Hạn SLA {sla.hours} giờ: {new Date(sla.deadlineAt).toLocaleString('vi-VN')}{sla.state === 'OVERDUE' && ` · ${formatSlaDuration(sla.overdueMs, 'Trễ ')}`}</p>}
+          {ticket.appointmentAt && <p className="mt-2 text-xs text-slate-600">Lịch hẹn: {new Date(ticket.appointmentAt).toLocaleString('vi-VN')}</p>}
+          {ticket.progressNote && <p className="mt-2 whitespace-pre-wrap text-sm text-slate-700">Tiến độ: {ticket.progressNote}</p>}
+          <button type="button" onClick={() => selectTicket(ticket.id)} className="mt-3 rounded-lg border border-blue-300 px-3 py-2 text-sm font-semibold text-blue-800 hover:bg-blue-50">{ticket.status === 'WAITING_ACCEPTANCE' ? 'Kiểm tra kết quả sửa chữa' : 'Xem chi tiết'}</button>
+        </article>; })}</div>}
+      </section>
 
-                {/* Mô tả chi tiết */}
-                <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-2">
-                    Mô tả tình trạng chi tiết <span className="text-red-500">*</span>
-                  </label>
-                  <textarea 
-                    required
-                    rows="3"
-                    placeholder="Mô tả rõ biểu hiện (VD: Đèn bị nhấp nháy, nước chảy yếu...)" 
-                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors text-sm resize-none"
-                    value={formData.description}
-                    onChange={(e) => setFormData({...formData, description: e.target.value})}
-                  ></textarea>
-                </div>
+      {selectedId && <section className="mt-6 rounded-2xl border bg-white p-5 shadow-sm sm:p-7">
+        {detailBusy && <p className="flex items-center gap-2 text-sm text-slate-500"><Loader2 className="h-4 w-4 animate-spin" />Đang tải chi tiết ticket…</p>}
+        {!detailBusy && selectedTicket && <>
+          <div className="flex flex-wrap items-start justify-between gap-3"><div><h2 className="text-lg font-bold">{selectedTicket.status === 'WAITING_ACCEPTANCE' ? 'Kiểm tra kết quả sửa chữa' : 'Chi tiết yêu cầu sửa chữa'}</h2><p className="mt-1 text-sm text-slate-600">{selectedTicket.title} · Phòng {selectedTicket.phong?.soPhong || selectedTicket.maPhong}</p></div><span className="rounded-full bg-slate-100 px-3 py-1 text-xs">{STATUS[selectedTicket.status] || selectedTicket.status}</span></div>
+          <p className="mt-3 whitespace-pre-wrap text-sm text-slate-700">{selectedTicket.description}</p>
+          {selectedTicket.appointmentAt && <p className="mt-2 text-sm text-slate-600">Lịch hẹn: {new Date(selectedTicket.appointmentAt).toLocaleString('vi-VN')}</p>}
+          {selectedTicket.progressNote && <div className="mt-3 rounded-lg bg-blue-50 p-3 text-sm"><p className="font-semibold text-blue-900">Ghi chú tiến độ / nghiệm thu</p><p className="mt-1 whitespace-pre-wrap text-blue-900">{selectedTicket.progressNote}</p></div>}
+          {selectedTicket.studentReworkNote && <div className="mt-3 rounded-lg bg-amber-50 p-3 text-sm text-amber-900"><p className="font-semibold">Lý do yêu cầu sửa lại gần nhất</p><p className="mt-1 whitespace-pre-wrap">{selectedTicket.studentReworkNote}</p></div>}
+          {selectedTicket.compensationItem && <div className="mt-3 rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-900"><p className="font-semibold">Khoản đền bù đã cộng vào hóa đơn tháng {selectedTicket.compensationItem.invoice?.periodStart ? `${new Date(selectedTicket.compensationItem.invoice.periodStart).getUTCMonth() + 1}/${new Date(selectedTicket.compensationItem.invoice.periodStart).getUTCFullYear()}` : 'đang cập nhật'}</p><p className="mt-1 font-bold">{Number(selectedTicket.compensationItem.amount).toLocaleString('vi-VN')} ₫</p><p className="mt-1 whitespace-pre-wrap">{selectedTicket.compensationItem.description}</p></div>}
+          <div className="mt-4"><h3 className="mb-2 text-sm font-semibold">Ảnh hiện trạng và ảnh hoàn thành</h3><div className="flex flex-wrap gap-3">{(selectedTicket.photos || []).map((photo) => <a key={photo.id} href={`data:${photo.mimeType};base64,${photo.data}`} target="_blank" rel="noreferrer" className="group relative"><img src={`data:${photo.mimeType};base64,${photo.data}`} alt={photo.fileName} className="h-28 w-28 rounded-lg border object-cover" /><span className="absolute inset-x-0 bottom-0 rounded-b-lg bg-black/65 px-1 py-1 text-center text-[10px] text-white">{photo.kind === 'COMPLETION' ? 'Ảnh hoàn thành' : 'Ảnh hiện trạng'}</span></a>)}</div></div>
 
-                {/* Hình ảnh đính kèm (Bắt buộc theo dự án) */}
-                <div>
-                  <div className="flex justify-between items-center mb-2">
-                    <label className="block text-sm font-bold text-gray-700">
-                      Hình ảnh đính kèm <span className="text-red-500">*</span>
-                    </label>
-                    <span className="text-xs text-gray-500">{images.length}/3 ảnh</span>
-                  </div>
-                  
-                  <div className="bg-orange-50 border border-orange-100 rounded-lg p-3 flex items-start gap-2 mb-3">
-                    <AlertCircle className="w-4 h-4 text-orange-600 shrink-0 mt-0.5" />
-                    <p className="text-xs text-orange-800">Hệ thống yêu cầu chụp ảnh rõ hiện trạng để kỹ thuật viên chuẩn bị đúng vật tư sửa chữa.</p>
-                  </div>
+          {selectedTicket.status === 'WAITING_ACCEPTANCE' && <div className="mt-6 space-y-4 border-t pt-5">
+            <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">Hãy kiểm tra trực tiếp tại phòng và đối chiếu ảnh kết quả trước khi nghiệm thu. Nếu sự cố chưa được xử lý triệt để, gửi yêu cầu sửa lại để nhà cung cấp tiếp tục xử lý.</div>
+            <label className="flex items-start gap-2 text-sm font-medium"><input type="checkbox" checked={inspected} onChange={(event) => setInspected(event.target.checked)} className="mt-1 h-4 w-4 accent-blue-700" /><span>Tôi đã kiểm tra thực tế kết quả sửa chữa tại phòng.</span></label>
+            <fieldset><legend className="mb-2 text-sm font-semibold">Đánh giá hiệu quả sửa chữa</legend><div className="flex flex-wrap items-center gap-2">{[1, 2, 3, 4, 5].map((score) => <button key={score} type="button" onClick={() => setRating(score)} aria-label={`${score} sao`} aria-pressed={rating === score} className={`inline-flex items-center gap-1 rounded-lg border px-3 py-2 text-sm ${rating === score ? 'border-amber-400 bg-amber-50 text-amber-800' : 'border-slate-200 text-slate-500'}`}><Star className={`h-4 w-4 ${rating >= score ? 'fill-amber-400 text-amber-500' : ''}`} />{score}</button>)}<span className="text-sm text-slate-600">{rating}/5 · {rating >= 4 ? 'Hiệu quả tốt' : rating === 3 ? 'Đạt một phần' : 'Chưa đạt'}</span></div></fieldset>
+            <label className="block text-sm font-medium">Nhận xét (không bắt buộc)<textarea value={ratingNote} onChange={(event) => setRatingNote(event.target.value)} maxLength={1000} rows="3" className="mt-1 w-full rounded-lg border px-3 py-2 font-normal" placeholder="Ví dụ: Đã xử lý hết rò rỉ, khu vực được dọn sạch…" /></label>
+            <button type="button" disabled={busy || !inspected} onClick={() => finishStudentAction((id) => ticketApi.studentAccept(id, rating, ratingNote, inspected), 'Đã nghiệm thu ticket và lưu đánh giá của bạn.')} className="rounded-lg bg-emerald-700 px-4 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50">{busy ? 'Đang lưu…' : 'Nghiệm thu hoàn thành'}</button>
+            <form className="space-y-3 rounded-lg border border-rose-200 bg-rose-50/50 p-4" onSubmit={(event) => { event.preventDefault(); finishStudentAction((id) => ticketApi.studentRequestRework(id, reworkReason, inspected), 'Đã gửi yêu cầu sửa lại. SLA tiếp tục được theo dõi.'); }}>
+              <h3 className="font-semibold text-rose-900">Chưa đạt? Yêu cầu sửa lại</h3><label className="block text-sm font-medium text-rose-950">Nêu rõ phần chưa được xử lý<textarea required minLength={3} maxLength={1000} value={reworkReason} onChange={(event) => setReworkReason(event.target.value)} rows="3" className="mt-1 w-full rounded-lg border border-rose-200 bg-white px-3 py-2 font-normal" placeholder="Mô tả phần còn hỏng hoặc chưa hoàn thành…" /></label><button disabled={busy || !inspected || reworkReason.trim().length < 3} className="rounded-lg border border-rose-300 px-4 py-2 text-sm font-semibold text-rose-800 disabled:opacity-50">Gửi yêu cầu sửa lại</button>
+            </form>
+          </div>}
 
-                  <div className="flex flex-wrap gap-3">
-                    {images.map((img, idx) => (
-                      <div key={idx} className="relative w-24 h-24 rounded-xl border border-gray-200 overflow-hidden group">
-                        {/* Mock image background */}
-                        <div className="w-full h-full bg-gray-200 flex items-center justify-center">
-                          <ImageIcon className="w-8 h-8 text-gray-400" />
-                        </div>
-                        <button 
-                          type="button"
-                          onClick={() => handleImageRemove(idx)}
-                          className="absolute top-1 right-1 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
-                        >
-                          <X className="w-4 h-4" />
-                        </button>
-                      </div>
-                    ))}
-
-                    {images.length < 3 && (
-                      <button 
-                        type="button"
-                        onClick={handleImageAdd}
-                        className="w-24 h-24 rounded-xl border-2 border-dashed border-gray-300 hover:border-blue-500 hover:bg-blue-50 flex flex-col items-center justify-center gap-1 text-gray-500 hover:text-blue-600 transition-colors"
-                      >
-                        <UploadCloud className="w-6 h-6" />
-                        <span className="text-[10px] font-medium">Tải ảnh lên</span>
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-                <div className="pt-6 border-t border-gray-100">
-                  <button 
-                    type="submit"
-                    disabled={!formData.category || !formData.title || images.length === 0}
-                    className="w-full py-4 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors shadow-sm shadow-blue-200"
-                  >
-                    Gửi phiếu báo hỏng
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        ) : (
-          /* Trạng thái thành công */
-          <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden p-8 sm:p-12 text-center animate-in zoom-in duration-500">
-            <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
-              <CheckCircle2 className="w-10 h-10 text-green-600" />
-            </div>
-            <h2 className="text-2xl font-bold text-gray-800 mb-3">Gửi báo hỏng thành công!</h2>
-            <p className="text-gray-500 mb-8 max-w-md mx-auto">
-              Mã Ticket <span className="font-bold text-gray-800">TK-2609-15</span> đã được chuyển đến Đội kỹ thuật tòa nhà. Bạn có thể theo dõi tiến độ sửa chữa tại mục "Tiến độ sửa chữa" trên trang chủ.
-            </p>
-
-            <div className="flex flex-col sm:flex-row justify-center gap-3">
-              <button 
-                onClick={() => setIsSubmitted(false)} 
-                className="px-6 py-3 bg-white border border-gray-200 text-gray-700 rounded-xl font-semibold hover:bg-gray-50 transition-colors"
-              >
-                Gửi thêm lỗi khác
-              </button>
-              <button 
-                onClick={() => navigate('/student-portal')} 
-                className="px-6 py-3 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition-colors"
-              >
-                Về trang chủ
-              </button>
-            </div>
-          </div>
-        )}
-        
-      </main>
+          {selectedTicket.status === 'COMPLETED' && selectedTicket.rating != null && <div className="mt-5 rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm"><p className="flex items-center gap-2 font-semibold text-emerald-900"><Star className="h-4 w-4 fill-amber-400 text-amber-500" />Bạn đã đánh giá {selectedTicket.rating}/5 · nghiệm thu lúc {new Date(selectedTicket.studentAcceptedAt || selectedTicket.completedAt).toLocaleString('vi-VN')}</p>{selectedTicket.ratingNote && <p className="mt-2 whitespace-pre-wrap text-emerald-900">{selectedTicket.ratingNote}</p>}</div>}
+        </>}
+        {error && <p role="alert" className="mt-4 rounded-lg bg-rose-50 p-3 text-sm text-rose-800">{error}</p>}
+        {notice && <p role="status" className="mt-4 rounded-lg bg-emerald-50 p-3 text-sm text-emerald-800">{notice}</p>}
+      </section>}
     </div>
-  );
+  </main>;
 };
 
 export default TicketReport;
