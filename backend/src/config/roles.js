@@ -55,7 +55,7 @@ const ROOM_PERMISSIONS = Object.freeze({
 });
 
 const APPLICATION_DECISION_ROLES = Object.freeze([
-    ROLES.BOARD_CHAIR, ROLES.BOARD_DEPUTY, ROLES.BUILDING_MANAGER, ROLES.ADMIN
+    ROLES.BOARD_CHAIR, ROLES.BOARD_DEPUTY, ROLES.ARCHIVIST, ROLES.BUILDING_MANAGER, ROLES.ADMIN
 ]);
 const CONTRACT_READ_ROLES = Object.freeze([
     ROLES.BOARD_CHAIR, ROLES.BOARD_DEPUTY, ROLES.ARCHIVIST, ROLES.BUILDING_MANAGER, ROLES.ADMIN
@@ -64,11 +64,16 @@ const CONTRACT_EDIT_ROLES = Object.freeze([ROLES.ARCHIVIST, ROLES.BUILDING_MANAG
 
 // Named permissions checked by JWT-authenticated API middleware.
 const ROLE_PERMISSIONS = Object.freeze({
-    [ROLES.BOARD_CHAIR]: Object.freeze(['students:read', 'rooms:read', 'contracts:read', 'tickets:read', 'dashboard:read', 'staff-accounts:manage']),
-    [ROLES.BOARD_DEPUTY]: Object.freeze(['students:read', 'rooms:read', 'contracts:read', 'tickets:read', 'dashboard:read', 'staff-accounts:manage']),
-    [ROLES.ARCHIVIST]: Object.freeze(['students:read', 'students:create', 'students:update', 'students:delete', 'students:sync', 'contracts:read', 'contracts:update']),
-    [ROLES.ACCOUNTANT]: Object.freeze(['billing:read', 'billing:meter-readings', 'utilities:read', 'utilities:write']),
-    [ROLES.TREASURER]: Object.freeze(['billing:read']),
+    [ROLES.BOARD_CHAIR]: Object.freeze(['students:read', 'rooms:read', 'contracts:read', 'tickets:read', 'dashboard:read', 'billing:read', 'staff-accounts:manage']),
+    [ROLES.BOARD_DEPUTY]: Object.freeze(['students:read', 'rooms:read', 'contracts:read', 'tickets:read', 'dashboard:read', 'billing:read', 'staff-accounts:manage']),
+    [ROLES.ARCHIVIST]: Object.freeze([
+        'students:read', 'students:create', 'students:update', 'students:delete', 'students:sync',
+        'contracts:read', 'contracts:update', 'applications:decide',
+        'archive-rooms:read', 'archive-rooms:assign', 'archive-rooms:move',
+        'residents:read', 'security:violation:read', 'security:violation:create'
+    ]),
+    [ROLES.ACCOUNTANT]: Object.freeze(['billing:read', 'billing:manage', 'billing:meter-readings', 'utilities:read', 'utilities:write']),
+    [ROLES.TREASURER]: Object.freeze(['billing:read', 'billing:manage']),
     [ROLES.FACILITIES_MANAGER]: Object.freeze(['rooms:read', 'rooms:write', 'utilities:read', 'utilities:write', 'tickets:read', 'tickets:approve', 'tickets:schedule', 'tickets:assign', 'tickets:update', 'tickets:complete', 'tickets:assess-compensation']),
     [ROLES.BUILDING_MANAGER]: Object.freeze(['students:read', 'rooms:read', 'rooms:write', 'utilities:read', 'utilities:write', 'services:read', 'services:update', 'contracts:read', 'contracts:update', 'applications:decide', 'tickets:read', 'tickets:approve', 'tickets:schedule', 'tickets:assign', 'tickets:assess-compensation']),
     [ROLES.SECURITY]: Object.freeze([

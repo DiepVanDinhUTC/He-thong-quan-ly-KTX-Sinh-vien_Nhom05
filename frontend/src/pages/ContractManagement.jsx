@@ -10,9 +10,9 @@ const afterTenMonths = () => { const date = new Date(); date.setMonth(date.getMo
 const toDateInput = (value) => value ? new Date(value).toISOString().slice(0, 10) : '';
 const statusLabel = { PENDING: 'Chờ xác nhận', APPROVED: 'Đã xác nhận', REJECTED: 'Đã từ chối', PENDING_PAYMENT: 'Chờ thanh toán', ACTIVE: 'Có hiệu lực', PAID: 'Đã thanh toán', CANCELLED: 'Đã hủy', RETURNED: 'Đã trả phòng' };
 
-const ContractManagement = () => {
+const ContractManagement = ({ embedded = false }) => {
   const role = useSelector((state) => state.auth.user?.role);
-  const canDecideApplications = ['BOARD_CHAIR', 'BOARD_DEPUTY', 'BUILDING_MANAGER', 'ADMIN'].includes(role);
+  const canDecideApplications = ['BOARD_CHAIR', 'BOARD_DEPUTY', 'ARCHIVIST', 'BUILDING_MANAGER', 'ADMIN'].includes(role);
   const canEditContracts = ['ARCHIVIST', 'BUILDING_MANAGER', 'ADMIN'].includes(role);
   const [tab, setTab] = useState('applications');
   const [applications, setApplications] = useState([]);
@@ -117,12 +117,12 @@ const ContractManagement = () => {
   const pendingApplications = applications.filter((application) => application.trangThai === 'PENDING');
 
   return (
-    <div className="flex h-screen min-h-0 overflow-hidden bg-gray-50 text-gray-800">
-      <Sidebar />
+    <div className={embedded ? 'w-full text-gray-800' : 'flex h-screen min-h-0 overflow-hidden bg-gray-50 text-gray-800'}>
+      {!embedded && <Sidebar />}
 
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-        <header className="flex h-16 shrink-0 items-center justify-between border-b bg-white px-8 shadow-sm"><h2 className="text-xl font-semibold">Hợp đồng lưu trú</h2><button onClick={loadData} className="rounded-lg border px-3 py-2 text-sm hover:bg-gray-50">Làm mới</button></header>
-        <main className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-8">
+      <div className={embedded ? 'w-full' : 'flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden'}>
+        {!embedded && <header className="flex h-16 shrink-0 items-center justify-between border-b bg-white px-8 shadow-sm"><h2 className="text-xl font-semibold">Hợp đồng lưu trú</h2><button onClick={loadData} className="rounded-lg border px-3 py-2 text-sm hover:bg-gray-50">Làm mới</button></header>}
+        <main className={embedded ? '' : 'min-h-0 flex-1 overflow-y-auto p-4 sm:p-8'}>
           {error && <p role="alert" className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>}
           {notice && <p role="status" className="mb-4 rounded-lg bg-green-50 p-3 text-sm text-green-700">{notice}</p>}
           <div className="mb-5 flex flex-wrap items-center justify-between gap-3">

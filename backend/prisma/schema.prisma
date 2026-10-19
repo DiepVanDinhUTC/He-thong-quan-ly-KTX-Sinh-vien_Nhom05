@@ -29,6 +29,8 @@ model User {
   medicalIncidents            MedicalIncident[]            @relation("MedicalIncidentRecorder")
   createdMeterReadings        UtilityMeterReading[]        @relation("UtilityMeterReadingCreator")
   updatedMeterReadings        UtilityMeterReading[]        @relation("UtilityMeterReadingUpdater")
+  financeTransactionsCreated  FinancialTransaction[]        @relation("FinancialTransactionCreator")
+  financeTransactionsReviewed FinancialTransaction[]        @relation("FinancialTransactionReviewer")
   updatedServiceRegistrations StudentServiceRegistration[] @relation("StudentServiceRegistrationUpdater")
   militaryRoomAssignments     MilitaryRoomAssignment[]     @relation("MilitaryRoomAssignmentAllocator")
   militaryEquipmentIssues     MilitaryEquipmentIssue[]     @relation("MilitaryEquipmentIssueIssuer")
@@ -52,22 +54,6 @@ model PasswordResetToken {
 }
 
 model SinhVien {
-  maSV            String   @id @db.VarChar(20)
-  hoTen           String   @db.NVarChar(100)
-  ngaySinh        DateTime @db.Date
-  gioiTinh        Boolean  // true: Nam, false: Nữ
-  lop             String   @db.VarChar(50)
-  khoa            String   @db.NVarChar(100)
-  cccd            String   @unique @db.VarChar(20)
-  phone           String   @db.VarChar(15)
-  email           String   @db.VarChar(100)
-  dienUuTien      String?  @db.NVarChar(50)
-  trangThaiNoiTru String   @db.NVarChar(50)
-  role            String   @default("STUDENT") @db.VarChar(20)
-
-  dangKyKTXs      DangKyKTX[]
-  hopDongs        HopDong[]
-  baoHongs        BaoHong[]
   maSV   String  @id @db.VarChar(20)
   userId String? @unique
   user   User?   @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
@@ -85,8 +71,10 @@ model SinhVien {
   laHocVienQuanSu         Boolean                      @default(false) // Phân loại nghiệp vụ, độc lập với User.role.
   dangKyKTXs              DangKyKTX[]
   hopDongs                HopDong[]
+  baoHongs                BaoHong[]
   tickets                 MaintenanceTicket[]
   monthlyInvoices         MonthlyInvoice[]
+  financialTransactions   FinancialTransaction[]
   housingRequests         StudentHousingRequest[]
   serviceRegistrations    StudentServiceRegistration[]
   securityAccessLogs      SecurityAccessLog[]
@@ -142,6 +130,7 @@ model ToaNha {
   securityAccessLogs SecurityAccessLog[]
   securityViolations SecurityViolation[]
   medicalIncidents   MedicalIncident[]
+  financialTransactions FinancialTransaction[]
 
   @@unique([maKhu, tenToaNha])
   @@index([maKhu])
@@ -166,39 +155,6 @@ model Phong {
   soPhong           String
   loaiPhong         String
   soSinhVienToiDa   Int
-  soSinhVienHienTai Int          @default(0) // Mặc định phòng trống là 0
-  hopDongs          HopDong[]
-  thietBis          ThietBi[]
-}
-
-model ThietBi {
-  maThietBi String    @id @db.VarChar(20)
-  maPhong   String?
-  tenThietBi String   @db.NVarChar(100)
-  moTa      String?   @db.NVarChar(255)
-  trangThai String    @default("ACTIVE") @db.VarChar(30)
-
-  phong     Phong?    @relation(fields: [maPhong], references: [maPhong])
-  baoHongs  BaoHong[]
-
-  @@map("THIET_BI")
-}
-
-model BaoHong {
-  maBaoHong             String   @id @default(uuid())
-  maSinhVien            String   @db.VarChar(20)
-  maThietBi             String   @db.VarChar(20)
-  moTa                  String   @db.NVarChar(1000)
-  anhHienTrang          String?  @db.NVarChar(500)
-  anhHienTrangPublicId  String?  @db.VarChar(255)
-  trangThai             String   @default("PENDING") @db.VarChar(30)
-  ngayBaoHong           DateTime @default(now())
-  ngayCapNhat           DateTime @updatedAt
-
-  sinhVien              SinhVien @relation(fields: [maSinhVien], references: [maSV])
-  thietBi               ThietBi  @relation(fields: [maThietBi], references: [maThietBi])
-
-  @@map("BAO_HONG")
   soSinhVienHienTai Int     @default(0)
   phiNoiTruThang    Int?
   maToaNha          String? @db.VarChar(20)
@@ -207,6 +163,7 @@ model BaoHong {
   toaNha                  ToaNha?                  @relation(fields: [maToaNha], references: [maToaNha], onDelete: NoAction, onUpdate: NoAction)
   hopDongs                HopDong[]
   thietBis                ThietBiPhong[]
+  danhMucThietBis          ThietBi[]
   tickets                 MaintenanceTicket[]
   securityAccessLogs      SecurityAccessLog[]
   securityViolations      SecurityViolation[]
@@ -215,6 +172,36 @@ model BaoHong {
   militaryRoomAssignments MilitaryRoomAssignment[]
 
   @@index([maToaNha, tang])
+}
+
+model ThietBi {
+  maThietBi  String  @id @db.VarChar(20)
+  maPhong    String?
+  tenThietBi String  @db.VarChar(100)
+  moTa       String? @db.VarChar(255)
+  trangThai  String  @default("ACTIVE") @db.VarChar(30)
+
+  phong    Phong?    @relation(fields: [maPhong], references: [maPhong], onDelete: NoAction, onUpdate: NoAction)
+  baoHongs BaoHong[]
+
+  @@map("THIET_BI")
+}
+
+model BaoHong {
+  maBaoHong            String   @id @default(uuid())
+  maSinhVien           String   @db.VarChar(20)
+  maThietBi            String   @db.VarChar(20)
+  moTa                 String   @db.VarChar(1000)
+  anhHienTrang         String?  @db.VarChar(500)
+  anhHienTrangPublicId String?  @db.VarChar(255)
+  trangThai            String   @default("PENDING") @db.VarChar(30)
+  ngayBaoHong          DateTime @default(now())
+  ngayCapNhat          DateTime @updatedAt
+
+  sinhVien SinhVien @relation(fields: [maSinhVien], references: [maSV], onDelete: NoAction, onUpdate: NoAction)
+  thietBi  ThietBi  @relation(fields: [maThietBi], references: [maThietBi], onDelete: NoAction, onUpdate: NoAction)
+
+  @@map("BAO_HONG")
 }
 
 model ThietBiPhong {
@@ -359,6 +346,42 @@ model StudentBillNotification {
   @@map("STUDENT_BILL_NOTIFICATION")
 }
 
+model FinancialTransaction {
+  id               String    @id @default(uuid()) @db.VarChar(36)
+  transactionType  String    @db.VarChar(24)
+  amount           Int
+  method           String    @db.VarChar(20)
+  status           String    @default("CONFIRMED") @db.VarChar(20)
+  invoiceType      String?   @db.VarChar(20)
+  invoiceId        String?   @db.VarChar(36)
+  maSinhVien       String?   @db.VarChar(20)
+  maToaNha         String?   @db.VarChar(20)
+  ticketId         String?   @db.VarChar(36)
+  bankReference    String?   @db.VarChar(100)
+  paymentReference String?   @unique @db.VarChar(100)
+  description      String?   @db.VarChar(1000)
+  reviewNote       String?   @db.VarChar(500)
+  createdById      String?
+  reviewedById     String?
+  reviewedAt       DateTime?
+  createdAt        DateTime  @default(now())
+
+  sinhVien   SinhVien?          @relation(fields: [maSinhVien], references: [maSV], onDelete: NoAction, onUpdate: NoAction)
+  toaNha     ToaNha?            @relation(fields: [maToaNha], references: [maToaNha], onDelete: NoAction, onUpdate: NoAction)
+  ticket     MaintenanceTicket? @relation(fields: [ticketId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  createdBy  User?              @relation("FinancialTransactionCreator", fields: [createdById], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  reviewedBy User?              @relation("FinancialTransactionReviewer", fields: [reviewedById], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([createdAt, transactionType])
+  @@index([maToaNha, createdAt])
+  @@index([status, createdAt])
+  @@index([invoiceType, invoiceId, transactionType])
+  @@index([bankReference])
+  @@index([ticketId, transactionType])
+  @@unique([ticketId, transactionType], map: "FINANCIAL_TRANSACTION_ticket_type_key")
+  @@map("FINANCIAL_TRANSACTION")
+}
+
 model MonthlyInvoiceItem {
   id           String   @id @default(uuid()) @db.VarChar(36)
   invoiceId    String   @db.VarChar(36)
@@ -373,8 +396,6 @@ model MonthlyInvoiceItem {
   invoice MonthlyInvoice     @relation(fields: [invoiceId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   ticket  MaintenanceTicket? @relation(fields: [ticketId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
-  hopDong       HopDong  @relation(fields: [maHopDong], references: [maHopDong])
-  nhanVien      NhanVien @relation(fields: [nguoiThu], references: [maNhanVien])
   @@index([invoiceId, type])
   @@map("MONTHLY_INVOICE_ITEM")
 }
@@ -412,6 +433,7 @@ model MaintenanceTicket {
   phong            Phong               @relation(fields: [maPhong], references: [maPhong], onDelete: NoAction, onUpdate: NoAction)
   photos           TicketPhoto[]
   compensationItem MonthlyInvoiceItem?
+  financialTransactions FinancialTransaction[]
 
   @@index([status, createdAt])
   @@index([status, slaDeadlineAt])

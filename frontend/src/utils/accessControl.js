@@ -20,6 +20,7 @@ export const rolePermissions = {
   '/self-service': ['BOARD_CHAIR', 'BOARD_DEPUTY', 'BUILDING_MANAGER', 'SERVICE_PROVIDER', 'ADMIN'],
   '/security-medical': ['SECURITY', 'MEDICAL_OFFICER', 'ADMIN'],
   '/military-management': ['MILITARY_OFFICER', 'ADMIN'],
+  '/archive-management': ['ARCHIVIST', 'ADMIN'],
 };
 
 export const studentRecordPermissions = {
@@ -35,7 +36,7 @@ export const homeForRole = (role) => ({
   MILITARY_STUDENT: '/student-portal',
   BOARD_CHAIR: '/',
   BOARD_DEPUTY: '/',
-  ARCHIVIST: '/students',
+  ARCHIVIST: '/archive-management',
   ACCOUNTANT: '/financial-dashboard',
   TREASURER: '/financial-dashboard',
   FACILITIES_MANAGER: '/rooms',
