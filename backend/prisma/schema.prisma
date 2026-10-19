@@ -3,11 +3,54 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlserver"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
-// Bảng SINH_VIEN
+// Role remains a string so application roles can evolve without database enum migrations.
+
+model User {
+  id        String   @id @default(uuid())
+  username  String   @unique @db.VarChar(50)
+  password  String   @db.VarChar(255)
+  role      String   @default("STUDENT") // Đổi từ Role sang String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  sinhVien                    SinhVien?
+  nhanVien                    NhanVien?
+  buildingAccess              UserBuildingAccess[]
+  passwordResetTokens         PasswordResetToken[]
+  securityAccessLogs          SecurityAccessLog[]          @relation("SecurityAccessLogRecorder")
+  securityViolations          SecurityViolation[]          @relation("SecurityViolationRecorder")
+  updatedHealthRecords        MedicalRecord[]              @relation("MedicalRecordUpdater")
+  medicalIncidents            MedicalIncident[]            @relation("MedicalIncidentRecorder")
+  createdMeterReadings        UtilityMeterReading[]        @relation("UtilityMeterReadingCreator")
+  updatedMeterReadings        UtilityMeterReading[]        @relation("UtilityMeterReadingUpdater")
+  updatedServiceRegistrations StudentServiceRegistration[] @relation("StudentServiceRegistrationUpdater")
+  militaryRoomAssignments     MilitaryRoomAssignment[]     @relation("MilitaryRoomAssignmentAllocator")
+  militaryEquipmentIssues     MilitaryEquipmentIssue[]     @relation("MilitaryEquipmentIssueIssuer")
+  meetingRoomBookings         MeetingRoomBooking[]         @relation("MeetingRoomBookingCreator")
+
+  @@map("USER_ACCOUNT")
+}
+
+model PasswordResetToken {
+  id        String   @id @default(uuid())
+  userId    String
+  tokenHash String   @db.VarChar(64)
+  expiresAt DateTime
+  attempts  Int      @default(0)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([userId, expiresAt])
+  @@map("PASSWORD_RESET_TOKEN")
+}
+
 model SinhVien {
   maSV            String   @id @db.VarChar(20)
   hoTen           String   @db.NVarChar(100)
@@ -25,29 +68,101 @@ model SinhVien {
   dangKyKTXs      DangKyKTX[]
   hopDongs        HopDong[]
   baoHongs        BaoHong[]
+  maSV   String  @id @db.VarChar(20)
+  userId String? @unique
+  user   User?   @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
+  hoTen                   String                       @db.VarChar(100)
+  ngaySinh                DateTime                     @db.Date
+  gioiTinh                Boolean
+  lop                     String                       @db.VarChar(50)
+  nienKhoa                String                       @default("K64") @db.VarChar(3)
+  khoa                    String                       @db.VarChar(100)
+  cccd                    String                       @unique @db.VarChar(20)
+  phone                   String                       @db.VarChar(15)
+  email                   String                       @db.VarChar(100)
+  dienUuTien              String?                      @db.VarChar(50)
+  laHocVienQuanSu         Boolean                      @default(false) // Phân loại nghiệp vụ, độc lập với User.role.
+  dangKyKTXs              DangKyKTX[]
+  hopDongs                HopDong[]
+  tickets                 MaintenanceTicket[]
+  monthlyInvoices         MonthlyInvoice[]
+  housingRequests         StudentHousingRequest[]
+  serviceRegistrations    StudentServiceRegistration[]
+  securityAccessLogs      SecurityAccessLog[]
+  securityViolations      SecurityViolation[]
+  medicalRecord           MedicalRecord?
+  medicalIncidents        MedicalIncident[]
+  billNotifications       StudentBillNotification[]
+  militaryRoomAssignments MilitaryRoomAssignment[]
+  militaryEquipmentIssues MilitaryEquipmentIssue[]
+
+  @@index([laHocVienQuanSu])
   @@map("SINH_VIEN")
 }
 
-// Bảng NHAN_VIEN
 model NhanVien {
-  maNhanVien      String   @id @db.VarChar(20)
-  hoTen           String   @db.NVarChar(100)
-  ngaySinh        DateTime @db.Date
-  gioiTinh        Boolean
-  queQuan         String   @db.NVarChar(255)
-  danToc          String   @db.NVarChar(50)
-  cccd            String   @unique @db.VarChar(20)
-  chucVu          String   @db.NVarChar(100)
-  phone           String   @db.VarChar(15)
-  email           String   @db.VarChar(100)
-  role            String   @default("MANAGER") @db.VarChar(20)
+  maNhanVien String  @id @db.VarChar(20)
+  userId     String? @unique
+  user       User?   @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  hoTen    String   @db.VarChar(100)
+  ngaySinh DateTime @db.Date
+  gioiTinh Boolean
+  queQuan  String   @db.VarChar(255)
+  danToc   String   @db.VarChar(50)
+  cccd     String   @unique @db.VarChar(20)
+  chucVu   String   @db.VarChar(100)
+  phone    String   @db.VarChar(15)
+  email    String   @db.VarChar(100)
+
   hoaDons HoaDon[]
 
   @@map("NHAN_VIEN")
 }
+
+model Khu {
+  maKhu   String   @id @db.VarChar(20)
+  tenKhu  String   @db.VarChar(120)
+  diaChi  String   @db.VarChar(255)
+  toaNhas ToaNha[]
+
+  @@map("KHU")
+}
+
+model ToaNha {
+  maToaNha  String @id @db.VarChar(20)
+  maKhu     String @db.VarChar(20)
+  tenToaNha String @db.VarChar(120)
+  soTang    Int    @default(10)
+
+  khu                Khu                  @relation(fields: [maKhu], references: [maKhu], onDelete: NoAction, onUpdate: NoAction)
+  phongs             Phong[]
+  userAccess         UserBuildingAccess[]
+  securityAccessLogs SecurityAccessLog[]
+  securityViolations SecurityViolation[]
+  medicalIncidents   MedicalIncident[]
+
+  @@unique([maKhu, tenToaNha])
+  @@index([maKhu])
+  @@map("TOA_NHA")
+}
+
+model UserBuildingAccess {
+  userId    String
+  maToaNha  String   @db.VarChar(20)
+  createdAt DateTime @default(now())
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  toaNha ToaNha @relation(fields: [maToaNha], references: [maToaNha], onDelete: NoAction, onUpdate: NoAction)
+
+  @@id([userId, maToaNha])
+  @@index([maToaNha])
+  @@map("USER_BUILDING_ACCESS")
+}
+
 model Phong {
-  maPhong           String       @id
+  maPhong           String  @id
   soPhong           String
   loaiPhong         String
   soSinhVienToiDa   Int
@@ -84,40 +199,473 @@ model BaoHong {
   thietBi               ThietBi  @relation(fields: [maThietBi], references: [maThietBi])
 
   @@map("BAO_HONG")
+  soSinhVienHienTai Int     @default(0)
+  phiNoiTruThang    Int?
+  maToaNha          String? @db.VarChar(20)
+  tang              Int?
+
+  toaNha                  ToaNha?                  @relation(fields: [maToaNha], references: [maToaNha], onDelete: NoAction, onUpdate: NoAction)
+  hopDongs                HopDong[]
+  thietBis                ThietBiPhong[]
+  tickets                 MaintenanceTicket[]
+  securityAccessLogs      SecurityAccessLog[]
+  securityViolations      SecurityViolation[]
+  medicalIncidents        MedicalIncident[]
+  utilityMeterReadings    UtilityMeterReading[]
+  militaryRoomAssignments MilitaryRoomAssignment[]
+
+  @@index([maToaNha, tang])
+}
+
+model ThietBiPhong {
+  maThietBi   String   @id @default(uuid()) @db.VarChar(36)
+  maPhong     String
+  tenThietBi  String   @db.VarChar(120)
+  soLuong     Int      @default(1)
+  trangThai   String   @default("TOT") @db.VarChar(20)
+  ghiChu      String?  @db.VarChar(255)
+  ngayCapNhat DateTime @updatedAt
+
+  phong Phong @relation(fields: [maPhong], references: [maPhong], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([maPhong])
+  @@map("THIET_BI_PHONG")
+}
+
+model UtilityMeterReading {
+  id              String   @id @default(uuid()) @db.VarChar(36)
+  maPhong         String
+  utilityType     String   @db.VarChar(16)
+  periodStart     DateTime @db.Date
+  previousReading Int
+  currentReading  Int
+  memo            String?  @db.VarChar(500)
+  recordedById    String
+  updatedById     String?
+  recordedAt      DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  phong      Phong @relation(fields: [maPhong], references: [maPhong], onDelete: NoAction, onUpdate: NoAction)
+  recordedBy User  @relation("UtilityMeterReadingCreator", fields: [recordedById], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  updatedBy  User? @relation("UtilityMeterReadingUpdater", fields: [updatedById], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([maPhong, utilityType, periodStart], map: "UTILITY_METER_READING_room_type_period_key")
+  @@index([periodStart, utilityType])
+  @@map("UTILITY_METER_READING")
 }
 
 model DangKyKTX {
-  maDangKy        String    @id @default(uuid())
-  maSinhVien      String    @db.VarChar(20)
-  ngayDangKy      DateTime  @default(now())
+  maDangKy        String   @id @default(uuid())
+  maSinhVien      String   @db.VarChar(20)
+  maPhongYeuCau   String?
+  ngayDangKy      DateTime @default(now())
   loaiPhongYeuCau String
-  trangThai       String    @default("PENDING") 
-  
-  sinhVien        SinhVien  @relation(fields: [maSinhVien], references: [maSV])
+  trangThai       String   @default("PENDING")
+
+  // Đã ngắt Cascade
+  sinhVien SinhVien @relation(fields: [maSinhVien], references: [maSV], onDelete: NoAction, onUpdate: NoAction)
 }
 
 model HopDong {
-  maHopDong   String    @id @default(uuid())
-  maSinhVien  String    @db.VarChar(20) 
+  maHopDong   String   @id @default(uuid())
+  maSinhVien  String   @db.VarChar(20)
   maPhong     String
   ngayBatDau  DateTime
   ngayKetThuc DateTime
-  tongTien    Float     
-  trangThai   String    @default("PENDING_PAYMENT") 
-  ngayTao      DateTime  @default(now())
-  
-  sinhVien    SinhVien  @relation(fields: [maSinhVien], references: [maSV])
-  phong       Phong     @relation(fields: [maPhong], references: [maPhong])
-  hoaDons HoaDon[]
+  tongTien    Float
+  trangThai   String   @default("PENDING_PAYMENT")
+  ngayTao     DateTime @default(now())
+
+  // Đã ngắt Cascade
+  sinhVien             SinhVien                     @relation(fields: [maSinhVien], references: [maSV], onDelete: NoAction, onUpdate: NoAction)
+  phong                Phong                        @relation(fields: [maPhong], references: [maPhong], onDelete: NoAction, onUpdate: NoAction)
+  hoaDons              HoaDon[]
+  monthlyInvoices      MonthlyInvoice[]
+  housingRequests      StudentHousingRequest[]
+  serviceRegistrations StudentServiceRegistration[]
 }
+
 model HoaDon {
   maHoaDon      String   @id @default(uuid())
   maHopDong     String
   soTien        Float
-  phuongThuc    String   @default("TRANSFER") // Tiền mặt (CASH) hoặc Chuyển khoản (TRANSFER)
+  phuongThuc    String   @default("TRANSFER")
   ngayThanhToan DateTime @default(now())
-  nguoiThu      String   @db.VarChar(20) // Mã nhân viên Kế toán thao tác
+  nguoiThu      String?  @db.VarChar(20)
+
+  // Đã ngắt Cascade
+  hopDong  HopDong   @relation(fields: [maHopDong], references: [maHopDong], onDelete: NoAction, onUpdate: NoAction)
+  nhanVien NhanVien? @relation(fields: [nguoiThu], references: [maNhanVien], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model VnpayPayment {
+  id               String    @id @default(uuid()) @db.VarChar(36)
+  txnRef           String    @unique @db.VarChar(100)
+  invoiceType      String    @db.VarChar(20)
+  invoiceId        String    @db.VarChar(36)
+  maSinhVien       String    @db.VarChar(20)
+  amount           Int
+  status           String    @default("PENDING") @db.VarChar(16)
+  bankCode         String?   @db.VarChar(20)
+  bankTranNo       String?   @db.VarChar(255)
+  vnpTransactionNo String?   @db.VarChar(30)
+  responseCode     String?   @db.VarChar(2)
+  paidAt           DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@index([maSinhVien, createdAt])
+  @@index([invoiceType, invoiceId, status])
+  @@map("VNPAY_PAYMENT")
+}
+
+model MonthlyInvoice {
+  id          String   @id @default(uuid()) @db.VarChar(36)
+  maSinhVien  String   @db.VarChar(20)
+  maHopDong   String
+  periodStart DateTime @db.Date
+  status      String   @default("UNPAID") @db.VarChar(16)
+  totalAmount Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  sinhVien SinhVien             @relation(fields: [maSinhVien], references: [maSV], onDelete: NoAction, onUpdate: NoAction)
+  hopDong  HopDong              @relation(fields: [maHopDong], references: [maHopDong], onDelete: NoAction, onUpdate: NoAction)
+  items    MonthlyInvoiceItem[]
+
+  @@unique([maHopDong, periodStart], map: "MONTHLY_INVOICE_contract_period_key")
+  @@index([maSinhVien, periodStart])
+  @@map("MONTHLY_INVOICE")
+}
+
+model StudentBillNotification {
+  id          String    @id @default(uuid()) @db.VarChar(36)
+  maSinhVien  String    @db.VarChar(20)
+  invoiceType String    @db.VarChar(20)
+  invoiceId   String    @db.VarChar(36)
+  kind        String    @db.VarChar(16)
+  dedupeKey   String    @db.VarChar(120)
+  title       String    @db.VarChar(160)
+  message     String    @db.VarChar(500)
+  createdAt   DateTime  @default(now())
+  readAt      DateTime?
+  resolvedAt  DateTime?
+
+  sinhVien SinhVien @relation(fields: [maSinhVien], references: [maSV], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([maSinhVien, dedupeKey], map: "STUDENT_BILL_NOTIFICATION_student_dedupe_key")
+  @@index([maSinhVien, resolvedAt, createdAt])
+  @@index([invoiceType, invoiceId])
+  @@map("STUDENT_BILL_NOTIFICATION")
+}
+
+model MonthlyInvoiceItem {
+  id           String   @id @default(uuid()) @db.VarChar(36)
+  invoiceId    String   @db.VarChar(36)
+  type         String   @db.VarChar(30)
+  description  String   @db.VarChar(1000)
+  amount       Int
+  ticketId     String?  @unique @db.VarChar(36)
+  assessedById String
+  assessedAt   DateTime @default(now())
+  createdAt    DateTime @default(now())
+
+  invoice MonthlyInvoice     @relation(fields: [invoiceId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  ticket  MaintenanceTicket? @relation(fields: [ticketId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   hopDong       HopDong  @relation(fields: [maHopDong], references: [maHopDong])
   nhanVien      NhanVien @relation(fields: [nguoiThu], references: [maNhanVien])
+  @@index([invoiceId, type])
+  @@map("MONTHLY_INVOICE_ITEM")
+}
+
+model MaintenanceTicket {
+  id                 String    @id @default(uuid()) @db.VarChar(36)
+  maSinhVien         String    @db.VarChar(20)
+  // The room code remains a string key to match the existing Phong model.
+  maPhong            String
+  category           String    @db.VarChar(50)
+  title              String    @db.VarChar(160)
+  description        String    @db.VarChar(2000)
+  status             String    @default("PENDING") @db.VarChar(24)
+  priority           String    @default("MEDIUM") @db.VarChar(12)
+  slaHours           Int       @default(48)
+  slaDeadlineAt      DateTime
+  slaBreachedAt      DateTime?
+  resolvedAt         DateTime?
+  assignedProviderId String?   @db.VarChar(36)
+  approvedById       String?   @db.VarChar(36)
+  appointmentAt      DateTime?
+  appointmentNote    String?   @db.VarChar(500)
+  progressNote       String?   @db.VarChar(2000)
+  rejectionReason    String?   @db.VarChar(500)
+  rating             Int?
+  ratingNote         String?   @db.VarChar(1000)
+  studentAcceptedAt  DateTime?
+  studentReworkNote  String?   @db.VarChar(1000)
+  studentReworkAt    DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  completedAt        DateTime?
+
+  sinhVien         SinhVien            @relation(fields: [maSinhVien], references: [maSV], onDelete: NoAction, onUpdate: NoAction)
+  phong            Phong               @relation(fields: [maPhong], references: [maPhong], onDelete: NoAction, onUpdate: NoAction)
+  photos           TicketPhoto[]
+  compensationItem MonthlyInvoiceItem?
+
+  @@index([status, createdAt])
+  @@index([status, slaDeadlineAt])
+  @@index([maPhong, status])
+  @@index([assignedProviderId, status])
+  @@map("MAINTENANCE_TICKET")
+}
+
+model TicketPhoto {
+  id        String   @id @default(uuid()) @db.VarChar(36)
+  ticketId  String   @db.VarChar(36)
+  kind      String   @db.VarChar(16)
+  fileName  String   @db.VarChar(255)
+  mimeType  String   @db.VarChar(30)
+  data      String   @db.Text
+  createdAt DateTime @default(now())
+
+  ticket MaintenanceTicket @relation(fields: [ticketId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([ticketId, kind])
+  @@map("MAINTENANCE_TICKET_PHOTO")
+}
+
+model StudentHousingRequest {
+  id          String    @id @default(uuid()) @db.VarChar(36)
+  maSinhVien  String    @db.VarChar(20)
+  maHopDong   String
+  requestType String    @db.VarChar(16)
+  maPhongMoi  String?
+  reason      String?   @db.VarChar(1000)
+  status      String    @default("PENDING") @db.VarChar(16)
+  staffNote   String?   @db.VarChar(500)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  decidedAt   DateTime?
+
+  sinhVien SinhVien @relation(fields: [maSinhVien], references: [maSV], onDelete: NoAction, onUpdate: NoAction)
+  hopDong  HopDong  @relation(fields: [maHopDong], references: [maHopDong], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([status, createdAt])
+  @@index([maSinhVien, status])
+  @@map("STUDENT_HOUSING_REQUEST")
+}
+
+model StudentServiceRegistration {
+  id          String    @id @default(uuid()) @db.VarChar(36)
+  maSinhVien  String    @db.VarChar(20)
+  maHopDong   String
+  serviceCode String    @db.VarChar(32)
+  serviceName String    @db.VarChar(100)
+  status      String    @default("PENDING") @db.VarChar(16)
+  note        String?   @db.VarChar(500)
+  staffNote   String?   @db.VarChar(500)
+  updatedById String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  cancelledAt DateTime?
+
+  sinhVien  SinhVien @relation(fields: [maSinhVien], references: [maSV], onDelete: NoAction, onUpdate: NoAction)
+  hopDong   HopDong  @relation(fields: [maHopDong], references: [maHopDong], onDelete: NoAction, onUpdate: NoAction)
+  updatedBy User?    @relation("StudentServiceRegistrationUpdater", fields: [updatedById], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([maSinhVien, maHopDong, status])
+  @@map("STUDENT_SERVICE_REGISTRATION")
+}
+
+// Visitor entry and exit records for the assigned building security team.
+model SecurityAccessLog {
+  id           String    @id @default(uuid()) @db.VarChar(36)
+  maToaNha     String    @db.VarChar(20)
+  maSinhVien   String?   @db.VarChar(20)
+  maPhong      String?
+  visitorName  String    @db.VarChar(120)
+  visitorPhone String?   @db.VarChar(20)
+  visitorType  String    @default("GUEST") @db.VarChar(20)
+  vehiclePlate String?   @db.VarChar(20)
+  purpose      String    @db.VarChar(500)
+  note         String?   @db.VarChar(500)
+  checkedInAt  DateTime  @default(now())
+  checkedOutAt DateTime?
+  recordedById String
+  createdAt    DateTime  @default(now())
+
+  toaNha     ToaNha    @relation(fields: [maToaNha], references: [maToaNha], onDelete: NoAction, onUpdate: NoAction)
+  sinhVien   SinhVien? @relation(fields: [maSinhVien], references: [maSV], onDelete: NoAction, onUpdate: NoAction)
+  phong      Phong?    @relation(fields: [maPhong], references: [maPhong], onDelete: NoAction, onUpdate: NoAction)
+  recordedBy User      @relation("SecurityAccessLogRecorder", fields: [recordedById], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([maToaNha, checkedInAt])
+  @@index([maSinhVien, checkedInAt])
+  @@index([checkedOutAt])
+  @@map("SECURITY_ACCESS_LOG")
+}
+
+// Incident reports stay append-only so that conduct records have an audit trail.
+model SecurityViolation {
+  id           String   @id @default(uuid()) @db.VarChar(36)
+  maToaNha     String   @db.VarChar(20)
+  maSinhVien   String   @db.VarChar(20)
+  maPhong      String?
+  category     String   @db.VarChar(40)
+  severity     String   @default("LOW") @db.VarChar(12)
+  description  String   @db.VarChar(2000)
+  actionTaken  String?  @db.VarChar(1000)
+  occurredAt   DateTime @default(now())
+  recordedById String
+  createdAt    DateTime @default(now())
+
+  toaNha     ToaNha   @relation(fields: [maToaNha], references: [maToaNha], onDelete: NoAction, onUpdate: NoAction)
+  sinhVien   SinhVien @relation(fields: [maSinhVien], references: [maSV], onDelete: NoAction, onUpdate: NoAction)
+  phong      Phong?   @relation(fields: [maPhong], references: [maPhong], onDelete: NoAction, onUpdate: NoAction)
+  recordedBy User     @relation("SecurityViolationRecorder", fields: [recordedById], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([maToaNha, occurredAt])
+  @@index([maSinhVien, occurredAt])
+  @@map("SECURITY_VIOLATION")
+}
+
+// A single restricted health profile per resident. Do not expose this model in general student APIs.
+model MedicalRecord {
+  maSinhVien            String   @id @db.VarChar(20)
+  bloodType             String?  @db.VarChar(8)
+  allergies             String?  @db.VarChar(1000)
+  medicalConditions     String?  @db.VarChar(2000)
+  currentMedications    String?  @db.VarChar(1000)
+  emergencyContactName  String?  @db.VarChar(120)
+  emergencyContactPhone String?  @db.VarChar(20)
+  notes                 String?  @db.VarChar(2000)
+  updatedById           String
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  sinhVien  SinhVien @relation(fields: [maSinhVien], references: [maSV], onDelete: NoAction, onUpdate: NoAction)
+  updatedBy User     @relation("MedicalRecordUpdater", fields: [updatedById], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([updatedById, updatedAt])
+  @@map("MEDICAL_RECORD")
+}
+
+// Medical incidents record care delivered, including any medicine dispensed.
+model MedicalIncident {
+  id                 String   @id @default(uuid()) @db.VarChar(36)
+  maToaNha           String   @db.VarChar(20)
+  maSinhVien         String   @db.VarChar(20)
+  maPhong            String?
+  incidentType       String   @db.VarChar(40)
+  symptoms           String   @db.VarChar(2000)
+  treatment          String   @db.VarChar(2000)
+  medicationName     String?  @db.VarChar(160)
+  medicationDose     String?  @db.VarChar(120)
+  medicationQuantity Int?
+  followUp           String?  @db.VarChar(1000)
+  occurredAt         DateTime @default(now())
+  recordedById       String
+  createdAt          DateTime @default(now())
+
+  toaNha     ToaNha   @relation(fields: [maToaNha], references: [maToaNha], onDelete: NoAction, onUpdate: NoAction)
+  sinhVien   SinhVien @relation(fields: [maSinhVien], references: [maSV], onDelete: NoAction, onUpdate: NoAction)
+  phong      Phong?   @relation(fields: [maPhong], references: [maPhong], onDelete: NoAction, onUpdate: NoAction)
+  recordedBy User     @relation("MedicalIncidentRecorder", fields: [recordedById], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([maToaNha, occurredAt])
+  @@index([maSinhVien, occurredAt])
+  @@map("MEDICAL_INCIDENT")
+}
+
+// Assignments for military students are kept separate from housing contracts and billing.
+model MilitaryRoomAssignment {
+  id           String    @id @default(uuid()) @db.VarChar(36)
+  maSinhVien   String    @db.VarChar(20)
+  maPhong      String
+  assignedById String
+  status       String    @default("ACTIVE") @db.VarChar(16)
+  assignedAt   DateTime  @default(now())
+  endedAt      DateTime?
+
+  sinhVien   SinhVien @relation(fields: [maSinhVien], references: [maSV], onDelete: NoAction, onUpdate: NoAction)
+  phong      Phong    @relation(fields: [maPhong], references: [maPhong], onDelete: NoAction, onUpdate: NoAction)
+  assignedBy User     @relation("MilitaryRoomAssignmentAllocator", fields: [assignedById], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([maSinhVien, status])
+  @@index([maPhong, status])
+  @@map("MILITARY_ROOM_ASSIGNMENT")
+}
+
+model MilitaryEquipmentItem {
+  id              String   @id @default(uuid()) @db.VarChar(36)
+  code            String   @unique @db.VarChar(40)
+  name            String   @db.VarChar(160)
+  category        String   @db.VarChar(80)
+  size            String?  @db.VarChar(40)
+  unit            String   @default("bộ") @db.VarChar(24)
+  quantityInStock Int      @default(0)
+  isActive        Boolean  @default(true)
+  note            String?  @db.VarChar(500)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  issues MilitaryEquipmentIssue[]
+
+  @@index([category, isActive])
+  @@map("MILITARY_EQUIPMENT_ITEM")
+}
+
+model MilitaryEquipmentIssue {
+  id               String    @id @default(uuid()) @db.VarChar(36)
+  itemId           String    @db.VarChar(36)
+  maSinhVien       String    @db.VarChar(20)
+  quantity         Int
+  returnedQuantity Int       @default(0)
+  issuedById       String
+  issuedAt         DateTime  @default(now())
+  lastReturnedAt   DateTime?
+  note             String?   @db.VarChar(500)
+
+  item     MilitaryEquipmentItem @relation(fields: [itemId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  sinhVien SinhVien              @relation(fields: [maSinhVien], references: [maSV], onDelete: NoAction, onUpdate: NoAction)
+  issuedBy User                  @relation("MilitaryEquipmentIssueIssuer", fields: [issuedById], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([maSinhVien, issuedAt])
+  @@index([itemId, issuedAt])
+  @@map("MILITARY_EQUIPMENT_ISSUE")
+}
+
+model MeetingRoom {
+  id        String   @id @default(uuid()) @db.VarChar(36)
+  code      String   @unique @db.VarChar(40)
+  name      String   @db.VarChar(120)
+  location  String   @db.VarChar(200)
+  capacity  Int      @default(10)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  bookings MeetingRoomBooking[]
+
+  @@map("MEETING_ROOM")
+}
+
+model MeetingRoomBooking {
+  id            String   @id @default(uuid()) @db.VarChar(36)
+  meetingRoomId String   @db.VarChar(36)
+  title         String   @db.VarChar(160)
+  purpose       String   @db.VarChar(500)
+  startsAt      DateTime
+  endsAt        DateTime
+  status        String   @default("BOOKED") @db.VarChar(16)
+  createdById   String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  meetingRoom MeetingRoom @relation(fields: [meetingRoomId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  createdBy   User        @relation("MeetingRoomBookingCreator", fields: [createdById], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([meetingRoomId, startsAt, endsAt, status])
+  @@map("MEETING_ROOM_BOOKING")
 }

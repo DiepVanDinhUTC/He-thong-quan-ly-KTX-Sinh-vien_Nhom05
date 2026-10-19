@@ -1,46 +1,98 @@
-const axios = require('axios');
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+const bcrypt = require('bcryptjs');
+const prisma = require('../config/prisma');
+const { fetchStudentsFromSis } = require('./sisStudentSource');
+
+const getCohort = (student) => {
+    const supported = ['K62', 'K63', 'K64', 'K65', 'K66', 'K67'];
+    if (supported.includes(student.nienKhoa)) return student.nienKhoa;
+    const fromClass = String(student.lop || '').match(/K6[2-7]/i)?.[0]?.toUpperCase();
+    if (fromClass) return fromClass;
+    const studentCode = String(student.maSV || '');
+    const year = Number(studentCode.slice(0, 2)) || Number(studentCode.slice(3, 5));
+    if (year >= 21 && year <= 26) return `K${year + 41}`;
+    const checksum = [...studentCode].reduce((sum, character) => sum + character.charCodeAt(0), 0);
+    return `K${62 + (checksum % 6)}`;
+};
 
 exports.syncStudentsFromSis = async () => {
     try {
-        // 1. Gọi API đến hệ thống sis.utc (hiện tại đang là mock url)
-        const response = await axios.get(process.env.SIS_UTC_API_URL);
-        const studentsData = response.data.data;
+        const studentsData = await fetchStudentsFromSis();
 
-        let syncedCount = 0;
+        const defaultPassword = process.env.SIS_STUDENT_DEFAULT_PASSWORD || 'Ktx@2026';
+        const defaultPasswordHash = await bcrypt.hash(defaultPassword, 12);
+        let createdAccounts = 0;
 
-        // 2. Lặp qua danh sách sinh viên và lưu/cập nhật vào CSDL
-        for (const student of studentsData) {
-            // Dùng hàm upsert: Có thì cập nhật, chưa có thì tạo mới
-            await prisma.sinhVien.upsert({
-                where: { maSV: student.maSV },
-                update: {
-                    hoTen: student.hoTen,
-                    lop: student.lop,
-                    khoa: student.khoa,
-                    // Cập nhật các trường khác nếu cần
-                },
-                create: {
-                    maSV: student.maSV,
-                    hoTen: student.hoTen,
-                    ngaySinh: student.ngaySinh,
-                    gioiTinh: student.gioiTinh,
-                    lop: student.lop,
-                    khoa: student.khoa,
-                    cccd: student.cccd,
-                    phone: student.phone,
-                    email: student.email,
-                    dienUuTien: student.dienUuTien,
-                    trangThaiNoiTru: student.trangThaiNoiTru
+        const syncOneStudent = async (student) => prisma.$transaction(async (tx) => {
+                const profile = await tx.sinhVien.upsert({
+                    where: { maSV: student.maSV },
+                    update: {
+                        hoTen: student.hoTen,
+                        ngaySinh: new Date(student.ngaySinh),
+                        gioiTinh: student.gioiTinh,
+                        lop: student.lop,
+                        nienKhoa: getCohort(student),
+                        khoa: student.khoa,
+                        cccd: student.cccd,
+                        phone: student.phone,
+                        email: student.email,
+                        dienUuTien: student.dienUuTien
+                    },
+                    create: {
+                        maSV: student.maSV,
+                        hoTen: student.hoTen,
+                        ngaySinh: new Date(student.ngaySinh),
+                        gioiTinh: student.gioiTinh,
+                        lop: student.lop,
+                        nienKhoa: getCohort(student),
+                        khoa: student.khoa,
+                        cccd: student.cccd,
+                        phone: student.phone,
+                        email: student.email,
+                        dienUuTien: student.dienUuTien
+                    }
+                });
+
+                if (profile.userId) return;
+
+                let account = await tx.user.findUnique({ where: { username: student.maSV } });
+                let createdAccount = false;
+                if (!account) {
+                    account = await tx.user.create({
+                        data: {
+                            username: student.maSV,
+                            password: defaultPasswordHash,
+                            role: 'STUDENT',
+                            isActive: true
+                        }
+                    });
+                    createdAccount = true;
                 }
+
+                if (account.role !== 'STUDENT') {
+                    throw new Error(`Tài khoản ${student.maSV} đã tồn tại nhưng không phải tài khoản sinh viên.`);
+                }
+
+                await tx.sinhVien.update({
+                    where: { maSV: student.maSV },
+                    data: { userId: account.id }
+                });
+                return { createdAccount };
             });
-            syncedCount++;
+
+        // Giới hạn số giao dịch chạy song song để tăng tốc mà không làm nghẽn PostgreSQL.
+        const batchSize = 5;
+        for (let index = 0; index < studentsData.length; index += batchSize) {
+            const batchResults = await Promise.all(studentsData
+                .slice(index, index + batchSize)
+                .map(syncOneStudent));
+            createdAccounts += batchResults.filter((result) => result?.createdAccount).length;
         }
 
-        return { success: true, count: syncedCount };
+        return { success: true, count: studentsData.length, createdAccounts };
     } catch (error) {
-        console.error('Lỗi đồng bộ:', error.message);
-        throw new Error('Không thể kết nối đến hệ thống Phòng Đào tạo');
+        console.error('[sis.sync]', error.message);
+        throw new Error(error.message.includes('API SIS') || error.message.includes('Tài khoản')
+            ? error.message
+            : 'Không thể đồng bộ dữ liệu từ hệ thống Phòng Đào tạo.');
     }
 };

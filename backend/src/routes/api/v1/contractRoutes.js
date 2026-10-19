@@ -3,15 +3,19 @@ const router = express.Router();
 
 const contractController = require('../../../controllers/contractController');
 const { protect } = require('../../../middleware/authMiddleware');
-const { restrictTo } = require('../../../middleware/rbacMiddleware');
+const { restrictTo, restrictBuildingAccess } = require('../../../middleware/rbacMiddleware');
 const ROLES = require('../../../config/roles');
 
-// Nghiệp vụ Lập hợp đồng chỉ dành cho Quản lý KTX và Giám đốc
+// Contract operations require both an allowed role and access to the room's building.
+router.get('/rooms', protect, restrictTo(...ROLES.CONTRACT_READ_ROLES), restrictBuildingAccess, contractController.getRooms);
+router.get('/', protect, restrictTo(...ROLES.CONTRACT_READ_ROLES), restrictBuildingAccess, contractController.getContracts);
 router.post(
     '/', 
     protect, 
-    restrictTo(ROLES.MANAGER, ROLES.DIRECTOR), 
+    restrictTo(...ROLES.APPLICATION_DECISION_ROLES),
+    restrictBuildingAccess,
     contractController.createContract
 );
+router.patch('/:id', protect, restrictTo(...ROLES.CONTRACT_EDIT_ROLES), restrictBuildingAccess, contractController.updateContract);
 
 module.exports = router;
