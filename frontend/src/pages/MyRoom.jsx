@@ -39,7 +39,7 @@ const MyRoom = () => {
   }, [dispatch, reloadCount]);
 
   const room = student?.currentContract;
-  const isMilitaryStudent = student?.role === 'MILITARY_STUDENT';
+  const isMilitaryStudent = student?.role === 'MILITARY_STUDENT' || room?.source === 'MILITARY';
   const members = room?.thanhVien || [];
   const isPending = room?.trangThai === 'PENDING_PAYMENT';
   const RoomTypeIcon = room?.loaiPhong === 'DIEU_HOA' ? Wind : Fan;

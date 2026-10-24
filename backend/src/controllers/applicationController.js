@@ -1,5 +1,8 @@
 const prisma = require('../config/prisma');
 const { ROOM_TYPES, LEGACY_ROOM_TYPE_CODES } = require('../config/roomTypes');
+const { isPriorityStudent, sortByStudentPriority } = require('../services/studentPriority');
+const { approveApplication, defaultContractTerms } = require('../services/applicationApproval');
+const { occupancyRelations, presentRoomOccupancy } = require('../services/roomOccupancy');
 const allowedRoomTypes = [...Object.keys(ROOM_TYPES), ...LEGACY_ROOM_TYPE_CODES];
 
 const getStudentForUser = async (userId) => prisma.sinhVien.findFirst({
@@ -14,10 +17,12 @@ exports.createApplication = async (req, res) => {
     }
 
     try {
-        const student = await getStudentForUser(req.user.id);
-        if (!student) return res.status(404).json({ success: false, message: 'Tài khoản chưa liên kết hồ sơ sinh viên.' });
-
-        const application = await prisma.$transaction(async (tx) => {
+        const result = await prisma.$transaction(async (tx) => {
+            const student = await tx.sinhVien.findFirst({
+                where: { userId: req.user.id }, select: { maSV: true, dienUuTien: true, militaryRoomAssignments: { where: { status: 'ACTIVE' }, select: { id: true }, take: 1 } }
+            });
+            if (!student) throw Object.assign(new Error('Tài khoản chưa liên kết hồ sơ sinh viên.'), { status: 404 });
+            if (student.militaryRoomAssignments?.length) throw Object.assign(new Error('Bạn đã được phân phòng quân sự và không thể đăng ký giữ thêm chỗ nội trú.'), { status: 409 });
             const requestedRoom = await tx.phong.findUnique({ where: { maPhong: maPhongYeuCau } });
             if (!requestedRoom) {
                 const error = new Error('Phòng bạn chọn không còn tồn tại.');
@@ -58,11 +63,23 @@ exports.createApplication = async (req, res) => {
             const application = await tx.dangKyKTX.create({
                 data: { maSinhVien: student.maSV, maPhongYeuCau, loaiPhongYeuCau, trangThai: 'PENDING' }
             });
-            return application;
+            if (!isPriorityStudent(student)) return { application, contract: null };
+
+            const contract = await approveApplication(tx, {
+                maDangKy: application.maDangKy, maPhong: maPhongYeuCau,
+                ...defaultContractTerms(requestedRoom)
+            });
+            return { application: { ...application, trangThai: 'APPROVED' }, contract };
         }, { isolationLevel: 'Serializable' });
 
-        return res.status(201).json({ success: true, data: application, message: 'Đã gửi nguyện vọng nội trú.' });
+        return res.status(201).json({
+            success: true, data: result.application, contract: result.contract, autoApproved: Boolean(result.contract),
+            message: result.contract
+                ? 'Đơn đăng ký diện ưu tiên đã được tự động duyệt. Hệ thống đã giữ chỗ và tạo hợp đồng nháp chờ thanh toán.'
+                : 'Đã gửi nguyện vọng nội trú. Đơn đang chờ Ban quản lý xác nhận.'
+        });
     } catch (error) {
+        if (error.code === 'P2034') return res.status(409).json({ success: false, message: 'Phòng hoặc đơn đăng ký vừa được cập nhật đồng thời. Vui lòng thử lại.' });
         return res.status(error.status || 500).json({ success: false, message: error.status ? error.message : 'Không thể gửi đơn đăng ký.', error: error.status ? undefined : error.message });
     }
 };
@@ -75,10 +92,10 @@ exports.getAvailableRooms = async (req, res) => {
     try {
         const rooms = await prisma.phong.findMany({
             where: { loaiPhong },
-            include: { thietBis: true, toaNha: { include: { khu: true } } },
+            include: { thietBis: true, toaNha: { include: { khu: true } }, ...occupancyRelations },
             orderBy: { soPhong: 'asc' }
         });
-        const data = rooms
+        const data = rooms.map(presentRoomOccupancy)
             .filter((room) => room.soSinhVienHienTai < room.soSinhVienToiDa)
             .map((room) => ({ ...room, choConTrong: room.soSinhVienToiDa - room.soSinhVienHienTai }));
         return res.status(200).json({ success: true, data });
@@ -112,7 +129,12 @@ exports.getAllApplications = async (_req, res) => {
         });
         const rooms = await prisma.phong.findMany({ where: { maPhong: { in: data.map((item) => item.maPhongYeuCau).filter(Boolean) } } });
         const roomsById = new Map(rooms.map((room) => [room.maPhong, room]));
-        return res.status(200).json({ success: true, data: data.map((item) => ({ ...item, phongYeuCau: roomsById.get(item.maPhongYeuCau) || null })) });
+        return res.status(200).json({
+            success: true,
+            data: sortByStudentPriority(data, (item) => item.sinhVien).map((item) => ({
+                ...item, isPriority: isPriorityStudent(item.sinhVien), phongYeuCau: roomsById.get(item.maPhongYeuCau) || null
+            }))
+        });
     } catch (error) {
         return res.status(500).json({ success: false, message: 'Không thể tải danh sách đơn đăng ký.', error: error.message });
     }

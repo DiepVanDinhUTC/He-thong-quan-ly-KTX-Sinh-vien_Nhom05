@@ -1,5 +1,8 @@
+/* eslint-disable react/prop-types */
 import React, { useEffect, useMemo, useState } from 'react';
 import AdminLayout from '../components/AdminLayout';
+import MedicalLayout from '../components/MedicalLayout';
+import { useBoardWorkspace } from '../components/BoardLayout';
 import { useSelector } from 'react-redux';
 import { studentApi } from '../services/studentApi';
 import { studentRecordPermissions } from '../utils/accessControl';
@@ -14,8 +17,11 @@ import {
 } from 'lucide-react';
 
 const StudentManagement = ({ embedded = false }) => {
+  const isBoardWorkspace = useBoardWorkspace();
   const role = useSelector((state) => state.auth.user?.role);
   const isArchivist = role === 'ARCHIVIST';
+  const isMedicalWorkspace = role === 'MEDICAL_OFFICER' && !embedded;
+  const hasWorkspaceHeader = isMedicalWorkspace || isBoardWorkspace;
   const canCreate = studentRecordPermissions.create.includes(role);
   const canUpdate = studentRecordPermissions.update.includes(role);
   const canDelete = studentRecordPermissions.delete.includes(role);
@@ -167,13 +173,26 @@ const StudentManagement = ({ embedded = false }) => {
     }
   };
 
+  const WorkspaceLayout = isMedicalWorkspace ? MedicalLayout : AdminLayout;
+  const refreshAction = <button
+    type="button"
+    onClick={loadStudents}
+    disabled={loading || isSyncing}
+    className="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+  >
+    <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+    <span>{loading ? 'Đang tải...' : 'Làm mới'}</span>
+  </button>;
+
   return (
-    <AdminLayout showShell={!embedded}>
+    <WorkspaceLayout showShell={!embedded} title="Hồ sơ sinh viên" actions={isMedicalWorkspace ? refreshAction : undefined}>
       <div className="flex flex-col">
           <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
             <div>
-              <h1 className="text-2xl font-bold text-slate-900">Quản lý hồ sơ sinh viên</h1>
-              <p className="mt-1 text-sm text-slate-500">{isArchivist
+              {hasWorkspaceHeader ? <h2 className="font-semibold text-slate-900">{isMedicalWorkspace ? 'Tra cứu hồ sơ nội trú' : 'Tra cứu hồ sơ sinh viên'}</h2> : <h1 className="text-2xl font-bold text-slate-900">Quản lý hồ sơ sinh viên</h1>}
+              <p className="mt-1 text-sm text-slate-500">{isMedicalWorkspace
+                ? 'Tra cứu hồ sơ sinh viên đang hoặc chờ lưu trú tại tất cả tòa nhà trong KTX.'
+                : isArchivist
                 ? 'Tra cứu toàn bộ hồ sơ sinh viên trong KTX và đồng bộ dữ liệu từ SIS.'
                 : 'Tra cứu danh sách và thông tin lưu trú trong hệ thống KTX.'}</p>
             </div>
@@ -200,15 +219,7 @@ const StudentManagement = ({ embedded = false }) => {
               </button>
             </div>
             <div className="flex items-center gap-3">
-              <button
-                type="button"
-                onClick={loadStudents}
-                disabled={loading || isSyncing}
-                className="flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 shadow-sm transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-                <span>{loading ? 'Đang tải...' : 'Làm mới'}</span>
-              </button>
+              {!hasWorkspaceHeader && refreshAction}
               {/* Nút Đồng bộ dữ liệu thiết kế theo tính năng API đã nêu trong dự án */}
               {canSync && <button
                 onClick={handleSync}
@@ -228,7 +239,7 @@ const StudentManagement = ({ embedded = false }) => {
           {/* Table Container */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 flex-1 overflow-hidden flex flex-col">
             <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
+              <table className={`w-full text-left border-collapse ${isMedicalWorkspace ? 'min-w-[960px]' : ''}`}>
                 <thead>
                   <tr className="bg-gray-50 border-b border-gray-200 text-xs uppercase text-gray-500 font-semibold tracking-wider">
                     <th className="px-6 py-4">Mã SV</th>
@@ -250,7 +261,7 @@ const StudentManagement = ({ embedded = false }) => {
                   {!loading && !error && filteredStudents.map((student) => (
                     <tr key={student.maSV} className="hover:bg-gray-50/50 transition-colors">
                       <td className="px-6 py-4 font-medium text-blue-600">{student.maSV}</td>
-                      <td className="px-6 py-4 font-semibold text-gray-800">{student.hoTen}</td>
+                      <td className="px-6 py-4 font-semibold text-gray-800">{student.hoTen}{student.isPriority && <span className="mt-1 block text-xs font-medium text-amber-700">Ưu tiên · {student.dienUuTien}</span>}</td>
                       <td className="px-6 py-4 text-gray-600">{student.nienKhoa || '—'}</td>
                       <td className="px-6 py-4">{student.laHocVienQuanSu
                         ? <span className="rounded-full bg-indigo-100 px-3 py-1 text-xs font-medium text-indigo-800">Học viên quân sự</span>
@@ -352,7 +363,7 @@ const StudentManagement = ({ embedded = false }) => {
           </section>
         </div>
       )}
-    </AdminLayout>
+    </WorkspaceLayout>
   );
 };
 

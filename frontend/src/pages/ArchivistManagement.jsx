@@ -1,3 +1,4 @@
+/* eslint-disable react/prop-types */
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import {
@@ -6,25 +7,24 @@ import {
 } from 'lucide-react';
 import AdminLogoutButton from '../components/AdminLogoutButton';
 import AdminUserProfile from '../components/AdminUserProfile';
+import DashboardNavLink from '../components/DashboardNavLink';
 import StudentManagement from './StudentManagement';
 import ContractManagement from './ContractManagement';
+import SelfServiceManagement from './SelfServiceManagement';
 import { housingApi } from '../services/housingApi';
 import { securityMedicalApi } from '../services/securityMedicalApi';
+import { currentHousingDate, housingPeriodEnd, defaultHousingAmount } from '../utils/housingBilling';
 
 const tabs = [
   { id: 'students', label: 'Hồ sơ sinh viên', Icon: Users },
   { id: 'applications', label: 'Xét duyệt lưu trú', Icon: ClipboardCheck },
   { id: 'rooms', label: 'Xếp / chuyển phòng', Icon: DoorOpen },
+  { id: 'transfers', label: 'Duyệt chuyển phòng', Icon: ArrowLeftRight },
   { id: 'discipline', label: 'Thông tin & kỷ luật', Icon: ShieldAlert },
 ];
 
 const formatDate = (value) => value ? new Date(value).toLocaleDateString('vi-VN') : '—';
-const localDate = () => new Date().toISOString().slice(0, 10);
-const afterTenMonths = () => {
-  const date = new Date();
-  date.setMonth(date.getMonth() + 10);
-  return date.toISOString().slice(0, 10);
-};
+const localDate = currentHousingDate;
 const localDateTime = () => {
   const date = new Date();
   date.setMinutes(date.getMinutes() - date.getTimezoneOffset());
@@ -49,7 +49,7 @@ const RoomAssignments = () => {
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [dialog, setDialog] = useState(null);
-  const [assignment, setAssignment] = useState({ maSinhVien: '', maPhong: '', ngayBatDau: localDate(), ngayKetThuc: afterTenMonths(), tongTien: '' });
+  const [assignment, setAssignment] = useState({ maSinhVien: '', maPhong: '', ngayBatDau: localDate(), ngayKetThuc: housingPeriodEnd(), tongTien: '' });
   const [moveRoomId, setMoveRoomId] = useState('');
 
   const load = useCallback(async () => {
@@ -70,7 +70,7 @@ const RoomAssignments = () => {
 
   useEffect(() => { load(); }, [load]);
 
-  const allMembers = useMemo(() => rooms.flatMap((room) => (room.thanhVien || []).map((member) => ({ member, room }))), [rooms]);
+  const allMembers = useMemo(() => rooms.flatMap((room) => (room.thanhVien || []).filter((member) => member.source !== 'MILITARY' && member.maHopDong).map((member) => ({ member, room }))), [rooms]);
   const filteredMembers = useMemo(() => {
     const query = search.trim().toLowerCase();
     if (!query) return allMembers;
@@ -85,8 +85,8 @@ const RoomAssignments = () => {
       maSinhVien: candidates[0]?.maSV || '',
       maPhong: initialRoom?.maPhong || '',
       ngayBatDau: localDate(),
-      ngayKetThuc: afterTenMonths(),
-      tongTien: initialRoom?.phiNoiTruThang ? String(Number(initialRoom.phiNoiTruThang) * 10) : '1200000',
+      ngayKetThuc: housingPeriodEnd(),
+      tongTien: String(defaultHousingAmount(initialRoom)),
     });
     setError('');
   };
@@ -140,7 +140,7 @@ const RoomAssignments = () => {
     setAssignment((current) => ({
       ...current,
       maPhong,
-      tongTien: room?.phiNoiTruThang ? String(Number(room.phiNoiTruThang) * 10) : current.tongTien,
+      tongTien: String(defaultHousingAmount(room)),
     }));
   };
 
@@ -169,8 +169,9 @@ const RoomAssignments = () => {
       <div className="flex items-start justify-between"><div><h3 className="text-lg font-bold text-slate-900">Xếp phòng cho sinh viên</h3><p className="mt-1 text-sm text-slate-500">Tạo hợp đồng lưu trú ở trạng thái chờ thanh toán.</p></div><button type="button" onClick={() => setDialog(null)} className="rounded px-2 text-xl text-slate-500" aria-label="Đóng">×</button></div>
       <label className={labelClass}>Sinh viên chưa có hợp đồng<select required value={assignment.maSinhVien} onChange={(event) => setAssignment({ ...assignment, maSinhVien: event.target.value })} className={controlClass}><option value="">Chọn sinh viên</option>{candidates.map((student) => <option key={student.maSV} value={student.maSV}>{student.hoTen} · {student.maSV}{student.lop ? ` · ${student.lop}` : ''}</option>)}</select></label>
       <label className={labelClass}>Phòng còn chỗ<select required value={assignment.maPhong} onChange={(event) => onAssignmentRoomChange(event.target.value)} className={controlClass}><option value="">Chọn phòng</option>{availableRooms.map((room) => <option key={room.maPhong} value={room.maPhong}>{roomLabel(room)}</option>)}</select></label>
-      <div className="grid gap-3 sm:grid-cols-2"><label className={labelClass}>Ngày bắt đầu<input required type="date" value={assignment.ngayBatDau} onChange={(event) => setAssignment({ ...assignment, ngayBatDau: event.target.value })} className={controlClass} /></label><label className={labelClass}>Ngày kết thúc<input required type="date" value={assignment.ngayKetThuc} onChange={(event) => setAssignment({ ...assignment, ngayKetThuc: event.target.value })} className={controlClass} /></label></div>
+      <div className="grid gap-3 sm:grid-cols-2"><label className={labelClass}>Ngày bắt đầu<input required type="date" value={assignment.ngayBatDau} onChange={(event) => setAssignment({ ...assignment, ngayBatDau: event.target.value, ngayKetThuc: event.target.value ? housingPeriodEnd(event.target.value) : '' })} className={controlClass} /></label><label className={labelClass}>Ngày kết thúc<input required type="date" value={assignment.ngayKetThuc} onChange={(event) => setAssignment({ ...assignment, ngayKetThuc: event.target.value })} className={controlClass} /></label></div>
       <label className={labelClass}>Tổng tiền hợp đồng<input required type="number" min="1" value={assignment.tongTien} onChange={(event) => setAssignment({ ...assignment, tongTien: event.target.value })} className={controlClass} /></label>
+      <p className="text-sm text-blue-800">Phí nội trú thu theo học kỳ, 5 tháng/lần. Tổng tiền mặc định bằng phí tháng × 5.</p>
       <div className="flex justify-end gap-2 border-t pt-4"><button type="button" disabled={saving} onClick={() => setDialog(null)} className={secondaryButton}>Hủy</button><button disabled={saving || !candidates.length || !availableRooms.length} className={primaryButton}>{saving ? 'Đang xếp phòng…' : 'Xác nhận xếp phòng'}</button></div>
     </form></div>}
 
@@ -254,6 +255,7 @@ const ArchivistWorkspace = () => {
     <aside className="flex h-full min-h-0 w-64 shrink-0 flex-col bg-blue-950 text-white">
       <NavLink to="/archive-management" className="flex items-center gap-3 border-b border-blue-900 px-6 py-5"><Shield className="h-8 w-8 text-blue-200" /><span className="text-lg font-bold tracking-wide">KTX · HỒ SƠ</span></NavLink>
       <nav aria-label="Nghiệp vụ hồ sơ lưu trữ" className="min-h-0 flex-1 space-y-1 overflow-y-auto px-3 py-5">
+        <DashboardNavLink />
         {tabs.map(({ id, label, Icon }) => <button key={id} type="button" onClick={() => setActiveTab(id)} className={`flex w-full items-center gap-3 rounded-lg px-4 py-3 text-left text-sm transition ${activeTab === id ? 'bg-blue-800 font-semibold text-white' : 'text-blue-200 hover:bg-blue-900 hover:text-white'}`}><Icon className="h-5 w-5" />{label}</button>)}
       </nav>
       <div className="border-t border-blue-900 p-4"><AdminUserProfile /></div><AdminLogoutButton />
@@ -264,6 +266,7 @@ const ArchivistWorkspace = () => {
         {activeTab === 'students' && <StudentManagement key={panelKey} embedded />}
         {activeTab === 'applications' && <ContractManagement key={panelKey} embedded />}
         {activeTab === 'rooms' && <RoomAssignments key={panelKey} />}
+        {activeTab === 'transfers' && <SelfServiceManagement key={panelKey} embedded housingRequestType="TRANSFER" />}
         {activeTab === 'discipline' && <DisciplineManagement key={panelKey} />}
       </main>
     </div>

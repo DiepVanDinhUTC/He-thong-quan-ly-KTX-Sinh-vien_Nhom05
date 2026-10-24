@@ -1,10 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useSelector } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { ArrowLeft, Building, CheckCircle2 } from 'lucide-react';
 import { authApi } from '../services/authApi';
 import { housingApi } from '../services/housingApi';
 import { roomTypes, roomTypeLabel } from '../utils/roomTypes';
+import { userUpdated } from '../store/authSlice';
 
 const formatDate = (value) => {
   if (!value) return 'Chưa cập nhật';
@@ -14,6 +15,7 @@ const formatDate = (value) => {
 
 const RoomRegistration = () => {
   const navigate = useNavigate();
+  const dispatch = useDispatch();
   const authenticatedUser = useSelector((state) => state.auth.user);
   const [student, setStudent] = useState(authenticatedUser);
   const [applications, setApplications] = useState([]);
@@ -37,6 +39,7 @@ const RoomRegistration = () => {
     try {
       const [profileResponse, applicationResponse] = await Promise.all([authApi.me(), housingApi.myApplications()]);
       setStudent(profileResponse.user);
+      dispatch(userUpdated(profileResponse.user));
       setApplications(applicationResponse.data || []);
       setDataReady(true);
     } catch (requestError) {
@@ -79,7 +82,7 @@ const RoomRegistration = () => {
     setSuccess('');
     try {
       const response = await housingApi.apply(selectedType, selectedRoom);
-      setSuccess(`Đã gửi đơn ${response.data.maDangKy} với phòng mong muốn ${selectedRoom}. Đơn đang chờ Ban quản lý xác nhận.`);
+      setSuccess(response.message || `Đã gửi đơn ${response.data.maDangKy} với phòng mong muốn ${selectedRoom}.`);
       setSelectedType('');
       setSelectedRoom('');
       setShowTerms(false);
@@ -106,13 +109,15 @@ const RoomRegistration = () => {
       <main className="mx-auto max-w-4xl space-y-6 px-4 py-8 sm:px-6">
         <section className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
           <h2 className="text-xl font-bold">Gửi nguyện vọng loại phòng</h2>
-          <p className="mt-1 text-sm text-gray-500">Thông tin sinh viên được lấy từ hồ sơ đã đăng nhập. Ban quản lý sẽ chọn phòng và xác nhận đơn.</p>
+          <p className="mt-1 text-sm text-gray-500">Thông tin sinh viên được lấy từ hồ sơ đã đăng nhập. Sinh viên diện ưu tiên được tự động duyệt và tạo hợp đồng nháp khi phòng đã chọn còn chỗ; các đơn khác chờ Ban quản lý xác nhận.</p>
           <div className="mt-5 grid grid-cols-1 gap-3 rounded-xl bg-blue-50 p-4 text-sm sm:grid-cols-2">
             <p><span className="text-gray-500">Sinh viên:</span> <strong>{student?.hoTen || student?.username || 'Đang tải...'}</strong></p>
             <p><span className="text-gray-500">Mã sinh viên:</span> <strong>{student?.maSV || '—'}</strong></p>
             <p><span className="text-gray-500">Lớp:</span> <strong>{student?.lop || '—'}</strong></p>
             <p><span className="text-gray-500">Khoa:</span> <strong>{student?.khoa || '—'}</strong></p>
+            {student?.isPriority && <p className="font-semibold text-amber-800 sm:col-span-2">Diện ưu tiên: {student.dienUuTien}</p>}
           </div>
+          <p className="mt-4 text-sm font-semibold text-blue-800">Phí nội trú thu theo học kỳ: 5 tháng/lần, tính theo giá tháng của phòng được xếp.</p>
 
           <form onSubmit={submitRegistration}>
             <fieldset className="mt-6" disabled={loading || !dataReady || submitting || applications.some((item) => item.trangThai === 'PENDING') || Boolean(student?.maPhong)}>
@@ -140,6 +145,7 @@ const RoomRegistration = () => {
             {applications.some((item) => item.trangThai === 'PENDING') && <p className="mt-4 rounded-lg bg-amber-50 p-3 text-sm text-amber-800">Bạn đang có đơn chờ xác nhận.</p>}
             {error && <div role="alert" className="mt-4 rounded-lg bg-red-50 p-3 text-sm text-red-700"><p>{error}</p>{!dataReady && <button type="button" onClick={loadData} className="mt-2 font-semibold underline underline-offset-2">Tải lại hồ sơ</button>}</div>}
             {success && <p role="status" className="mt-4 rounded-lg bg-green-50 p-3 text-sm text-green-700">{success}</p>}
+            {student?.currentContract?.trangThai === 'PENDING_PAYMENT' && <div className="mt-4 rounded-lg bg-blue-50 p-4 text-sm text-blue-900"><p>Hợp đồng nháp đã được tạo cho phòng {student.soPhong || student.maPhong}. Vui lòng kiểm tra và thanh toán phí lưu trú.</p><button type="button" onClick={() => navigate('/bill-payment')} className="mt-2 font-semibold underline underline-offset-2">Xem hợp đồng và thanh toán</button></div>}
             <button type="submit" disabled={!dataReady || !selectedType || !selectedRoom || loadingRooms || loading || submitting || applications.some((item) => item.trangThai === 'PENDING') || Boolean(student?.maPhong)} className="mt-6 w-full rounded-xl bg-blue-700 px-5 py-3 font-semibold text-white hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto">
               Xem điều khoản & xác nhận đăng ký
             </button>
@@ -166,7 +172,7 @@ const RoomRegistration = () => {
             <p className="mt-1 text-sm text-slate-500">Vui lòng đọc kỹ trước khi xác nhận gửi đơn đăng ký.</p>
           </div>
           <div className="max-h-[55vh] space-y-4 overflow-y-auto px-6 py-5 text-sm leading-6 text-slate-700">
-            <p><strong>1. Thông tin đăng ký:</strong> Sinh viên cam kết thông tin hồ sơ và nguyện vọng phòng cung cấp là chính xác. Đơn chỉ được xem xét sau khi Ban quản lý kiểm tra và xác nhận.</p>
+            <p><strong>1. Thông tin đăng ký:</strong> Sinh viên cam kết thông tin hồ sơ và nguyện vọng phòng cung cấp là chính xác. Đơn của sinh viên diện ưu tiên được hệ thống tự động duyệt và tạo hợp đồng nháp khi phòng còn chỗ; các đơn khác được Ban quản lý kiểm tra và xác nhận.</p>
             <p><strong>2. Sử dụng phòng:</strong> Sinh viên ở đúng phòng được bố trí, không tự ý chuyển nhượng, cho thuê, cho mượn chỗ ở hoặc đưa người khác vào ở dài ngày khi chưa được phép.</p>
             <p><strong>3. An ninh và trật tự:</strong> Chấp hành giờ giấc, nội quy sinh hoạt, hướng dẫn của Ban quản lý; không gây mất trật tự, sử dụng chất cấm, tàng trữ vật nguy hiểm hoặc thực hiện hành vi vi phạm pháp luật.</p>
             <p><strong>4. Phòng cháy và an toàn:</strong> Không tự ý câu mắc điện, đun nấu hoặc sử dụng thiết bị có nguy cơ cháy nổ trái quy định. Giữ thông thoáng lối thoát hiểm và báo ngay sự cố cho cán bộ quản lý.</p>

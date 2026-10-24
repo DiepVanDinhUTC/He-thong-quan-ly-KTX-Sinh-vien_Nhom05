@@ -1,13 +1,16 @@
+/* eslint-disable react/prop-types */
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSelector } from 'react-redux';
-import Link from '../components/RoleLink';
-import Sidebar from '../components/Sidebar';
+import { Navigate, useNavigate, useParams } from 'react-router-dom';
+import FinancialLayout from '../components/FinancialLayout';
 import {
   AlertTriangle, ArrowDownLeft, ArrowUpRight, BadgeCheck, Building2, Check,
-  CircleDollarSign, Download, Droplets, FilePlus2, Filter, History, Loader2,
-  Receipt, RefreshCw, Search, ShieldAlert, TrendingUp, WalletCards, Wrench, X, Zap
+  CircleDollarSign, Download, Droplets, FilePlus2, Filter, Loader2,
+  Receipt, RefreshCw, Search, ShieldAlert, TrendingUp, Wrench, X, Zap
 } from 'lucide-react';
 import { paymentApi } from '../services/paymentApi';
+import { financialPermissions } from '../utils/accessControl';
+import { financialSections } from '../utils/financialNavigation';
 
 const money = (value) => `${Number(value || 0).toLocaleString('vi-VN')} ₫`;
 const periodNow = () => {
@@ -48,9 +51,11 @@ const Modal = ({ title, description, onClose, children }) => <div className="fix
 
 const FinancialDashboard = () => {
   const role = useSelector((state) => state.auth.user?.role);
-  const canManage = ['ACCOUNTANT', 'TREASURER', 'ADMIN'].includes(role);
+  const { section: activeSection } = useParams();
+  const navigate = useNavigate();
+  const section = financialSections.find(({ id }) => id === activeSection);
+  const canManage = financialPermissions.manage.includes(role);
   const [period, setPeriod] = useState(periodNow);
-  const [activeTab, setActiveTab] = useState('invoices');
   const [invoices, setInvoices] = useState([]);
   const [transactions, setTransactions] = useState([]);
   const [repairTickets, setRepairTickets] = useState([]);
@@ -159,29 +164,24 @@ const FinancialDashboard = () => {
     URL.revokeObjectURL(url);
   };
 
-  const tabs = [
-    { id: 'invoices', label: 'Hóa đơn tháng', Icon: Receipt },
-    { id: 'transactions', label: 'Giao dịch', Icon: History, count: totals.reviewCount },
-    { id: 'reconciliation', label: 'Đối soát thu chi', Icon: WalletCards }
-  ];
+  const openReviewTransactions = () => {
+    setSearch('');
+    setTransactionFilter('NEEDS_REVIEW');
+    navigate('/financial-dashboard/transactions');
+  };
 
-  return <div className="flex h-screen min-h-0 overflow-hidden bg-slate-50 text-slate-800">
-    <Sidebar />
-    <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-      <header className="flex h-16 shrink-0 items-center justify-between border-b border-slate-200 bg-white px-5 shadow-sm sm:px-8">
-        <div><p className="text-[11px] font-bold uppercase tracking-[0.16em] text-blue-700">Tài chính KTX</p><h1 className="text-lg font-semibold sm:text-xl">Thu phí & đối soát</h1></div>
-        <button type="button" onClick={() => loadData().catch(() => {})} disabled={loading} className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 disabled:opacity-50">
+  if (!section) return <Navigate to="/financial-dashboard/invoices" replace />;
+
+  return <>
+    <FinancialLayout section={section} reviewCount={totals.reviewCount} actions={
+      <button type="button" onClick={() => loadData().catch(() => {})} disabled={loading} className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 disabled:opacity-50">
           {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}<span className="hidden sm:inline">Làm mới</span>
-        </button>
-      </header>
-
-      <main className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6">
-        <div className="mx-auto max-w-[1500px] space-y-5">
+      </button>
+    }>
           <section className="flex flex-col justify-between gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:flex-row sm:items-center sm:px-6">
-            <div><div className="flex items-center gap-2 text-sm font-semibold text-blue-800"><Building2 className="h-4 w-4" />Sổ kế toán và thủ quỹ</div><h2 className="mt-1 text-2xl font-black tracking-tight text-slate-950">{periodLabel(period)}</h2><p className="mt-1 text-sm text-slate-500">Theo dõi hóa đơn điện nước, khoản thu, hoàn tiền và chi phí sửa chữa.</p></div>
+            <div><div className="flex items-center gap-2 text-sm font-semibold text-blue-800"><Building2 className="h-4 w-4" />Sổ kế toán và thủ quỹ</div><h2 className="mt-1 text-2xl font-black tracking-tight text-slate-950">{periodLabel(period)}</h2><p className="mt-1 text-sm text-slate-500">{section.description}</p></div>
             <div className="flex flex-wrap items-center gap-2">
               <label className="text-xs font-semibold text-slate-500">Kỳ đối soát<input type="month" value={period} onChange={(event) => { if (event.target.value) setPeriod(event.target.value); }} className="mt-1 block rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800" /></label>
-              {role === 'ACCOUNTANT' || role === 'ADMIN' ? <Link to="/meter-readings" className="inline-flex items-center gap-2 self-end rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"><Zap className="h-4 w-4 text-amber-500" />Sổ chỉ số</Link> : null}
             </div>
           </section>
 
@@ -192,24 +192,17 @@ const FinancialDashboard = () => {
             <SummaryCard label="Đã thu trong kỳ" value={money(totals.collected)} detail="Giao dịch đã xác minh" color="emerald" Icon={ArrowDownLeft} />
             <SummaryCard label="Hoàn tiền" value={money(totals.refunded)} detail="Khoản hoàn đã xác minh" color="amber" Icon={ArrowUpRight} />
             <SummaryCard label="Chi sửa chữa CSVC" value={money(totals.repairCost)} detail="Phiếu sửa chữa đã thanh toán" color="blue" Icon={Wrench} />
-            <SummaryCard label="Cần xác minh" value={String(totals.reviewCount)} detail="Giao dịch chờ đối chiếu" color={totals.reviewCount ? 'rose' : 'slate'} Icon={ShieldAlert} onClick={() => { setActiveTab('transactions'); setTransactionFilter('NEEDS_REVIEW'); }} />
+            <SummaryCard label="Cần xác minh" value={String(totals.reviewCount)} detail="Giao dịch chờ đối chiếu" color={totals.reviewCount ? 'rose' : 'slate'} Icon={ShieldAlert} onClick={openReviewTransactions} />
           </section>
 
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200">
-            <div role="tablist" aria-label="Các mục tài chính" className="flex flex-wrap gap-1">
-              {tabs.map(({ id, label, Icon, count }) => <button key={id} type="button" role="tab" aria-selected={activeTab === id} onClick={() => setActiveTab(id)} className={`inline-flex items-center gap-2 border-b-2 px-3 py-3 text-sm font-semibold transition ${activeTab === id ? 'border-blue-700 text-blue-800' : 'border-transparent text-slate-500 hover:text-slate-800'}`}>
-                <Icon className="h-4 w-4" />{label}{count > 0 && <span className="rounded-full bg-rose-100 px-1.5 py-0.5 text-[10px] font-bold text-rose-800">{count}</span>}
-              </button>)}
-            </div>
-            {activeTab !== 'reconciliation' && <label className="relative mb-1 w-full sm:w-72"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={activeTab === 'invoices' ? 'Tìm mã hóa đơn, sinh viên, phòng…' : 'Tìm mã giao dịch, hóa đơn…'} className="w-full rounded-lg border border-slate-300 bg-white py-2 pl-9 pr-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" /></label>}
-          </div>
+          {activeSection !== 'reconciliation' && <div className="flex justify-end"><label className="relative w-full sm:w-80"><span className="sr-only">{activeSection === 'invoices' ? 'Tìm hóa đơn' : 'Tìm giao dịch'}</span><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={activeSection === 'invoices' ? 'Tìm mã hóa đơn, sinh viên, phòng…' : 'Tìm mã giao dịch, hóa đơn…'} className="w-full rounded-lg border border-slate-300 bg-white py-2 pl-9 pr-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" /></label></div>}
 
-          {loading ? <div className="rounded-2xl border border-slate-200 bg-white p-12 text-center text-sm text-slate-500"><Loader2 className="mx-auto mb-3 h-6 w-6 animate-spin text-blue-700" />Đang tải sổ tài chính…</div> : activeTab === 'invoices' ? <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+          {loading ? <div className="rounded-2xl border border-slate-200 bg-white p-12 text-center text-sm text-slate-500"><Loader2 className="mx-auto mb-3 h-6 w-6 animate-spin text-blue-700" />Đang tải sổ tài chính…</div> : activeSection === 'invoices' ? <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
             <div className="flex flex-col justify-between gap-3 border-b border-slate-100 px-4 py-4 sm:flex-row sm:items-center sm:px-5">
               <div><h3 className="font-bold text-slate-900">Hóa đơn điện, nước và khoản phát sinh</h3><p className="mt-1 text-xs text-slate-500">Chỉ số do nhân viên quản lý CSVC ghi nhận; tiền điện nước được chia theo số người có hợp đồng tại phòng.</p></div>
               {canManage && <button type="button" onClick={() => setDialog({ type: 'generate' })} className="inline-flex items-center justify-center gap-2 rounded-lg bg-blue-700 px-4 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-blue-800"><FilePlus2 className="h-4 w-4" />Lập hóa đơn từ chỉ số</button>}
             </div>
-            {invoices.length === 0 ? <EmptyState title="Chưa có hóa đơn trong kỳ" detail="Ghi đủ chỉ số điện và nước cho các phòng, sau đó lập hóa đơn từ chỉ số." /> : filteredInvoices.length === 0 ? <EmptyState title="Không tìm thấy hóa đơn" detail="Thử từ khóa khác hoặc xóa nội dung tìm kiếm." /> : <div className="overflow-x-auto">
+            {invoices.length === 0 ? <EmptyState title="Chưa có hóa đơn trong kỳ" detail="Lập hóa đơn sau khi nhân viên CSVC/quản lý tòa ghi đủ chỉ số điện và nước cho các phòng." /> : filteredInvoices.length === 0 ? <EmptyState title="Không tìm thấy hóa đơn" detail="Thử từ khóa khác hoặc xóa nội dung tìm kiếm." /> : <div className="overflow-x-auto">
               <table className="w-full min-w-[980px] text-left text-sm">
                 <thead className="bg-slate-50 text-[11px] uppercase tracking-wide text-slate-500"><tr><th className="px-4 py-3">Sinh viên / phòng</th><th className="px-4 py-3">Chi tiết kỳ này</th><th className="px-4 py-3 text-right">Tổng tiền</th><th className="px-4 py-3 text-right">Đã hoàn</th><th className="px-4 py-3">Trạng thái</th><th className="px-4 py-3 text-right">Thao tác</th></tr></thead>
                 <tbody className="divide-y divide-slate-100">
@@ -240,7 +233,7 @@ const FinancialDashboard = () => {
               </table>
               <div className="border-t border-slate-100 px-4 py-3 text-xs text-slate-500">Hiển thị {filteredInvoices.length} / {invoices.length} hóa đơn trong {periodLabel(period)}.</div>
             </div>}
-          </section> : activeTab === 'transactions' ? <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+          </section> : activeSection === 'transactions' ? <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
             <div className="flex flex-col justify-between gap-3 border-b border-slate-100 px-4 py-4 sm:flex-row sm:items-center sm:px-5"><div><h3 className="font-bold text-slate-900">Sổ giao dịch</h3><p className="mt-1 text-xs text-slate-500">Các giao dịch trùng mã tham chiếu hoặc thiếu căn cứ chuyển khoản được đưa vào danh sách cần xác minh.</p></div><div className="flex gap-2"><label className="sr-only" htmlFor="transaction-filter">Lọc giao dịch</label><span className="inline-flex items-center rounded-lg border border-slate-200 px-2 text-slate-400"><Filter className="h-4 w-4" /></span><select id="transaction-filter" value={transactionFilter} onChange={(event) => setTransactionFilter(event.target.value)} className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"><option value="ALL">Tất cả giao dịch</option><option value="NEEDS_REVIEW">Cần xác minh</option><option value="COLLECTION">Thu phí</option><option value="REFUND">Hoàn tiền</option><option value="REPAIR_EXPENSE">Chi sửa chữa</option></select></div></div>
             {filteredTransactions.length === 0 ? <EmptyState title="Không có giao dịch phù hợp" detail="Chưa có giao dịch trong kỳ hoặc bộ lọc hiện tại không có kết quả." /> : <div className="overflow-x-auto"><table className="w-full min-w-[950px] text-left text-sm">
               <thead className="bg-slate-50 text-[11px] uppercase tracking-wide text-slate-500"><tr><th className="px-4 py-3">Ngày giờ</th><th className="px-4 py-3">Loại giao dịch</th><th className="px-4 py-3">Hóa đơn / căn cứ</th><th className="px-4 py-3">Phương thức</th><th className="px-4 py-3 text-right">Số tiền</th><th className="px-4 py-3">Kiểm tra</th><th className="px-4 py-3 text-right">Thao tác</th></tr></thead>
@@ -265,15 +258,13 @@ const FinancialDashboard = () => {
               <div className="flex flex-col justify-between gap-3 border-b border-slate-100 px-4 py-4 sm:flex-row sm:items-center sm:px-5"><div><h3 className="font-bold text-slate-900">Đối soát doanh thu và chi phí sửa chữa</h3><p className="mt-1 text-xs text-slate-500">Gộp khoản thu, hoàn tiền và chi phí khắc phục CSVC trong cùng kỳ.</p></div><div className="flex gap-2">{canManage && <button type="button" onClick={() => setDialog({ type: 'expense' })} disabled={!repairTickets.length} className="inline-flex items-center gap-2 rounded-lg bg-blue-700 px-3 py-2 text-sm font-bold text-white hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50"><Wrench className="h-4 w-4" />Ghi chi phí sửa chữa</button>}<button type="button" onClick={exportLedger} className="inline-flex items-center gap-2 rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"><Download className="h-4 w-4" />Xuất CSV</button></div></div>
               <div className="grid gap-0 divide-y divide-slate-100 sm:grid-cols-3 sm:divide-x sm:divide-y-0"><div className="p-4 sm:p-5"><p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Thu đã xác minh</p><p className="mt-2 text-xl font-black text-emerald-700">{money(totals.collected)}</p></div><div className="p-4 sm:p-5"><p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Hoàn tiền đã xác minh</p><p className="mt-2 text-xl font-black text-amber-700">−{money(totals.refunded)}</p></div><div className="p-4 sm:p-5"><p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Sửa chữa đã xác minh</p><p className="mt-2 text-xl font-black text-slate-800">−{money(totals.repairCost)}</p></div></div>
               {repairTickets.length > 0 && <div className="border-t border-slate-100 bg-blue-50/50 px-4 py-3 text-sm text-blue-900"><Wrench className="mr-2 inline h-4 w-4" />Còn {repairTickets.length} phiếu sửa chữa hoàn tất chưa ghi nhận chi phí.</div>}
-              {totals.reviewCount > 0 && <button type="button" onClick={() => { setActiveTab('transactions'); setTransactionFilter('NEEDS_REVIEW'); }} className="w-full border-t border-rose-100 bg-rose-50 px-4 py-3 text-left text-sm font-semibold text-rose-800 hover:bg-rose-100"><ShieldAlert className="mr-2 inline h-4 w-4" />{totals.reviewCount} giao dịch đang chờ xác minh. Mở danh sách giao dịch →</button>}
+              {totals.reviewCount > 0 && <button type="button" onClick={openReviewTransactions} className="w-full border-t border-rose-100 bg-rose-50 px-4 py-3 text-left text-sm font-semibold text-rose-800 hover:bg-rose-100"><ShieldAlert className="mr-2 inline h-4 w-4" />{totals.reviewCount} giao dịch đang chờ xác minh. Mở danh sách giao dịch →</button>}
             </section>
             <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"><div className="flex items-center justify-between border-b border-slate-100 px-4 py-4 sm:px-5"><div><h3 className="font-bold text-slate-900">Dòng tiền trong kỳ</h3><p className="mt-1 text-xs text-slate-500">{periodLabel(period)} · {transactions.length} giao dịch</p></div><button type="button" onClick={exportLedger} className="inline-flex items-center gap-2 rounded-lg border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"><Download className="h-4 w-4" />CSV</button></div>
               {transactions.length === 0 ? <EmptyState title="Chưa có giao dịch trong kỳ" detail="Khoản thu và chi sẽ xuất hiện tại đây sau khi được ghi nhận." /> : <div className="divide-y divide-slate-100">{transactions.slice(0, 12).map((row) => <div key={row.id} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3.5 sm:px-5"><div className="flex min-w-0 items-center gap-3"><span className={`rounded-xl p-2 ${row.transactionType === 'COLLECTION' ? 'bg-emerald-50 text-emerald-700' : row.transactionType === 'REFUND' ? 'bg-amber-50 text-amber-700' : 'bg-blue-50 text-blue-700'}`}>{row.transactionType === 'COLLECTION' ? <ArrowDownLeft className="h-4 w-4" /> : row.transactionType === 'REFUND' ? <ArrowUpRight className="h-4 w-4" /> : <Wrench className="h-4 w-4" />}</span><div className="min-w-0"><p className="truncate text-sm font-semibold text-slate-800">{transactionLabel(row.transactionType)} · {row.sinhVien?.hoTen || row.ticket?.title || row.invoiceId || row.id}</p><p className="mt-0.5 truncate text-xs text-slate-500">{dateTime(row.createdAt)} · {methodLabel(row.method)} · {row.toaNha?.tenToaNha || row.maToaNha || '—'}</p></div></div><div className="flex items-center gap-3"><StatusPill status={row.status} /><p className={`whitespace-nowrap font-mono text-sm font-bold ${row.transactionType === 'COLLECTION' ? 'text-emerald-700' : 'text-slate-800'}`}>{row.transactionType === 'COLLECTION' ? '+' : '−'}{money(row.amount)}</p></div></div>)}</div>}
             </section>
           </div>}
-        </div>
-      </main>
-    </div>
+    </FinancialLayout>
 
     {dialog?.type === 'generate' && <Modal title="Lập hóa đơn điện nước" description={`Tạo hóa đơn ${periodLabel(period)} từ chỉ số đã ghi cho từng phòng.`} onClose={() => !saving && setDialog(null)}>
       <form onSubmit={generateInvoices} className="space-y-4 px-5 py-5 sm:px-6">
@@ -321,7 +312,7 @@ const FinancialDashboard = () => {
         <ModalActions saving={saving} submitLabel="Đã đối chiếu" onCancel={() => setDialog(null)} />
       </form>
     </Modal>}
-  </div>;
+  </>;
 };
 
 const SummaryCard = ({ label, value, detail, color, Icon, onClick }) => {

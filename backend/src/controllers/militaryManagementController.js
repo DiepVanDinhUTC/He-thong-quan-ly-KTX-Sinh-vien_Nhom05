@@ -1,6 +1,7 @@
 const prisma = require('../config/prisma');
 const { createMilitaryStudentSyncService } = require('../services/militaryStudentSyncService');
 const { assignMilitaryStudentsToA1, selectA1MilitaryRooms } = require('../services/militaryRoomAssignmentService');
+const { occupancyRelations, presentRoomOccupancy } = require('../services/roomOccupancy');
 
 const syncMilitaryStudents = createMilitaryStudentSyncService({ db: prisma });
 const liveMilitaryAssignment = { status: 'ACTIVE' };
@@ -68,10 +69,10 @@ exports.getRooms = async (req, res) => {
     try {
         const rooms = await prisma.phong.findMany({
             orderBy: [{ maToaNha: 'asc' }, { tang: 'asc' }, { soPhong: 'asc' }],
-            include: { toaNha: { select: { tenToaNha: true } } }
+            include: { toaNha: { select: { tenToaNha: true } }, ...occupancyRelations }
         });
         const militaryTargetIds = new Set(selectA1MilitaryRooms(rooms).map((room) => room.maPhong));
-        return res.json({ success: true, data: rooms.map((room) => ({
+        return res.json({ success: true, data: rooms.map(presentRoomOccupancy).map((room) => ({
             maPhong: room.maPhong,
             soPhong: room.soPhong,
             loaiPhong: room.loaiPhong,

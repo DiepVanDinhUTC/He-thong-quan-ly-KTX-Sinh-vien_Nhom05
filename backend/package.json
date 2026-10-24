@@ -16,6 +16,7 @@
     "backfill:nien-khoa": "node backfillStudentCohorts.js",
     "job:sync-gdqp": "node src/jobs/syncMilitaryStudents.js",
     "test": "node --test",
+    "vnpay:sandbox-relay": "node scripts/vnpaySandboxRelay.js",
     "postinstall": "prisma skills sync || exit 0"
   },
   "keywords": [],
