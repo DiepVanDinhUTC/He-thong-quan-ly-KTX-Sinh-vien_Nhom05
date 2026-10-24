@@ -3,9 +3,11 @@ import React from 'react';
 import Sidebar from './Sidebar'; // Component Sidebar vừa được tạo
 import { Bell, Search } from 'lucide-react';
 import AdminUserProfile from './AdminUserProfile';
+import { useBoardWorkspace } from './BoardLayout';
 
 const AdminLayout = ({ children, showShell = true }) => {
-  if (!showShell) return children;
+  const isBoardWorkspace = useBoardWorkspace();
+  if (!showShell || isBoardWorkspace) return children;
 
   return (
     <div className="flex h-screen min-h-0 overflow-hidden bg-gray-50 font-sans">

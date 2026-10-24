@@ -1,6 +1,7 @@
 const ROLES = require('../config/roles');
 
 const prisma = require('../config/prisma');
+const { calculateContractRent } = require('../services/contractPricing');
 const SERVICE_CATALOG = Object.freeze({
     WIFI: 'Đăng ký Wi-Fi',
     LAUNDRY: 'Dịch vụ giặt sấy',
@@ -34,9 +35,9 @@ const getStudentContract = async (userId, { activeOnly = false } = {}) => {
     return { student, contract };
 };
 
-const getBuildingScope = async (req) => {
+const getBuildingScope = async (req, db = prisma) => {
     if (ROLES.GLOBAL_BUILDING_ROLES.has(req.user.role)) return null;
-    const access = await prisma.userBuildingAccess.findMany({
+    const access = await db.userBuildingAccess.findMany({
         where: { userId: req.user.id }, select: { maToaNha: true }
     });
     return access.map(({ maToaNha }) => maToaNha);
@@ -104,93 +105,119 @@ exports.createHousingRequest = async (req, res) => {
                 include: { hopDong: { include: { phong: true } } }
             });
         }, { isolationLevel: 'Serializable' });
-        return res.status(201).json({ success: true, request, message: 'Đã gửi yêu cầu để Ban quản lý xem xét.' });
+        return res.status(201).json({ success: true, request, message: requestType === 'TRANSFER' ? 'Đã gửi yêu cầu chuyển phòng để nhân viên quản lý hồ sơ xem xét.' : 'Đã gửi yêu cầu để Ban quản lý xem xét.' });
     } catch (error) { return sendError(res, error, 'Không thể gửi yêu cầu lưu trú.'); }
 };
 
-exports.listHousingRequests = async (req, res) => {
-    try {
-        const scope = await getBuildingScope(req);
-        const requests = await prisma.studentHousingRequest.findMany({
-            where: scope === null ? undefined : { hopDong: { phong: { maToaNha: { in: scope } } } },
-            include: {
-                sinhVien: { select: { maSV: true, hoTen: true, phone: true, lop: true, khoa: true } },
-                hopDong: { include: { phong: true } }
-            },
-            orderBy: { createdAt: 'desc' }
-        });
-        return res.json({ success: true, requests });
-    } catch (error) { return sendError(res, error, 'Không thể tải danh sách yêu cầu.'); }
-};
+const createHousingRequestController = ({ db = prisma } = {}) => {
+    // Records staff handle transfers across the KTX, as with archive room assignments.
+    const getHousingScope = (req) => req.user.role === ROLES.ARCHIVIST ? null : getBuildingScope(req, db);
 
-exports.decideHousingRequest = async (req, res) => {
-    const status = String(req.body.status || '').trim().toUpperCase();
-    const staffNote = typeof req.body.staffNote === 'string' ? req.body.staffNote.trim() : '';
-    if (!['APPROVED', 'REJECTED'].includes(status)) {
-        return res.status(400).json({ success: false, message: 'Trạng thái xử lý không hợp lệ.' });
-    }
-    if (staffNote.length > 500) return res.status(400).json({ success: false, message: 'Ghi chú không được vượt quá 500 ký tự.' });
+    const listHousingRequests = async (req, res) => {
+        try {
+            const scope = await getHousingScope(req);
+            const requests = await db.studentHousingRequest.findMany({
+                where: {
+                    ...(req.user.role === ROLES.ARCHIVIST ? { requestType: 'TRANSFER' } : {}),
+                    ...(scope === null ? {} : { hopDong: { phong: { maToaNha: { in: scope } } } })
+                },
+                include: {
+                    sinhVien: { select: { maSV: true, hoTen: true, phone: true, lop: true, khoa: true } },
+                    hopDong: { include: { phong: true } }
+                },
+                orderBy: { createdAt: 'desc' }
+            });
+            return res.json({ success: true, requests });
+        } catch (error) { return sendError(res, error, 'Không thể tải danh sách yêu cầu.'); }
+    };
 
-    try {
-        const currentRequest = await prisma.studentHousingRequest.findUnique({
-            where: { id: req.params.id }, include: { hopDong: { include: { phong: true } } }
-        });
-        if (!currentRequest) throw fail(404, 'Không tìm thấy yêu cầu lưu trú.');
-        if (currentRequest.status !== 'PENDING') throw fail(409, 'Yêu cầu đã được xử lý.');
-        if (!await hasBuildingAccess(req, currentRequest.hopDong.phong.maToaNha)) {
-            throw fail(404, 'Không tìm thấy yêu cầu trong tòa nhà được phân công.');
+    const decideHousingRequest = async (req, res) => {
+        const status = String(req.body.status || '').trim().toUpperCase();
+        const staffNote = typeof req.body.staffNote === 'string' ? req.body.staffNote.trim() : '';
+        if (!['APPROVED', 'REJECTED'].includes(status)) {
+            return res.status(400).json({ success: false, message: 'Trạng thái xử lý không hợp lệ.' });
         }
+        if (staffNote.length > 500) return res.status(400).json({ success: false, message: 'Ghi chú không được vượt quá 500 ký tự.' });
 
-        const updated = await prisma.$transaction(async (tx) => {
-            const contract = await tx.hopDong.findUnique({ where: { maHopDong: currentRequest.maHopDong }, include: { phong: true } });
-            if (!contract || contract.trangThai !== 'ACTIVE') throw fail(409, 'Hợp đồng không còn hiệu lực để xử lý yêu cầu.');
-            const changed = await tx.studentHousingRequest.updateMany({
-                where: { id: currentRequest.id, status: 'PENDING' },
-                data: { status, staffNote: staffNote || null, decidedAt: new Date() }
+        try {
+            const currentRequest = await db.studentHousingRequest.findUnique({
+                where: { id: req.params.id }, include: { hopDong: { include: { phong: true } } }
             });
-            if (changed.count !== 1) throw fail(409, 'Yêu cầu vừa được xử lý bởi tài khoản khác.');
+            if (!currentRequest) throw fail(404, 'Không tìm thấy yêu cầu lưu trú.');
+            if (!ROLES.HOUSING_REQUEST_DECISION_ROLES[currentRequest.requestType]?.includes(req.user.role)) {
+                throw fail(403, currentRequest.requestType === 'TRANSFER'
+                    ? 'Chỉ nhân viên quản lý hồ sơ được xử lý đơn chuyển phòng.'
+                    : 'Tài khoản không có quyền xử lý đơn trả phòng.');
+            }
+            if (currentRequest.status !== 'PENDING') throw fail(409, 'Yêu cầu đã được xử lý.');
+            const scope = await getHousingScope(req);
+            if (scope !== null && !scope.includes(currentRequest.hopDong.phong.maToaNha)) {
+                throw fail(404, 'Không tìm thấy yêu cầu trong tòa nhà được phân công.');
+            }
 
-            if (status === 'APPROVED' && currentRequest.requestType === 'TRANSFER') {
-                const target = await tx.phong.findUnique({ where: { maPhong: currentRequest.maPhongMoi } });
-                if (!target) throw fail(404, 'Không tìm thấy phòng muốn chuyển đến.');
-                if (!await hasBuildingAccess(req, target.maToaNha)) throw fail(403, 'Tài khoản chưa được phân công tòa nhà của phòng mới.');
-                const reserved = await tx.phong.updateMany({
-                    where: { maPhong: target.maPhong, soSinhVienHienTai: { lt: target.soSinhVienToiDa } },
-                    data: { soSinhVienHienTai: { increment: 1 } }
+            const updated = await db.$transaction(async (tx) => {
+                const contract = await tx.hopDong.findUnique({ where: { maHopDong: currentRequest.maHopDong }, include: { phong: true } });
+                if (!contract || contract.trangThai !== 'ACTIVE') throw fail(409, 'Hợp đồng không còn hiệu lực để xử lý yêu cầu.');
+                if (scope !== null && !scope.includes(contract.phong.maToaNha)) {
+                    throw fail(404, 'Không tìm thấy yêu cầu trong tòa nhà được phân công.');
+                }
+                const changed = await tx.studentHousingRequest.updateMany({
+                    where: { id: currentRequest.id, status: 'PENDING' },
+                    data: { status, staffNote: staffNote || null, decidedAt: new Date() }
                 });
-                if (reserved.count !== 1) throw fail(409, 'Phòng mới vừa hết chỗ.');
-                await tx.phong.updateMany({
-                    where: { maPhong: contract.maPhong, soSinhVienHienTai: { gt: 0 } },
-                    data: { soSinhVienHienTai: { decrement: 1 } }
+                if (changed.count !== 1) throw fail(409, 'Yêu cầu vừa được xử lý bởi tài khoản khác.');
+
+                if (status === 'APPROVED' && currentRequest.requestType === 'TRANSFER') {
+                    if (currentRequest.maPhongMoi === contract.maPhong) throw fail(409, 'Sinh viên đã ở phòng được yêu cầu chuyển đến.');
+                    const target = await tx.phong.findUnique({ where: { maPhong: currentRequest.maPhongMoi } });
+                    if (!target) throw fail(404, 'Không tìm thấy phòng muốn chuyển đến.');
+                    if (scope !== null && !scope.includes(target.maToaNha)) throw fail(403, 'Tài khoản chưa được phân công tòa nhà của phòng mới.');
+                    const tongTien = calculateContractRent(contract, target);
+                    const reserved = await tx.phong.updateMany({
+                        where: { maPhong: target.maPhong, soSinhVienHienTai: { lt: target.soSinhVienToiDa } },
+                        data: { soSinhVienHienTai: { increment: 1 } }
+                    });
+                    if (reserved.count !== 1) throw fail(409, 'Phòng mới vừa hết chỗ.');
+                    await tx.phong.updateMany({
+                        where: { maPhong: contract.maPhong, soSinhVienHienTai: { gt: 0 } },
+                        data: { soSinhVienHienTai: { decrement: 1 } }
+                    });
+                    await tx.hopDong.update({
+                        where: { maHopDong: contract.maHopDong },
+                        data: { maPhong: target.maPhong, tongTien }
+                    });
+                }
+                if (status === 'APPROVED' && currentRequest.requestType === 'RETURN') {
+                    await tx.phong.updateMany({
+                        where: { maPhong: contract.maPhong, soSinhVienHienTai: { gt: 0 } },
+                        data: { soSinhVienHienTai: { decrement: 1 } }
+                    });
+                    const returnedAt = new Date();
+                    await tx.hopDong.update({
+                        where: { maHopDong: contract.maHopDong },
+                        data: {
+                            trangThai: 'RETURNED',
+                            ...(contract.ngayBatDau < returnedAt ? { ngayKetThuc: returnedAt } : {})
+                        }
+                    });
+                    await tx.studentServiceRegistration.updateMany({
+                        where: { maHopDong: contract.maHopDong, status: 'PENDING' },
+                        data: { status: 'CANCELLED', cancelledAt: new Date() }
+                    });
+                }
+                return tx.studentHousingRequest.findUnique({
+                    where: { id: currentRequest.id },
+                    include: { sinhVien: { select: { maSV: true, hoTen: true } }, hopDong: { include: { phong: true } } }
                 });
-                await tx.hopDong.update({ where: { maHopDong: contract.maHopDong }, data: { maPhong: target.maPhong } });
-            }
-            if (status === 'APPROVED' && currentRequest.requestType === 'RETURN') {
-                await tx.phong.updateMany({
-                    where: { maPhong: contract.maPhong, soSinhVienHienTai: { gt: 0 } },
-                    data: { soSinhVienHienTai: { decrement: 1 } }
-                });
-                const returnedAt = new Date();
-                await tx.hopDong.update({
-                    where: { maHopDong: contract.maHopDong },
-                    data: {
-                        trangThai: 'RETURNED',
-                        ...(contract.ngayBatDau < returnedAt ? { ngayKetThuc: returnedAt } : {})
-                    }
-                });
-                await tx.studentServiceRegistration.updateMany({
-                    where: { maHopDong: contract.maHopDong, status: 'PENDING' },
-                    data: { status: 'CANCELLED', cancelledAt: new Date() }
-                });
-            }
-            return tx.studentHousingRequest.findUnique({
-                where: { id: currentRequest.id },
-                include: { sinhVien: { select: { maSV: true, hoTen: true } }, hopDong: { include: { phong: true } } }
-            });
-        }, { isolationLevel: 'Serializable' });
-        return res.json({ success: true, request: updated, message: status === 'APPROVED' ? 'Đã duyệt yêu cầu.' : 'Đã từ chối yêu cầu.' });
-    } catch (error) { return sendError(res, error, 'Không thể xử lý yêu cầu lưu trú.'); }
+            }, { isolationLevel: 'Serializable' });
+            return res.json({ success: true, request: updated, message: status === 'APPROVED' ? 'Đã duyệt yêu cầu.' : 'Đã từ chối yêu cầu.' });
+        } catch (error) { return sendError(res, error, 'Không thể xử lý yêu cầu lưu trú.'); }
+    };
+
+    return { listHousingRequests, decideHousingRequest };
 };
+
+Object.assign(exports, createHousingRequestController(), { createHousingRequestController });
 
 exports.myServiceRegistrations = async (req, res) => {
     try {

@@ -1,6 +1,7 @@
 const prisma = require('../config/prisma');
-
-const reject = (status, message) => Object.assign(new Error(message), { status });
+const { approveApplication } = require('../services/applicationApproval');
+const { isPriorityStudent, sortByStudentPriority } = require('../services/studentPriority');
+const { occupancyRelations, presentRoomOccupancy } = require('../services/roomOccupancy');
 
 exports.createContract = async (req, res) => {
     const { maDangKy, maPhong, ngayBatDau, ngayKetThuc, tongTien } = req.body;
@@ -23,62 +24,9 @@ exports.createContract = async (req, res) => {
     }
 
     try {
-        const contract = await prisma.$transaction(async (tx) => {
-            const application = await tx.dangKyKTX.findUnique({ where: { maDangKy } });
-            if (!application) throw reject(404, 'Không tìm thấy đơn đăng ký KTX.');
-            if (application.trangThai !== 'PENDING') {
-                throw reject(409, 'Đơn đăng ký không còn ở trạng thái chờ duyệt.');
-            }
-
-            const room = await tx.phong.findUnique({ where: { maPhong } });
-            if (!room) throw reject(404, 'Không tìm thấy phòng được chọn.');
-            if (room.loaiPhong !== application.loaiPhongYeuCau) {
-                throw reject(400, 'Loại phòng được chọn không khớp với nguyện vọng đăng ký.');
-            }
-
-            const existingContract = await tx.hopDong.findFirst({
-                where: {
-                    maSinhVien: application.maSinhVien,
-                    trangThai: { in: ['PENDING_PAYMENT', 'ACTIVE'] }
-                },
-                select: { maHopDong: true }
-            });
-            if (existingContract) {
-                throw reject(409, 'Sinh viên đã có hợp đồng đang chờ thanh toán hoặc còn hiệu lực.');
-            }
-
-            // Conditional updates make approval and room reservation single-winner under concurrent requests.
-            const applicationUpdate = await tx.dangKyKTX.updateMany({
-                where: { maDangKy, trangThai: 'PENDING' },
-                data: { trangThai: 'APPROVED' }
-            });
-            if (applicationUpdate.count !== 1) {
-                throw reject(409, 'Đơn đăng ký vừa được xử lý bởi một yêu cầu khác.');
-            }
-
-            const roomUpdate = await tx.phong.updateMany({
-                where: {
-                    maPhong,
-                    soSinhVienHienTai: { lt: room.soSinhVienToiDa }
-                },
-                data: { soSinhVienHienTai: { increment: 1 } }
-            });
-            if (roomUpdate.count !== 1) {
-                throw reject(409, 'Phòng đã hết chỗ; đơn đăng ký chưa được duyệt.');
-            }
-
-            const contract = await tx.hopDong.create({
-                data: {
-                    maSinhVien: application.maSinhVien,
-                    maPhong,
-                    ngayBatDau: startDate,
-                    ngayKetThuc: endDate,
-                    tongTien: amount,
-                    trangThai: 'PENDING_PAYMENT'
-                }
-            });
-            return contract;
-        }, { isolationLevel: 'Serializable' });
+        const contract = await prisma.$transaction((tx) => approveApplication(tx, {
+            maDangKy, maPhong, ngayBatDau: startDate, ngayKetThuc: endDate, tongTien: amount
+        }), { isolationLevel: 'Serializable' });
 
         return res.status(201).json({
             success: true,
@@ -110,7 +58,12 @@ exports.getContracts = async (req, res) => {
             include: { sinhVien: true, phong: true },
             orderBy: { ngayTao: 'desc' }
         });
-        return res.status(200).json({ success: true, data });
+        return res.status(200).json({
+            success: true,
+            data: sortByStudentPriority(data, (contract) => contract.sinhVien).map((contract) => ({
+                ...contract, isPriority: isPriorityStudent(contract.sinhVien)
+            }))
+        });
     } catch (error) {
         return res.status(500).json({ success: false, message: 'Không thể tải danh sách hợp đồng.', error: error.message });
     }
@@ -125,9 +78,10 @@ exports.getRooms = async (req, res) => {
         };
         const data = await prisma.phong.findMany({
             where,
+            include: occupancyRelations,
             orderBy: { soPhong: 'asc' }
         });
-        return res.status(200).json({ success: true, data });
+        return res.status(200).json({ success: true, data: data.map(presentRoomOccupancy) });
     } catch (error) {
         return res.status(500).json({ success: false, message: 'Không thể tải danh sách phòng.', error: error.message });
     }

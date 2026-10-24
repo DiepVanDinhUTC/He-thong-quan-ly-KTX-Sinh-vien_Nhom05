@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import Sidebar from '../components/Sidebar';
+import { useBoardWorkspace } from '../components/BoardLayout';
 import { useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { 
@@ -17,6 +18,8 @@ import {
 } from 'lucide-react';
 
 const AdminDashboard = () => {
+  const isBoardWorkspace = useBoardWorkspace();
+  const ContentTag = isBoardWorkspace ? 'div' : 'main';
   const role = useSelector((state) => state.auth.user?.role);
   const isBoardLeader = ['BOARD_CHAIR', 'BOARD_DEPUTY'].includes(role);
   const [searchQuery, setSearchQuery] = useState('');
@@ -34,15 +37,15 @@ const AdminDashboard = () => {
   ];
 
   return (
-    <div className="flex h-screen min-h-0 overflow-hidden bg-gray-100 text-gray-800 antialiased font-sans">
+    <div className={isBoardWorkspace ? 'w-full' : 'flex h-screen min-h-0 overflow-hidden bg-gray-100 text-gray-800 antialiased font-sans'}>
       
-      <Sidebar />
+      {!isBoardWorkspace && <Sidebar />}
 
       {/* Main Content */}
-      <div className="min-w-0 min-h-0 flex-1 flex flex-col h-full overflow-hidden">
+      <div className={isBoardWorkspace ? 'w-full' : 'min-w-0 min-h-0 flex-1 flex flex-col h-full overflow-hidden'}>
         
         {/* Header */}
-        <header className="bg-white shadow-sm h-16 flex items-center justify-between px-8 z-10 flex-shrink-0">
+        {!isBoardWorkspace && <header className="bg-white shadow-sm h-16 flex items-center justify-between px-8 z-10 flex-shrink-0">
           <h2 className="text-xl font-semibold text-gray-800">Dashboard Tổng Quan</h2>
           <div className="flex items-center gap-4">
             <div className="relative">
@@ -60,10 +63,10 @@ const AdminDashboard = () => {
               <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white"></span>
             </button>
           </div>
-        </header>
+        </header>}
 
         {/* Scrollable Main */}
-        <main className="min-h-0 flex-1 overflow-y-auto p-8 space-y-6">
+        <ContentTag className={isBoardWorkspace ? 'space-y-5' : 'min-h-0 flex-1 overflow-y-auto p-8 space-y-6'}>
           
           {/* Quick Actions */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -71,19 +74,19 @@ const AdminDashboard = () => {
               <div className="w-12 h-12 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-colors flex-shrink-0">
                 <FileText className="w-6 h-6" />
               </div>
-              <span className="font-medium text-gray-700 text-left">Duyệt & Lập hợp đồng nháp</span>
+              <span className="font-medium text-gray-700 text-left">{isBoardLeader ? 'Duyệt đăng ký lưu trú' : 'Duyệt & Lập hợp đồng nháp'}</span>
             </button>
-            <button onClick={() => navigate('/contracts')} className="flex items-center justify-start px-6 gap-4 bg-white p-4 rounded-xl border border-gray-200 shadow-sm hover:shadow-md hover:border-blue-300 transition-all group">
+            <button onClick={() => navigate(isBoardLeader ? '/contracts?tab=contracts' : '/contracts')} className="flex items-center justify-start px-6 gap-4 bg-white p-4 rounded-xl border border-gray-200 shadow-sm hover:shadow-md hover:border-blue-300 transition-all group">
               <div className="w-12 h-12 rounded-full bg-gray-50 flex items-center justify-center text-gray-600 group-hover:bg-gray-600 group-hover:text-white transition-colors flex-shrink-0">
                 <XCircle className="w-6 h-6" />
               </div>
-              <span className="font-medium text-gray-700 text-left">Thanh lý hợp đồng</span>
+              <span className="font-medium text-gray-700 text-left">{isBoardLeader ? 'Tra cứu hợp đồng' : 'Thanh lý hợp đồng'}</span>
             </button>
-            <button onClick={() => navigate('/technician')} className="flex items-center justify-start px-6 gap-4 bg-white p-4 rounded-xl border border-gray-200 shadow-sm hover:shadow-md hover:border-blue-300 transition-all group">
+            <button onClick={() => navigate(isBoardLeader ? '/tickets' : '/technician')} className="flex items-center justify-start px-6 gap-4 bg-white p-4 rounded-xl border border-gray-200 shadow-sm hover:shadow-md hover:border-blue-300 transition-all group">
               <div className="w-12 h-12 rounded-full bg-yellow-50 flex items-center justify-center text-yellow-600 group-hover:bg-yellow-600 group-hover:text-white transition-colors flex-shrink-0">
                 <UserCog className="w-6 h-6" />
               </div>
-              <span className="font-medium text-gray-700 text-left">Phân công kỹ thuật viên</span>
+              <span className="font-medium text-gray-700 text-left">{isBoardLeader ? 'Theo dõi yêu cầu sửa chữa' : 'Phân công kỹ thuật viên'}</span>
             </button>
           </div>
 
@@ -220,7 +223,7 @@ const AdminDashboard = () => {
               </div>
             </div>
           </div>
-        </main>
+        </ContentTag>
       </div>
     </div>
   );

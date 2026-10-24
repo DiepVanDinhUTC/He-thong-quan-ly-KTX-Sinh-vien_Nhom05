@@ -55,12 +55,12 @@ const HousingRequests = ({ embedded = false }) => {
     event.preventDefault();
     setBusy(true); setError(''); setNotice('');
     try {
-      await housingApi.createHousingRequest({
+      const response = await housingApi.createHousingRequest({
         requestType,
         ...(requestType === 'TRANSFER' ? { maPhongMoi: roomId } : {}),
         reason,
       });
-      setNotice('Yêu cầu đã được gửi tới Ban quản lý.');
+      setNotice(response.message || 'Yêu cầu đã được gửi.');
       setReason(''); setRoomId('');
       await loadRequests();
     } catch (requestError) {
@@ -74,7 +74,7 @@ const HousingRequests = ({ embedded = false }) => {
   const content = <div className={`space-y-5 ${embedded ? '' : 'mx-auto max-w-3xl'}`}>
       {!embedded && <button onClick={() => navigate('/student-portal')} className="inline-flex items-center gap-2 text-sm font-medium text-blue-700"><ArrowLeft className="h-4 w-4" />Về trang chủ</button>}
       <section className="rounded-2xl border bg-white p-5 shadow-sm sm:p-7">
-        <div className="mb-5 flex items-center gap-3"><span className="rounded-xl bg-blue-50 p-3 text-blue-700"><ArrowLeftRight className="h-5 w-5" /></span><div><h1 className="text-xl font-bold">Chuyển hoặc trả phòng</h1><p className="mt-1 text-sm text-slate-500">Gửi yêu cầu để Ban quản lý xem xét và cập nhật hợp đồng.</p></div></div>
+        <div className="mb-5 flex items-center gap-3"><span className="rounded-xl bg-blue-50 p-3 text-blue-700"><ArrowLeftRight className="h-5 w-5" /></span><div><h1 className="text-xl font-bold">Chuyển hoặc trả phòng</h1><p className="mt-1 text-sm text-slate-500">Đơn chuyển phòng do nhân viên quản lý hồ sơ xác nhận và cập nhật hợp đồng.</p></div></div>
         {loading ? <p className="text-sm text-slate-500">Đang tải thông tin...</p> : !contract ? <div className="rounded-xl bg-amber-50 p-4 text-sm text-amber-900"><p>Bạn chưa có phòng lưu trú.</p>{!embedded && <button onClick={() => navigate('/room-registration')} className="mt-3 inline-flex items-center gap-2 rounded-lg bg-blue-700 px-4 py-2 font-semibold text-white"><DoorOpen className="h-4 w-4" />Đăng ký nội trú</button>}</div> : contract.trangThai !== 'ACTIVE' ? <p className="rounded-xl bg-amber-50 p-4 text-sm text-amber-900">Hợp đồng đang chờ thanh toán nên chưa thể gửi yêu cầu chuyển hoặc trả phòng.</p> : null}
 
         {canRequest && <form onSubmit={submit} className="space-y-4">
@@ -87,10 +87,10 @@ const HousingRequests = ({ embedded = false }) => {
             <label className="text-sm font-medium">Phòng muốn chuyển đến<select required value={roomId} onChange={(event) => setRoomId(event.target.value)} className="mt-1 w-full rounded-lg border px-3 py-2.5"><option value="">Chọn phòng còn chỗ</option>{rooms.map((room) => <option key={room.maPhong} value={room.maPhong}>{room.soPhong || room.maPhong} · {roomTypeLabel(room.loaiPhong)} · còn {room.choConTrong} chỗ</option>)}</select></label>
           </div>}
           <label className="block text-sm font-medium">Lý do <span className="font-normal text-slate-400">(không bắt buộc)</span><textarea rows="3" maxLength={1000} value={reason} onChange={(event) => setReason(event.target.value)} className="mt-1 w-full rounded-lg border px-3 py-2.5" placeholder="Cho Ban quản lý biết thêm thông tin về yêu cầu của bạn." /></label>
-          {error && <p role="alert" className="rounded-lg bg-rose-50 p-3 text-sm text-rose-800">{error}</p>}
-          {notice && <p role="status" className="rounded-lg bg-emerald-50 p-3 text-sm text-emerald-800">{notice}</p>}
           <button disabled={busy || (requestType === 'TRANSFER' && !roomId)} className="inline-flex items-center gap-2 rounded-lg bg-blue-700 px-5 py-3 text-sm font-bold text-white disabled:opacity-50">{busy && <Loader2 className="h-4 w-4 animate-spin" />}Gửi yêu cầu</button>
         </form>}
+        {error && <p role="alert" className="mt-4 rounded-lg bg-rose-50 p-3 text-sm text-rose-800">{error}</p>}
+        {notice && <p role="status" className="mt-4 rounded-lg bg-emerald-50 p-3 text-sm text-emerald-800">{notice}</p>}
         {contract?.trangThai === 'ACTIVE' && hasPendingRequest && <p className="rounded-xl bg-amber-50 p-4 text-sm text-amber-900">Bạn đã có yêu cầu đang chờ xử lý. Vui lòng đợi Ban quản lý phản hồi trước khi gửi yêu cầu mới.</p>}
         {contract && <p className="mt-5 border-t pt-4 text-xs text-slate-500">Hợp đồng {contract.maHopDong} · Phòng hiện tại {contract.soPhong || contract.maPhong} · {contract.trangThai === 'ACTIVE' ? 'Đang hiệu lực' : 'Chờ thanh toán'}</p>}
       </section>

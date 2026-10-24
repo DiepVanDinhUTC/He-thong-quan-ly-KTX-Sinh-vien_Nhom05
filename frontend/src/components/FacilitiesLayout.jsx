@@ -6,6 +6,8 @@ import { Building2, DoorOpen, Wrench, Zap } from 'lucide-react';
 import AdminLogoutButton from './AdminLogoutButton';
 import AdminUserProfile from './AdminUserProfile';
 import { roleCanAccess } from '../utils/accessControl';
+import { useBoardWorkspace } from './BoardLayout';
+import DashboardNavLink from './DashboardNavLink';
 
 const facilityMenuItems = [
   { to: '/rooms', label: 'Quản lý phòng & CSVC', Icon: DoorOpen },
@@ -26,11 +28,20 @@ const roleHeading = {
 };
 
 const FacilitiesLayout = ({ children, title, description, actions, additionalMenuItems = [] }) => {
+  const isBoardWorkspace = useBoardWorkspace();
   const role = useSelector((state) => state.auth.user?.role);
   const menuItems = [...facilityMenuItems, ...additionalMenuItems]
     .filter((item, index, items) => items.findIndex((candidate) => candidate.to === item.to) === index)
     .filter(({ to }) => roleCanAccess(role, to));
   const homePath = menuItems[0]?.to || '/rooms';
+
+  if (isBoardWorkspace) return <div className="flex min-h-0 flex-1 flex-col gap-5">
+    {(description || actions) && <div className="flex shrink-0 flex-wrap items-center justify-between gap-3">
+      {description && <p className="text-sm text-slate-500">{description}</p>}
+      {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
+    </div>}
+    {children}
+  </div>;
 
   return <div className="flex h-screen min-h-0 overflow-hidden bg-gray-50 font-sans text-gray-800">
     <aside className="flex h-full min-h-0 w-64 shrink-0 flex-col bg-blue-950 text-white shadow-lg">
@@ -39,6 +50,7 @@ const FacilitiesLayout = ({ children, title, description, actions, additionalMen
         <span className="min-w-0"><span className="block truncate text-lg font-bold tracking-wide">KTX · CSVC TÒA</span><span className="mt-0.5 block text-xs text-blue-300">Quản lý cơ sở vật chất</span></span>
       </NavLink>
       <nav aria-label="Nghiệp vụ cơ sở vật chất" className="min-h-0 flex-1 space-y-1 overflow-y-auto px-3 py-5">
+        <DashboardNavLink />
         {menuItems.map(({ to, label, Icon }) => <NavLink key={to} to={to} className={({ isActive }) => `flex items-center gap-3 rounded-lg px-4 py-3 text-sm transition-colors ${isActive ? 'bg-blue-800 font-semibold text-white' : 'text-blue-200 hover:bg-blue-900 hover:text-white'}`}>
           <Icon className="h-5 w-5 shrink-0" /><span className="min-w-0 truncate">{label}</span>
         </NavLink>)}

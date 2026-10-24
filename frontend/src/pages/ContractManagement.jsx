@@ -1,25 +1,36 @@
+/* eslint-disable react/prop-types */
 import React, { useEffect, useMemo, useState } from 'react';
 import { useSelector } from 'react-redux';
+import { useSearchParams } from 'react-router-dom';
 import { Search, Pencil, Check, X, ClipboardList } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
+import { useBoardWorkspace } from '../components/BoardLayout';
 import { housingApi } from '../services/housingApi';
 import { roomTypeLabel } from '../utils/roomTypes';
+import { currentHousingDate, housingPeriodEnd, defaultHousingAmount } from '../utils/housingBilling';
 
-const today = () => new Date().toISOString().slice(0, 10);
-const afterTenMonths = () => { const date = new Date(); date.setMonth(date.getMonth() + 10); return date.toISOString().slice(0, 10); };
 const toDateInput = (value) => value ? new Date(value).toISOString().slice(0, 10) : '';
 const statusLabel = { PENDING: 'Chờ xác nhận', APPROVED: 'Đã xác nhận', REJECTED: 'Đã từ chối', PENDING_PAYMENT: 'Chờ thanh toán', ACTIVE: 'Có hiệu lực', PAID: 'Đã thanh toán', CANCELLED: 'Đã hủy', RETURNED: 'Đã trả phòng' };
 
 const ContractManagement = ({ embedded = false }) => {
+  const isBoardWorkspace = useBoardWorkspace();
+  const showShell = !embedded && !isBoardWorkspace;
+  const ContentTag = showShell ? 'main' : 'div';
   const role = useSelector((state) => state.auth.user?.role);
   const canDecideApplications = ['BOARD_CHAIR', 'BOARD_DEPUTY', 'ARCHIVIST', 'BUILDING_MANAGER', 'ADMIN'].includes(role);
   const canEditContracts = ['ARCHIVIST', 'BUILDING_MANAGER', 'ADMIN'].includes(role);
-  const [tab, setTab] = useState('applications');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tab = searchParams.get('tab') === 'contracts' ? 'contracts' : 'applications';
+  const setTab = (value) => setSearchParams((current) => {
+    const next = new URLSearchParams(current);
+    next.set('tab', value);
+    return next;
+  });
   const [applications, setApplications] = useState([]);
   const [contracts, setContracts] = useState([]);
   const [rooms, setRooms] = useState([]);
   const [selectedApplication, setSelectedApplication] = useState(null);
-  const [approval, setApproval] = useState({ maPhong: '', ngayBatDau: today(), ngayKetThuc: afterTenMonths(), tongTien: '1200000' });
+  const [approval, setApproval] = useState({ maPhong: '', ngayBatDau: currentHousingDate(), ngayKetThuc: housingPeriodEnd(), tongTien: String(defaultHousingAmount()) });
   const [editingContract, setEditingContract] = useState(null);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
@@ -54,7 +65,7 @@ const ContractManagement = ({ embedded = false }) => {
     const candidates = rooms.filter((room) => room.loaiPhong === application.loaiPhongYeuCau && room.soSinhVienHienTai < room.soSinhVienToiDa);
     const selectedRoom = candidates.find((room) => room.maPhong === application.maPhongYeuCau) || candidates[0];
     setSelectedApplication(application);
-    setApproval({ maPhong: selectedRoom?.maPhong || '', ngayBatDau: today(), ngayKetThuc: afterTenMonths(), tongTien: selectedRoom?.phiNoiTruThang ? String(selectedRoom.phiNoiTruThang * 10) : application.loaiPhongYeuCau === 'DIEU_HOA' ? '2000000' : '1200000' });
+    setApproval({ maPhong: selectedRoom?.maPhong || '', ngayBatDau: currentHousingDate(), ngayKetThuc: housingPeriodEnd(), tongTien: String(defaultHousingAmount(selectedRoom, application.loaiPhongYeuCau)) });
     setError('');
   };
 
@@ -117,12 +128,12 @@ const ContractManagement = ({ embedded = false }) => {
   const pendingApplications = applications.filter((application) => application.trangThai === 'PENDING');
 
   return (
-    <div className={embedded ? 'w-full text-gray-800' : 'flex h-screen min-h-0 overflow-hidden bg-gray-50 text-gray-800'}>
-      {!embedded && <Sidebar />}
+    <div className={showShell ? 'flex h-screen min-h-0 overflow-hidden bg-gray-50 text-gray-800' : 'w-full text-gray-800'}>
+      {showShell && <Sidebar />}
 
-      <div className={embedded ? 'w-full' : 'flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden'}>
-        {!embedded && <header className="flex h-16 shrink-0 items-center justify-between border-b bg-white px-8 shadow-sm"><h2 className="text-xl font-semibold">Hợp đồng lưu trú</h2><button onClick={loadData} className="rounded-lg border px-3 py-2 text-sm hover:bg-gray-50">Làm mới</button></header>}
-        <main className={embedded ? '' : 'min-h-0 flex-1 overflow-y-auto p-4 sm:p-8'}>
+      <div className={showShell ? 'flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden' : 'w-full'}>
+        {showShell && <header className="flex h-16 shrink-0 items-center justify-between border-b bg-white px-8 shadow-sm"><h2 className="text-xl font-semibold">Hợp đồng lưu trú</h2><button onClick={loadData} className="rounded-lg border px-3 py-2 text-sm hover:bg-gray-50">Làm mới</button></header>}
+        <ContentTag className={showShell ? 'min-h-0 flex-1 overflow-y-auto p-4 sm:p-8' : ''}>
           {error && <p role="alert" className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>}
           {notice && <p role="status" className="mb-4 rounded-lg bg-green-50 p-3 text-sm text-green-700">{notice}</p>}
           <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
@@ -136,7 +147,7 @@ const ContractManagement = ({ embedded = false }) => {
                 <thead className="bg-gray-50 text-xs uppercase text-gray-500"><tr><th className="px-5 py-4">Sinh viên</th><th className="px-5 py-4">Nguyện vọng</th><th className="px-5 py-4">Ngày gửi</th><th className="px-5 py-4">Trạng thái</th><th className="px-5 py-4 text-right">Thao tác</th></tr></thead>
                 <tbody className="divide-y">
                   {applications.filter((item) => item.trangThai === 'PENDING').map((application) => <tr key={application.maDangKy}>
-                    <td className="px-5 py-4"><p className="font-semibold">{application.sinhVien?.hoTen || '—'}</p><p className="text-xs text-gray-500">{application.maSinhVien} · {application.maDangKy}</p></td>
+                    <td className="px-5 py-4"><p className="font-semibold">{application.sinhVien?.hoTen || '—'}</p><p className="text-xs text-gray-500">{application.maSinhVien} · {application.maDangKy}</p>{application.isPriority && <p className="mt-1 text-xs font-semibold text-amber-700">Ưu tiên · {application.sinhVien.dienUuTien}</p>}</td>
                     <td className="px-5 py-4"><p>Phòng {roomTypeLabel(application.loaiPhongYeuCau)}</p><p className="mt-1 text-xs text-gray-500">Nguyện vọng: {application.phongYeuCau?.soPhong || application.maPhongYeuCau || '—'}</p></td>
                     <td className="px-5 py-4">{new Date(application.ngayDangKy).toLocaleDateString('vi-VN')}</td>
                     <td className="px-5 py-4"><span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800">{statusLabel[application.trangThai]}</span></td>
@@ -157,13 +168,14 @@ const ContractManagement = ({ embedded = false }) => {
               </table></div>
             )}
           </section>
-        </main>
+        </ContentTag>
       </div>
 
       {selectedApplication && <div className="fixed inset-0 z-20 flex items-center justify-center bg-black/40 p-4"><form onSubmit={confirmApplication} className="w-full max-w-lg space-y-4 rounded-2xl bg-white p-6 shadow-xl">
         <div className="flex items-start justify-between"><div><h3 className="text-lg font-bold">Xác nhận nguyện vọng</h3><p className="mt-1 text-sm text-gray-500">{selectedApplication.sinhVien?.hoTen} · {roomTypeLabel(selectedApplication.loaiPhongYeuCau)}</p></div><button type="button" onClick={() => setSelectedApplication(null)} className="rounded p-1 text-gray-500 hover:bg-gray-100" aria-label="Đóng"><X className="h-5 w-5" /></button></div>
-        <label className="block text-sm font-medium">Phòng còn chỗ<select required value={approval.maPhong} onChange={(event) => setApproval({ ...approval, maPhong: event.target.value })} className="mt-1 w-full rounded-lg border p-2.5"><option value="">Chọn phòng</option>{selectableRooms.map((room) => <option key={room.maPhong} value={room.maPhong}>{room.soPhong} · {room.soSinhVienHienTai}/{room.soSinhVienToiDa} sinh viên</option>)}</select></label>
-        <div className="grid grid-cols-2 gap-3"><label className="text-sm font-medium">Ngày bắt đầu<input required type="date" value={approval.ngayBatDau} onChange={(event) => setApproval({ ...approval, ngayBatDau: event.target.value })} className="mt-1 w-full rounded-lg border p-2.5" /></label><label className="text-sm font-medium">Ngày kết thúc<input required type="date" value={approval.ngayKetThuc} onChange={(event) => setApproval({ ...approval, ngayKetThuc: event.target.value })} className="mt-1 w-full rounded-lg border p-2.5" /></label></div>
+        <p className="text-sm text-blue-800">Phí nội trú thu theo học kỳ, 5 tháng/lần. Tổng tiền mặc định bằng phí tháng × 5.</p>
+        <label className="block text-sm font-medium">Phòng còn chỗ<select required value={approval.maPhong} onChange={(event) => { const room = rooms.find((item) => item.maPhong === event.target.value); setApproval({ ...approval, maPhong: event.target.value, tongTien: String(defaultHousingAmount(room, selectedApplication.loaiPhongYeuCau)) }); }} className="mt-1 w-full rounded-lg border p-2.5"><option value="">Chọn phòng</option>{selectableRooms.map((room) => <option key={room.maPhong} value={room.maPhong}>{room.soPhong} · {room.soSinhVienHienTai}/{room.soSinhVienToiDa} sinh viên</option>)}</select></label>
+        <div className="grid grid-cols-2 gap-3"><label className="text-sm font-medium">Ngày bắt đầu<input required type="date" value={approval.ngayBatDau} onChange={(event) => setApproval({ ...approval, ngayBatDau: event.target.value, ngayKetThuc: event.target.value ? housingPeriodEnd(event.target.value) : '' })} className="mt-1 w-full rounded-lg border p-2.5" /></label><label className="text-sm font-medium">Ngày kết thúc<input required type="date" value={approval.ngayKetThuc} onChange={(event) => setApproval({ ...approval, ngayKetThuc: event.target.value })} className="mt-1 w-full rounded-lg border p-2.5" /></label></div>
         <label className="block text-sm font-medium">Tổng tiền hợp đồng<input required type="number" min="1" value={approval.tongTien} onChange={(event) => setApproval({ ...approval, tongTien: event.target.value })} className="mt-1 w-full rounded-lg border p-2.5" /></label>
         {!selectableRooms.length && <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-800">Không còn phòng phù hợp và còn chỗ cho nguyện vọng này.</p>}
         <div className="flex justify-end gap-2 pt-2"><button type="button" onClick={() => setSelectedApplication(null)} className="rounded-lg border px-4 py-2 text-sm">Hủy</button><button disabled={saving || !selectableRooms.length} className="flex items-center gap-2 rounded-lg bg-blue-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"><Check className="h-4 w-4" />{saving ? 'Đang lưu...' : 'Xác nhận và tạo nháp'}</button></div>

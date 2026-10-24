@@ -1,5 +1,7 @@
 const prisma = require('../config/prisma');
-const { deriveStudentHousingStatus } = require('../services/studentHousingStatus');
+const { calculateContractRent } = require('../services/contractPricing');
+const { isPriorityStudent, sortByStudentPriority } = require('../services/studentPriority');
+const { roomMemberRelations, getRoomOccupancy } = require('../services/roomOccupancy');
 const { randomUUID } = require('crypto');
 const { ROOM_TYPES, LEGACY_ROOM_TYPE_CODES, A4_ONLY_ROOM_TYPES } = require('../config/roomTypes');
 const { GLOBAL_BUILDING_ROLES } = require('../config/roles');
@@ -154,10 +156,7 @@ exports.getRooms = async (req, res) => {
             include: {
                 toaNha: { include: { khu: true } },
                 thietBis: true,
-                hopDongs: {
-                    where: { trangThai: { in: liveContractStatuses } },
-                    include: { sinhVien: { select: { hoTen: true, lop: true, phone: true } } }
-                }
+                ...roomMemberRelations
             },
             orderBy: { soPhong: 'asc' }
         });
@@ -170,21 +169,13 @@ exports.getRooms = async (req, res) => {
                 ghiChu: item.ghiChu,
                 ngayCapNhat: item.ngayCapNhat
             }));
-            const members = room.hopDongs.map((contract) => ({
-                maHopDong: contract.maHopDong,
-                maSinhVien: contract.maSinhVien,
-                hoTen: contract.sinhVien.hoTen,
-                lop: contract.sinhVien.lop,
-                phone: contract.sinhVien.phone,
-                trangThaiNoiTru: deriveStudentHousingStatus([{ trangThai: contract.trangThai }]),
-                trangThaiHopDong: contract.trangThai
-            }));
+            const occupancy = getRoomOccupancy(room);
             return {
                 maPhong: room.maPhong,
                 soPhong: room.soPhong,
                 loaiPhong: room.loaiPhong,
                 soSinhVienToiDa: room.soSinhVienToiDa,
-                soSinhVienHienTai: room.soSinhVienHienTai,
+                ...occupancy,
                 phiNoiTruThang: room.phiNoiTruThang,
                 maKhu: room.toaNha?.khu?.maKhu || null,
                 tenKhu: room.toaNha?.khu?.tenKhu || null,
@@ -193,11 +184,6 @@ exports.getRooms = async (req, res) => {
                 tenToaNha: room.toaNha?.tenToaNha || null,
                 tang: room.tang,
                 thietBis: facilities,
-                thanhVien: members,
-                choConTrong: Math.max(0, room.soSinhVienToiDa - room.soSinhVienHienTai),
-                trangThaiSucChua: room.soSinhVienHienTai >= room.soSinhVienToiDa
-                    ? 'DAY'
-                    : room.soSinhVienHienTai === 0 ? 'TRONG' : 'CON_CHO',
                 trangThaiCSVC: summarizeFacilities(facilities)
             };
         });
@@ -364,7 +350,7 @@ exports.moveRoomMember = async (req, res) => {
         await prisma.$transaction(async (tx) => {
             const contract = await tx.hopDong.findFirst({
                 where: { maHopDong, maPhong, trangThai: { in: liveContractStatuses } },
-                select: { maHopDong: true, maPhong: true }
+                select: { maHopDong: true, maPhong: true, ngayBatDau: true, ngayKetThuc: true }
             });
             if (!contract) throw Object.assign(new Error('Không tìm thấy hợp đồng lưu trú đang hiệu lực trong phòng này.'), { status: 404 });
             if (maPhongMoi === maPhong) throw Object.assign(new Error('Sinh viên đang ở phòng này.'), { status: 400 });
@@ -375,9 +361,10 @@ exports.moveRoomMember = async (req, res) => {
             if (!destination) throw Object.assign(new Error('Không tìm thấy phòng muốn chuyển đến.'), { status: 404 });
             if (destination.loaiPhong !== source?.loaiPhong) throw Object.assign(new Error('Chỉ có thể chuyển sinh viên sang phòng cùng loại.'), { status: 409 });
             if (destination.soSinhVienHienTai >= destination.soSinhVienToiDa) throw Object.assign(new Error('Phòng được chọn đã đủ sức chứa.'), { status: 409 });
+            const tongTien = calculateContractRent(contract, destination);
             await tx.phong.update({ where: { maPhong: maPhongMoi }, data: { soSinhVienHienTai: { increment: 1 } } });
             await tx.phong.updateMany({ where: { maPhong, soSinhVienHienTai: { gt: 0 } }, data: { soSinhVienHienTai: { decrement: 1 } } });
-            await tx.hopDong.update({ where: { maHopDong }, data: { maPhong: maPhongMoi } });
+            await tx.hopDong.update({ where: { maHopDong }, data: { maPhong: maPhongMoi, tongTien } });
         }, { isolationLevel: 'Serializable' });
         return res.status(200).json({ success: true, message: 'Đã chuyển sinh viên sang phòng mới.' });
     } catch (error) {
@@ -408,12 +395,16 @@ exports.getArchiveRoomCandidates = async (req, res) => {
         const students = await prisma.sinhVien.findMany({
             where: {
                 hopDongs: { none: { trangThai: { in: liveContractStatuses } } },
-                dangKyKTXs: { none: { trangThai: 'PENDING' } }
+                dangKyKTXs: { none: { trangThai: 'PENDING' } },
+                militaryRoomAssignments: { none: { status: 'ACTIVE' } }
             },
-            select: { maSV: true, hoTen: true, lop: true, phone: true },
+            select: { maSV: true, hoTen: true, lop: true, phone: true, dienUuTien: true },
             orderBy: { hoTen: 'asc' }
         });
-        return res.status(200).json({ success: true, data: students });
+        return res.status(200).json({
+            success: true,
+            data: sortByStudentPriority(students).map((student) => ({ ...student, isPriority: isPriorityStudent(student) }))
+        });
     } catch (error) {
         console.error(`[room.getArchiveRoomCandidates] ${error.code || 'ERROR'}: ${error.message}`);
         return res.status(500).json({ success: false, message: 'Không thể tải danh sách sinh viên chưa được xếp phòng.' });
@@ -435,7 +426,7 @@ exports.assignArchiveRoom = async (req, res) => {
     try {
         const contract = await prisma.$transaction(async (tx) => {
             const [student, room, existingContract, pendingApplication] = await Promise.all([
-                tx.sinhVien.findUnique({ where: { maSV: maSinhVien }, select: { maSV: true } }),
+                tx.sinhVien.findUnique({ where: { maSV: maSinhVien }, select: { maSV: true, militaryRoomAssignments: { where: { status: 'ACTIVE' }, select: { id: true }, take: 1 } } }),
                 tx.phong.findUnique({ where: { maPhong } }),
                 tx.hopDong.findFirst({
                     where: { maSinhVien, trangThai: { in: liveContractStatuses } },
@@ -444,6 +435,7 @@ exports.assignArchiveRoom = async (req, res) => {
                 tx.dangKyKTX.findFirst({ where: { maSinhVien, trangThai: 'PENDING' }, select: { maDangKy: true } })
             ]);
             if (!student) throw Object.assign(new Error('Không tìm thấy hồ sơ sinh viên.'), { status: 404 });
+            if (student.militaryRoomAssignments?.length) throw Object.assign(new Error('Sinh viên đã được phân phòng quân sự. Hãy xử lý trong nghiệp vụ quân sự để tránh giữ chỗ hai lần.'), { status: 409 });
             if (!room) throw Object.assign(new Error('Không tìm thấy phòng được chọn.'), { status: 404 });
             if (existingContract) throw Object.assign(new Error('Sinh viên đã có hợp đồng đang chờ thanh toán hoặc còn hiệu lực.'), { status: 409 });
             if (pendingApplication) throw Object.assign(new Error('Sinh viên đang có đơn lưu trú chờ xét duyệt. Hãy xử lý đơn trước khi xếp phòng thủ công.'), { status: 409 });
