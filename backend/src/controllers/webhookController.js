@@ -1,70 +1,53 @@
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+const prisma = require('../config/prisma');
+
+const normalize = (value) => String(value || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
 
 exports.handleBankTransfer = async (req, res) => {
-    // 1. Xác thực nguồn gọi Webhook (Bảo mật)
-    const apiKey = req.headers['x-api-key']; // Key do bạn cấu hình trên Casso/SePay
-    if (apiKey !== process.env.WEBHOOK_SECRET) {
-        return res.status(401).json({ success: false, message: 'Sai khóa bảo mật Webhook' });
+    const secret = process.env.WEBHOOK_SECRET;
+    const apiKey = req.headers['x-api-key'];
+    if (!secret || apiKey !== secret) {
+        return res.status(401).json({ success: false, message: 'Webhook chưa được xác thực.' });
     }
 
-    // 2. Lấy dữ liệu từ payload (Ví dụ cấu trúc chuẩn của SePay/Casso)
-    const { amount, description, transactionId } = req.body;
+    const { amount, description } = req.body || {};
+    const paidAmount = Number(amount);
+    const reference = normalize(description);
+    if (!Number.isFinite(paidAmount) || paidAmount <= 0 || !reference) {
+        return res.status(400).json({ success: false, message: 'Thông tin giao dịch không hợp lệ.' });
+    }
 
     try {
-        // 3. Trích xuất Mã sinh viên từ nội dung CK (Ví dụ nội dung: "Ngan hang MB: KTX SV_002 P101")
-        // Dùng Regex để tìm chuỗi có định dạng SV_xxx
-        const svMatch = description.match(/SV_\d+/i); 
-        
-        if (!svMatch) {
-            console.log(`Bỏ qua giao dịch ${transactionId}: Không tìm thấy mã sinh viên.`);
-            return res.status(200).send('OK'); // Vẫn trả về 200 để Webhook không gửi lại
-        }
-
-        const maSinhVien = svMatch[0].toUpperCase();
-
-        // 4. Tìm hợp đồng nháp khớp với mã SV và số tiền
-        const contract = await prisma.hopDong.findFirst({
-            where: {
-                maSinhVien: maSinhVien,
-                trangThai: 'PENDING_PAYMENT',
-                tongTien: Number(amount) // Phải chuyển đúng số tiền
-            }
+        const candidates = await prisma.hopDong.findMany({
+            where: { trangThai: 'PENDING_PAYMENT', tongTien: paidAmount },
+            select: { maHopDong: true, maSinhVien: true, tongTien: true }
         });
-
-        if (!contract) {
-            console.log(`Giao dịch ${transactionId}: Không tìm thấy hợp đồng hợp lệ cho ${maSinhVien}.`);
-            return res.status(200).send('OK');
+        const matched = candidates.filter((contract) => reference.includes(normalize(contract.maSinhVien)));
+        if (matched.length !== 1) {
+            // Unknown and ambiguous bank references are acknowledged so the bank provider does not retry indefinitely.
+            return res.status(200).json({ success: true, matched: false, message: 'Không tìm thấy duy nhất một hợp đồng cần thanh toán.' });
         }
 
-        // 5. Thực thi Transaction (Tạo hóa đơn & Kích hoạt hợp đồng)
-        await prisma.$transaction(async (tx) => {
+        const contract = matched[0];
+        const processed = await prisma.$transaction(async (tx) => {
+            const claimed = await tx.hopDong.updateMany({
+                where: { maHopDong: contract.maHopDong, trangThai: 'PENDING_PAYMENT' },
+                data: { trangThai: 'ACTIVE' }
+            });
+            if (claimed.count !== 1) return false;
             await tx.hoaDon.create({
                 data: {
                     maHopDong: contract.maHopDong,
                     soTien: contract.tongTien,
                     phuongThuc: 'TRANSFER',
-                    nguoiThu: 'SYSTEM_WEBHOOK', // Đánh dấu là hệ thống tự thu
-                    // Có thể thêm trường maGiaoDich: transactionId vào DB nếu muốn đối soát
+                    nguoiThu: null
                 }
             });
+            return true;
+        }, { isolationLevel: 'Serializable' });
 
-            await tx.hopDong.update({
-                where: { maHopDong: contract.maHopDong },
-                data: { trangThai: 'ACTIVE' }
-            });
-
-            await tx.sinhVien.update({
-                where: { maSV: contract.maSinhVien },
-                data: { trangThaiNoiTru: 'Đang lưu trú' }
-            });
-        });
-
-        console.log(`✅ Tự động thanh toán thành công cho hợp đồng của ${maSinhVien}.`);
-        res.status(200).json({ success: true, message: 'Đã xử lý Webhook thành công' });
-
+        return res.status(200).json({ success: true, matched: processed, message: processed ? 'Đã ghi nhận thanh toán.' : 'Giao dịch đã được ghi nhận trước đó.' });
     } catch (error) {
-        console.error('Lỗi xử lý Webhook:', error);
-        res.status(500).send('Internal Server Error');
+        console.error(`[webhook.bank] ${error.code || 'ERROR'}: ${error.message}`);
+        return res.status(500).json({ success: false, message: 'Không thể ghi nhận giao dịch lúc này.' });
     }
 };

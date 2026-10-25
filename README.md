@@ -1,13 +1,12 @@
 # Hệ Thống Quản Lý Ký Túc Xá Sinh Viên - Nhóm 05
-
-Dự án phát triển Hệ thống Quản lý Ký túc xá tích hợp Fullstack, bao gồm Backend (Node.js), Frontend (React.js) và Cơ sở dữ liệu (SQL Server).
+Dự án phát triển Hệ thống Quản lý Ký túc xá tích hợp Fullstack, bao gồm Backend (Node.js), Frontend (React.js) và Cơ sở dữ liệu PostgreSQL trên Supabase.
 
 ---
 
 ## 🛠 Công nghệ sử dụng
 - **Frontend:** React.js
 - **Backend:** Node.js
-- **Database:** CSDL SQL Server trên Cloud
+- **Database:** PostgreSQL trên Supabase
 - **Code Quality:** ESLint, Husky, Lint-staged
 
 ---

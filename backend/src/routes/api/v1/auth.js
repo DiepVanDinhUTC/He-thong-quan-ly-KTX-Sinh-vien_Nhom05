@@ -1,25 +1,22 @@
 const express = require('express');
 const router = express.Router();
 const authController = require('../../../controllers/authController');
+const passwordResetController = require('../../../controllers/passwordResetController');
 const { protect } = require('../../../middleware/authMiddleware');
-const { restrictTo } = require('../../../middleware/rbacMiddleware');
+const { requirePermission, restrictTo } = require('../../../middleware/rbacMiddleware');
+const ROLES = require('../../../config/roles');
 
 // Route Đăng nhập (Public)
 router.post('/login', authController.login);
+router.post('/forgot-password', passwordResetController.requestReset);
+router.post('/reset-password', passwordResetController.confirmReset);
+router.get('/me', protect, authController.me);
+router.get('/admin-test/accounts', protect, restrictTo(ROLES.ADMIN), authController.listAdminTestAccounts);
+router.patch('/me/contact', protect, authController.updateMyContact);
+router.patch('/me/password', protect, authController.changeMyPassword);
 
-// Ví dụ mô phỏng cách bảo vệ các Route khác theo tài liệu dự án:
-// Route dành riêng cho Kế toán (Chốt chỉ số điện nước)
-router.post('/bills/meter-readings', protect, restrictTo('ACCOUNTANT'), (req, res) => {
-    res.status(200).json({ success: true, message: 'Kế toán truy cập thành công' });
-});
-
-// Route dành riêng cho Kỹ thuật và Quản lý chung (Phân công xử lý ticket)
-router.patch('/tickets/:id/assign', protect, restrictTo('TECHNICIAN', 'MANAGER'), (req, res) => {
-    res.status(200).json({ success: true, message: 'Điều phối ticket thành công' });
-});
-
-// Route xem Dashboard dành cho Giám đốc
-router.get('/reports/dashboard', protect, restrictTo('DIRECTOR'), (req, res) => {
+// Route xem Dashboard dành cho Truong ban, Phó ban và Admin
+router.get('/reports/dashboard', protect, requirePermission('dashboard:read'), (req, res) => {
     res.status(200).json({ success: true, message: 'Dữ liệu báo cáo Dashboard' });
 });
 
