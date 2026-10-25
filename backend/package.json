@@ -16,7 +16,12 @@
     "backfill:nien-khoa": "node backfillStudentCohorts.js",
     "job:sync-gdqp": "node src/jobs/syncMilitaryStudents.js",
     "test": "node --test",
-    "postinstall": "prisma skills sync || exit 0"
+    "postinstall": "prisma skills sync || exit 0",
+    "db:validate": "prisma validate",
+    "db:generate": "prisma generate",
+    "db:push": "prisma db push",
+    "db:gdqp": "prisma db execute --schema prisma/schema.prisma --file prisma/sql/add-gdqp-allocation.sql",
+    "db:repair": "prisma db execute --schema prisma/schema.prisma --file prisma/sql/align-existing-database.sql"
   },
   "keywords": [],
   "author": "",
@@ -30,10 +35,12 @@
   "dependencies": {
     "axios": "^1.20.0",
     "bcryptjs": "^3.0.3",
+    "cloudinary": "^2.11.0",
     "cors": "^2.8.6",
     "dotenv": "^18.0.3",
     "express": "^5.2.1",
     "jsonwebtoken": "^9.0.3",
+    "multer": "^2.4.0",
     "node-cron": "^4.6.0"
   }
 }

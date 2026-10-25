@@ -1,5 +1,4 @@
 const express = require("express");
-const router = express.Router();
 
 const gdqpController = require(
     "../../../controllers/gdqpAllocationController"
@@ -9,7 +8,9 @@ const { protect } = require("../../../middleware/authMiddleware");
 const { restrictTo } = require("../../../middleware/rbacMiddleware");
 const ROLES = require("../../../config/roles");
 
-router.use(protect, restrictTo(ROLES.MANAGER, ROLES.DIRECTOR));
+const createGdqpRouter = ({ authenticate = protect } = {}) => {
+    const router = express.Router();
+    router.use(authenticate, restrictTo(ROLES.MILITARY_OFFICER));
 
 // Xem trước kết quả phân phòng
 router.post(
@@ -35,4 +36,8 @@ router.get(
     gdqpController.layKetQua
 );
 
-module.exports = router;
+    return router;
+};
+
+module.exports = createGdqpRouter();
+module.exports.createGdqpRouter = createGdqpRouter;

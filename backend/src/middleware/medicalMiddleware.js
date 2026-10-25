@@ -6,8 +6,8 @@ const { restrictTo } = require("./rbacMiddleware");
 const isMedicalRole = (role) => typeof role === "string" && role.toUpperCase() === ROLES.MEDICAL_OFFICER;
 
 const requireMedical = async (req, res, next) => {
-    // JWT do authController phát hành chứa { id, role }.
-    const maNhanVien = req.user?.id;
+    // protect resolves the employee identifier and current role from the account.
+    const maNhanVien = req.user?.maNhanVien;
     if (typeof maNhanVien !== "string" || !maNhanVien.trim() || maNhanVien.length > 20
         || !isMedicalRole(req.user?.role)) {
         return res.status(403).json({
@@ -19,10 +19,10 @@ const requireMedical = async (req, res, next) => {
     try {
         const nhanVien = await prisma.nhanVien.findUnique({
             where: { maNhanVien },
-            select: { maNhanVien: true, role: true }
+            select: { maNhanVien: true, userId: true }
         });
         // Kiểm tra lại CSDL để token cũ không giữ quyền sau khi bị thu hồi.
-        if (!nhanVien || !isMedicalRole(nhanVien.role)) {
+        if (!nhanVien || nhanVien.userId !== req.user.id) {
             return res.status(403).json({
                 success: false,
                 message: "Bạn không có quyền nhân viên y tế!"
@@ -38,7 +38,7 @@ const requireMedical = async (req, res, next) => {
     }
 };
 
-const managementRead = restrictTo(ROLES.MANAGER, ROLES.DIRECTOR);
+const managementRead = restrictTo(ROLES.BOARD_CHAIR, ROLES.BOARD_DEPUTY, ROLES.BUILDING_MANAGER);
 const allowMedicalRead = (req, res, next) => isMedicalRole(req.user?.role)
     ? requireMedical(req, res, next)
     : managementRead(req, res, next);

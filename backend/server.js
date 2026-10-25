@@ -28,8 +28,16 @@ const securityMedicalRoutes = require('./src/routes/api/v1/securityMedical');
 const staffAccountRoutes = require('./src/routes/api/v1/staffAccounts');
 const studentBillNotificationRoutes = require('./src/routes/api/v1/studentBillNotifications');
 const militaryManagementRoutes = require('./src/routes/api/v1/militaryManagement');
+const dangKyKtxRoutes = require('./src/routes/api/v1/dangKyKtx');
+const phongRoutes = require('./src/routes/api/v1/phongRoutes');
+const baoHongRoutes = require('./src/routes/api/v1/baoHongRoutes');
+const yTeRoutes = require('./src/routes/api/v1/yTeRoutes');
+const gdqpAllocationRoutes = require('./src/routes/api/v1/gdqpAllocationRoutes');
 
 // Gắn Route vào ứng dụng
+app.get('/api/v1/health', (req, res) => {
+    res.status(200).json({ success: true, message: 'Backend is running' });
+});
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/students', studentRoutes);
 app.use('/api/v1/mock/sis-utc', mockSisRoutes);
@@ -45,6 +53,12 @@ app.use('/api/v1/security-medical', securityMedicalRoutes);
 app.use('/api/v1/staff-accounts', staffAccountRoutes);
 app.use('/api/v1/notifications', studentBillNotificationRoutes);
 app.use('/api/v1/military-management', militaryManagementRoutes);
+
+app.use('/api/v1/dang-ky-ktx', dangKyKtxRoutes);
+app.use('/api/v1/phong', phongRoutes);
+app.use('/api/v1/bao-hong', baoHongRoutes);
+app.use('/api/v1/y-te', yTeRoutes);
+app.use('/api/v1/gdqp', gdqpAllocationRoutes);
 
 require('./src/cronjobs/contractCron'); // Import cronjob để chạy tự động
 require('./src/cronjobs/militaryStudentSyncCron'); // Đồng bộ đăng ký GDQP và cấp tài khoản học viên quân sự

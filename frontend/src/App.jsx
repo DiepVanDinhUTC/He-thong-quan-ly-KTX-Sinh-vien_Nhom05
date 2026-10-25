@@ -57,6 +57,7 @@ function App() {
         <Route path="/bill-payment" element={<BillPayment />} />
       </Route>
       <Route path="/financial-dashboard" element={<RequireRole allowedRoles={rolePermissions['/financial-dashboard']}><FinancialDashboard /></RequireRole>} />
+      <Route path="/bills" element={<Navigate to="/financial-dashboard" replace />} />
       <Route path="/settings" element={<RequireRole allowedRoles={rolePermissions['/settings']}><SystemSettings /></RequireRole>} />
       <Route path="/technician" element={<Navigate to="/tickets" replace />} />
       <Route path="*" element={<Navigate to="/" replace />} />

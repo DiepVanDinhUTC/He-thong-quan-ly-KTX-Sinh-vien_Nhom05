@@ -8,7 +8,11 @@
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "prepare": "husky",
-    "postinstall": "prisma skills sync || exit 0"
+    "dev": "node scripts/dev.js",
+    "dev:backend": "npm --prefix backend run dev",
+    "dev:frontend": "vite",
+    "build": "vite build",
+    "start": "npm --prefix backend start"
   },
   "repository": {
     "type": "git",
@@ -32,7 +36,6 @@
     "globals": "^17.12.0",
     "husky": "^9.1.7",
     "lint-staged": "^17.5.1",
-    "typescript": "^7.0.2",
     "vite": "^8.3.0"
   },
   "lint-staged": {
@@ -45,6 +48,11 @@
     "dotenv": "^18.0.2",
     "lucide-react": "^1.47.0",
     "react": "^19.3.0",
-    "react-dom": "^19.3.0"
+    "react-dom": "^19.3.0",
+    "react-router-dom": "^7.18.4",
+    "bcryptjs": "^3.0.3",
+    "@reduxjs/toolkit": "^2.0.0",
+    "react-redux": "^9.1.0",
+    "xlsx": "^0.18.5"
   }
 }

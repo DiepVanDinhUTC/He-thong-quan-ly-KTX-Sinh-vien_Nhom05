@@ -97,7 +97,7 @@ test('the configured role set contains only the requested roles plus ADMIN', () 
 
 test('board leaders have read-only student-record access', () => {
     assert.deepEqual(ROLES.STUDENT_RECORD_PERMISSIONS.read, [
-        'BOARD_CHAIR', 'BOARD_DEPUTY', 'ARCHIVIST', 'BUILDING_MANAGER', 'ADMIN'
+        'BOARD_CHAIR', 'BOARD_DEPUTY', 'ARCHIVIST', 'BUILDING_MANAGER', 'MEDICAL_OFFICER', 'ADMIN'
     ]);
     assert.deepEqual(ROLES.STUDENT_RECORD_PERMISSIONS.create, ['ARCHIVIST', 'ADMIN']);
     assert.deepEqual(ROLES.STUDENT_RECORD_PERMISSIONS.update, ['ARCHIVIST', 'ADMIN']);

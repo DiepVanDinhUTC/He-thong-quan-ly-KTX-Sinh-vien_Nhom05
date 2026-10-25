@@ -71,4 +71,56 @@ router.get('/students', (req, res) => {
     });
 });
 
+const gdqpStudents = [
+        {
+            maSV: '20120001',
+            hoTen: 'Nguyễn Văn A',
+            ngaySinh: '2002-05-15T00:00:00Z',
+            gioiTinh: true, // true: Nam
+            lop: 'CNTT1-K61',
+            khoa: 'Công nghệ thông tin',
+            cccd: '001202000123',
+            phone: '0987654321',
+            email: 'nva.61@st.utc.edu.vn',
+            dienUuTien: 'Không',
+            trangThaiNoiTru: 'Chưa đăng ký'
+        },
+        {
+            maSV: '20120002',
+            hoTen: 'Trần Thị B',
+            ngaySinh: '2002-10-20T00:00:00Z',
+            gioiTinh: false, // false: Nữ
+            lop: 'KKT1-K61',
+            khoa: 'Kinh tế',
+            cccd: '001202000124',
+            phone: '0912345678',
+            email: 'ttb.61@st.utc.edu.vn',
+            dienUuTien: 'Con thương binh',
+            trangThaiNoiTru: 'Chưa đăng ký'
+        }
+];
+
+// SIS chỉ trả các đăng ký GDQP còn hiệu lực của đúng đợt được yêu cầu.
+const mockDangKyGDQP = {
+    'GDQP-2026-01': ['20120001', '20120002'],
+    'GDQP-2026-02': ['20120001', '20120002']
+};
+
+router.get('/gdqp/registrations', (req, res) => {
+    const { maDot, khoa } = req.query;
+    if (typeof maDot !== 'string' || !maDot.trim() ||
+        (khoa !== undefined && typeof khoa !== 'string')) {
+        return res.status(400).json({ success: false, message: 'Cần mã đợt và danh sách khoa hợp lệ' });
+    }
+    const dot = maDot.trim();
+    if (!Object.hasOwn(mockDangKyGDQP, dot)) {
+        return res.status(404).json({ success: false, message: 'Không tìm thấy đợt GDQP' });
+    }
+    const danhSachKhoa = khoa?.split(',').map(item => item.trim());
+    const hocViens = gdqpStudents.filter(sv =>
+        mockDangKyGDQP[dot].includes(sv.maSV) && (!danhSachKhoa || danhSachKhoa.includes(sv.khoa))
+    );
+    return res.json({ success: true, data: { maDot: dot, hocViens } });
+});
+
 module.exports = router;
