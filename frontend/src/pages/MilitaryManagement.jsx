@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import AdminLogoutButton from '../components/AdminLogoutButton';
 import AdminUserProfile from '../components/AdminUserProfile';
+import DashboardNavLink from '../components/DashboardNavLink';
 import { militaryManagementApi as api } from '../services/militaryManagementApi';
 
 const tabs = [
@@ -202,6 +203,7 @@ const MilitaryManagement = () => {
         <Shield className="h-8 w-8 text-blue-200" /><span className="text-lg font-bold tracking-wide">KTX · QUÂN SỰ</span>
       </NavLink>
       <nav aria-label="Nghiệp vụ quân sự" className="min-h-0 flex-1 space-y-1 overflow-y-auto px-3 py-5">
+        <DashboardNavLink />
         {tabs.map(({ id, label, Icon }) => <button key={id} type="button" onClick={() => setActiveTab(id)} className={`flex w-full items-center gap-3 rounded-lg px-4 py-3 text-left text-sm transition ${activeTab === id ? 'bg-blue-800 font-semibold text-white' : 'text-blue-200 hover:bg-blue-900 hover:text-white'}`}>
           <Icon className="h-5 w-5" />{label}
         </button>)}

@@ -143,7 +143,7 @@ const TicketManagement = () => {
   const overdueCount = tickets.filter((item) => getTicketSla(item, slaClock)?.state === 'OVERDUE').length;
 
   return (
-    <FacilitiesLayout title="Yêu cầu sửa chữa" description="Theo dõi và cập nhật tiến độ xử lý các sự cố cơ sở vật chất được phân công.">
+    <FacilitiesLayout title="Yêu cầu sửa chữa" description={['BOARD_CHAIR', 'BOARD_DEPUTY'].includes(role) ? 'Theo dõi tiến độ xử lý các sự cố cơ sở vật chất trên toàn KTX.' : 'Theo dõi và cập nhật tiến độ xử lý các sự cố cơ sở vật chất được phân công.'}>
       <div className="mx-auto grid max-w-7xl gap-5 lg:grid-cols-[360px_1fr]">
         {overdueCount > 0 && <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm font-semibold text-rose-800 lg:col-span-2">Có {overdueCount} yêu cầu đã quá thời hạn SLA. Hãy ưu tiên kiểm tra và cập nhật tiến độ.</div>}
         <section className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">

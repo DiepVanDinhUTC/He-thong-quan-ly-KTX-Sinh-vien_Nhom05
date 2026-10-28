@@ -108,6 +108,11 @@ const createRestrictStudentBuildingAccess = ({ db = getPrisma } = {}) => async (
             return next();
         }
 
+        if (req.user.role === ROLES.ARCHIVIST) {
+            req.buildingScope = null;
+            return next();
+        }
+
         const database = typeof db === 'function' ? db() : db;
         if (req.user.role === ROLES.MEDICAL_OFFICER) {
             const buildings = await database.toaNha.findMany({ select: { maToaNha: true } });

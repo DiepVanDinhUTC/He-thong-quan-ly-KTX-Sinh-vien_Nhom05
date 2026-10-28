@@ -1,11 +1,16 @@
+/* eslint-disable react/prop-types */
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSelector } from 'react-redux';
-import { AlertCircle, ArrowDownToLine, ClipboardList, Clock3, HeartPulse, Loader2, RefreshCw, ShieldAlert, ShieldCheck, Stethoscope, UserRound, Users, Pill } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
+import { AlertCircle, ArrowDownToLine, Building2, ClipboardList, Clock3, HeartPulse, Loader2, RefreshCw, ShieldAlert, ShieldCheck, Stethoscope, UserRound, Users, Pill } from 'lucide-react';
 import FacilitiesLayout from '../components/FacilitiesLayout';
+import MedicalLayout, { MedicalPanel, MedicalStat } from '../components/MedicalLayout';
+import SecurityLayout from '../components/SecurityLayout';
 import { securityMedicalApi } from '../services/securityMedicalApi';
 
-const controlClass = 'mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100';
+const facilityControlClass = 'mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100';
 const labelClass = 'block text-sm font-semibold text-slate-700';
+const medicalButtonClass = 'inline-flex w-full items-center justify-center gap-2 rounded-lg bg-blue-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-60';
 const formatDate = (value) => {
   if (!value) return 'Chưa cập nhật';
   const date = new Date(value);
@@ -19,11 +24,23 @@ const localDateTime = () => {
 const emptyHealthRecord = () => ({ bloodType: '', allergies: '', medicalConditions: '', currentMedications: '', emergencyContactName: '', emergencyContactPhone: '', notes: '' });
 const recordValues = (record) => record ? Object.fromEntries(Object.keys(emptyHealthRecord()).map((key) => [key, record[key] || ''])) : emptyHealthRecord();
 
-const SecurityMedicalManagement = () => {
+const SecurityMedicalManagement = ({ securitySection = null }) => {
   const role = useSelector((state) => state.auth.user?.role);
+  const isSecurityWorkspace = ['access', 'violations'].includes(securitySection);
+  const isMedicalWorkspace = role === 'MEDICAL_OFFICER';
   const canSecurity = role === 'SECURITY' || role === 'ADMIN';
-  const canMedical = role === 'MEDICAL_OFFICER' || role === 'ADMIN';
-  const [activeTab, setActiveTab] = useState(canSecurity ? 'access' : 'health');
+  const canMedical = !isSecurityWorkspace && (role === 'MEDICAL_OFFICER' || role === 'ADMIN');
+  const loadAccessLogs = canSecurity && (!isSecurityWorkspace || securitySection === 'access');
+  const loadViolations = canSecurity && (!isSecurityWorkspace || securitySection === 'violations');
+  const [staffTab, setStaffTab] = useState(canSecurity ? 'access' : 'health');
+  const [searchParams] = useSearchParams();
+  const medicalTab = searchParams.get('section') === 'incidents' ? 'incidents' : 'health';
+  const staffTabAllowed = (canSecurity && ['access', 'violations'].includes(staffTab))
+    || (canMedical && ['health', 'incidents'].includes(staffTab));
+  const activeTab = isSecurityWorkspace ? securitySection : isMedicalWorkspace ? medicalTab : staffTabAllowed ? staffTab : canSecurity ? 'access' : 'health';
+  const controlClass = isMedicalWorkspace
+    ? 'mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100'
+    : facilityControlClass;
   const [buildings, setBuildings] = useState([]);
   const [residents, setResidents] = useState([]);
   const [accessLogs, setAccessLogs] = useState([]);
@@ -45,17 +62,16 @@ const SecurityMedicalManagement = () => {
     setError('');
     try {
       const requests = [securityMedicalApi.residents()];
-      if (canSecurity) requests.push(securityMedicalApi.accessLogs(), securityMedicalApi.violations());
+      if (loadAccessLogs) requests.push(securityMedicalApi.accessLogs());
+      if (loadViolations) requests.push(securityMedicalApi.violations());
       if (canMedical) requests.push(securityMedicalApi.healthRecords(), securityMedicalApi.medicalIncidents());
       const results = await Promise.all(requests);
       const directory = results[0] || { buildings: [], residents: [] };
       setBuildings(directory.buildings || []);
       setResidents(directory.residents || []);
       let resultIndex = 1;
-      if (canSecurity) {
-        setAccessLogs(results[resultIndex++] || []);
-        setViolations(results[resultIndex++] || []);
-      }
+      if (loadAccessLogs) setAccessLogs(results[resultIndex++] || []);
+      if (loadViolations) setViolations(results[resultIndex++] || []);
       if (canMedical) {
         const records = results[resultIndex++] || [];
         setHealthRecords(records);
@@ -67,7 +83,7 @@ const SecurityMedicalManagement = () => {
     } finally {
       setLoading(false);
     }
-  }, [canMedical, canSecurity]);
+  }, [canMedical, loadAccessLogs, loadViolations]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -150,14 +166,19 @@ const SecurityMedicalManagement = () => {
     ] : []),
   ];
   const selectedResident = residents.find((resident) => resident.maSV === selectedHealthResident);
-  const pageTitle = canMedical && !canSecurity ? 'Quản lý y tế' : canMedical ? 'An ninh & y tế' : 'Trật tự - trị an';
-  const pageDescription = canMedical && !canSecurity
+  const pageTitle = isSecurityWorkspace
+    ? activeTab === 'access' ? 'Quản lý khách' : 'Ghi nhận vi phạm nội quy'
+    : isMedicalWorkspace ? activeTab === 'incidents' ? 'Sự cố y tế & thuốc' : 'Hồ sơ sức khỏe' : canMedical ? 'An ninh & y tế' : 'Trật tự - trị an';
+  const pageDescription = isSecurityWorkspace
+    ? activeTab === 'access' ? 'Ghi nhận khách vào, theo dõi lượt thăm và cập nhật giờ ra.' : 'Lập biên bản và theo dõi vi phạm nội quy của sinh viên nội trú.'
+    : canMedical && !canSecurity
     ? 'Tra cứu hồ sơ sinh viên nội trú toàn KTX và quản lý thông tin sức khỏe.'
     : 'Ghi nhận và theo dõi nghiệp vụ theo vai trò được cấp.';
   const additionalMenuItems = [
     ...(canMedical ? [{ to: '/students', label: 'Hồ sơ sinh viên', Icon: Users }] : []),
     { to: '/security-medical', label: canMedical ? 'Quản lý y tế' : 'Trật tự - trị an', Icon: canMedical ? HeartPulse : ShieldCheck },
   ];
+  const WorkspaceLayout = isSecurityWorkspace ? SecurityLayout : isMedicalWorkspace ? MedicalLayout : FacilitiesLayout;
 
   const renderResidentSelect = (value, onChange, required = true) => <select required={required} value={value} onChange={(event) => onChange(event.target.value)} className={controlClass}>
     <option value="">{required ? 'Chọn sinh viên đang lưu trú' : 'Khách không gắn với một sinh viên cụ thể'}</option>
@@ -169,14 +190,19 @@ const SecurityMedicalManagement = () => {
     <div><h2 className="text-lg font-bold text-slate-900">{title}</h2><p className="mt-1 text-sm text-slate-500">{description}</p></div>
   </div>;
 
-  return <FacilitiesLayout
+  return <WorkspaceLayout
     title={pageTitle}
     description={pageDescription}
     additionalMenuItems={additionalMenuItems}
-    actions={<button type="button" onClick={load} disabled={loading} className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-50"><RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />Làm mới</button>}
+    actions={<button type="button" onClick={load} disabled={loading} className="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"><RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />Làm mới</button>}
   >
-        <div className="mx-auto w-full max-w-7xl space-y-5">
-          <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+        <div className={isMedicalWorkspace ? 'space-y-5' : 'mx-auto w-full max-w-7xl space-y-5'}>
+          {isMedicalWorkspace ? <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <MedicalStat label="Cư dân đang lưu trú" value={residents.length} Icon={Users} />
+            <MedicalStat label="Tòa nhà trong KTX" value={buildings.length} Icon={Building2} color="emerald" />
+            <MedicalStat label="Hồ sơ sức khỏe" value={healthRecords.length} Icon={HeartPulse} color="amber" />
+            <MedicalStat label="Sự cố y tế" value={medicalIncidents.length} Icon={Stethoscope} color="violet" />
+          </div> : !isSecurityWorkspace && <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div className="flex items-start gap-3"><span className="rounded-xl bg-indigo-50 p-3 text-indigo-700"><ShieldCheck className="h-6 w-6" /></span><div><h2 className="text-lg font-bold">{canMedical ? 'Cư dân trong toàn KTX' : 'Công việc trong phạm vi được phân công'}</h2><p className="mt-1 max-w-2xl text-sm leading-6 text-slate-600">{canSecurity && canMedical ? 'Ghi nhận lượt khách, vi phạm nội quy, hồ sơ sức khỏe và sự cố trên toàn KTX.' : canMedical ? 'Tra cứu hồ sơ sinh viên đang lưu trú tại tất cả tòa nhà; cập nhật sức khỏe, sơ cứu và cấp thuốc.' : 'Kiểm soát khách ra vào và ghi nhận biên bản vi phạm của cư dân trong tòa nhà được phân công.'}</p></div></div>
             </div>
@@ -184,14 +210,14 @@ const SecurityMedicalManagement = () => {
               <div className="flex items-center gap-3 rounded-xl bg-slate-50 p-3"><Users className="h-5 w-5 text-blue-700" /><div><p className="text-xs text-slate-500">Cư dân đang lưu trú</p><p className="font-bold">{residents.length}</p></div></div>
               <div className="flex items-center gap-3 rounded-xl bg-slate-50 p-3"><UserRound className="h-5 w-5 text-indigo-700" /><div><p className="text-xs text-slate-500">{canMedical ? 'Tòa nhà trong KTX' : 'Tòa nhà được phân công'}</p><p className="font-bold">{buildings.length}</p></div></div>
             </div>
-          </section>
+          </section>}
 
           {error && <div role="alert" className="flex items-start gap-2 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800"><AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />{error}</div>}
           {notice && <div role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">{notice}</div>}
 
-          <div role="group" aria-label="Chức năng nghiệp vụ" className="grid grid-cols-2 gap-2 rounded-xl bg-slate-200/70 p-1 sm:flex sm:flex-wrap">
-            {tabs.map(({ key, label, Icon }) => <button key={key} type="button" aria-pressed={activeTab === key} onClick={() => setActiveTab(key)} className={`inline-flex items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-center text-xs font-semibold transition sm:text-sm ${activeTab === key ? 'bg-white text-blue-800 shadow-sm' : 'text-slate-600 hover:bg-white/60'}`}><Icon className="h-4 w-4 shrink-0" />{label}</button>)}
-          </div>
+          {!isMedicalWorkspace && !isSecurityWorkspace && <div role="group" aria-label="Chức năng nghiệp vụ" className="grid grid-cols-2 gap-2 rounded-xl bg-slate-200/70 p-1 sm:flex sm:flex-wrap">
+            {tabs.map(({ key, label, Icon }) => <button key={key} type="button" aria-pressed={activeTab === key} onClick={() => setStaffTab(key)} className={`inline-flex items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-center text-xs font-semibold transition sm:text-sm ${activeTab === key ? 'bg-white text-blue-800 shadow-sm' : 'text-slate-600 hover:bg-white/60'}`}><Icon className="h-4 w-4 shrink-0" />{label}</button>)}
+          </div>}
 
           {loading ? <section className="flex items-center justify-center gap-2 rounded-2xl border bg-white p-10 text-sm text-slate-500"><Loader2 className="h-5 w-5 animate-spin text-blue-700" />{canMedical ? 'Đang tải dữ liệu toàn KTX…' : 'Đang tải dữ liệu trong phạm vi được phân công…'}</section> : <>
             {activeTab === 'access' && canSecurity && <div className="grid items-start gap-5 xl:grid-cols-[minmax(320px,0.8fr)_minmax(0,1.2fr)]">
@@ -231,14 +257,12 @@ const SecurityMedicalManagement = () => {
             </div>}
 
             {activeTab === 'health' && canMedical && <div className="grid items-start gap-5 xl:grid-cols-[minmax(320px,0.72fr)_minmax(0,1.28fr)]">
-              <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-                {renderHeader('Hồ sơ sức khỏe', 'Thông tin sức khỏe của sinh viên đang lưu trú tại mọi tòa nhà trong KTX.', HeartPulse)}
+              <MedicalPanel title="Hồ sơ sức khỏe" description="Thông tin sức khỏe của sinh viên đang lưu trú tại mọi tòa nhà trong KTX.">
                 <label className={labelClass}>Chọn cư dân{renderResidentSelect(selectedHealthResident, setSelectedHealthResident)}</label>
                 {selectedResident && <div className="mt-3 rounded-xl bg-blue-50 p-3 text-sm text-blue-900">{selectedResident.hoTen} · {selectedResident.maSV}<br />{selectedResident.tenToaNha} · Phòng {selectedResident.soPhong}</div>}
                 {!residents.length && <p className="mt-3 rounded-lg bg-amber-50 p-3 text-sm text-amber-800">Chưa có cư dân nội trú trong KTX.</p>}
-              </section>
-              <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-                <div className="mb-4 flex items-center justify-between gap-3"><div><h2 className="font-bold">Thông tin y tế</h2><p className="mt-1 text-xs text-slate-500">{currentHealthRecord ? `Cập nhật gần nhất ${formatDate(currentHealthRecord.updatedAt)}` : 'Chưa tạo hồ sơ cho sinh viên này'}</p></div><span className="rounded-lg bg-rose-50 p-2 text-rose-700"><HeartPulse className="h-5 w-5" /></span></div>
+              </MedicalPanel>
+              <MedicalPanel title="Thông tin y tế" description={currentHealthRecord ? `Cập nhật gần nhất ${formatDate(currentHealthRecord.updatedAt)}` : 'Chưa tạo hồ sơ cho sinh viên này'} actions={<span className="rounded-lg bg-rose-50 p-2 text-rose-700"><HeartPulse className="h-5 w-5" /></span>}>
                 <form onSubmit={submitHealthRecord} className="space-y-4">
                   <div className="grid gap-3 sm:grid-cols-2"><label className={labelClass}>Nhóm máu<select value={healthForm.bloodType} onChange={(event) => setHealthForm({ ...healthForm, bloodType: event.target.value })} className={controlClass}><option value="">Chưa rõ</option>{['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].map((type) => <option key={type}>{type}</option>)}</select></label><label className={labelClass}>Người liên hệ khẩn cấp<input maxLength={120} value={healthForm.emergencyContactName} onChange={(event) => setHealthForm({ ...healthForm, emergencyContactName: event.target.value })} className={controlClass} /></label></div>
                   <label className={labelClass}>Số điện thoại liên hệ khẩn cấp<input type="tel" maxLength={20} value={healthForm.emergencyContactPhone} onChange={(event) => setHealthForm({ ...healthForm, emergencyContactPhone: event.target.value })} className={controlClass} /></label>
@@ -246,15 +270,14 @@ const SecurityMedicalManagement = () => {
                   <label className={labelClass}>Bệnh nền / tiền sử bệnh<textarea rows={2} maxLength={2000} value={healthForm.medicalConditions} onChange={(event) => setHealthForm({ ...healthForm, medicalConditions: event.target.value })} className={controlClass} /></label>
                   <label className={labelClass}>Thuốc đang sử dụng<textarea rows={2} maxLength={1000} value={healthForm.currentMedications} onChange={(event) => setHealthForm({ ...healthForm, currentMedications: event.target.value })} className={controlClass} /></label>
                   <label className={labelClass}>Ghi chú chuyên môn<textarea rows={3} maxLength={2000} value={healthForm.notes} onChange={(event) => setHealthForm({ ...healthForm, notes: event.target.value })} className={controlClass} /></label>
-                  <button disabled={busy || !selectedHealthResident} className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-blue-700 px-4 py-3 text-sm font-bold text-white hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50"><ClipboardList className="h-4 w-4" />{busy ? 'Đang lưu…' : currentHealthRecord ? 'Cập nhật hồ sơ sức khỏe' : 'Tạo hồ sơ sức khỏe'}</button>
+                  <button disabled={busy || !selectedHealthResident} className={medicalButtonClass}><ClipboardList className="h-4 w-4" />{busy ? 'Đang lưu…' : currentHealthRecord ? 'Cập nhật hồ sơ sức khỏe' : 'Tạo hồ sơ sức khỏe'}</button>
                 </form>
                 <div className="mt-4 flex items-start gap-2 rounded-lg bg-amber-50 p-3 text-xs leading-5 text-amber-900"><AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />Chỉ ghi thông tin cần thiết cho chăm sóc sức khỏe và xử lý tình huống khẩn cấp.</div>
-              </section>
+              </MedicalPanel>
             </div>}
 
             {activeTab === 'incidents' && canMedical && <div className="grid items-start gap-5 xl:grid-cols-[minmax(320px,0.8fr)_minmax(0,1.2fr)]">
-              <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-                {renderHeader('Ghi nhận sự cố y tế / cấp thuốc', 'Lưu biểu hiện, cách sơ cứu, thuốc và hướng dẫn theo dõi sau khi xử lý.', Stethoscope)}
+              <MedicalPanel title="Ghi nhận sự cố y tế / cấp thuốc" description="Lưu biểu hiện, cách sơ cứu, thuốc và hướng dẫn theo dõi sau khi xử lý.">
                 <form onSubmit={submitMedicalIncident} className="space-y-4">
                   <label className={labelClass}>Sinh viên{renderResidentSelect(incidentForm.maSinhVien, (maSinhVien) => setIncidentForm({ ...incidentForm, maSinhVien }))}</label>
                   <div className="grid gap-3 sm:grid-cols-2"><label className={labelClass}>Loại sự cố<select value={incidentForm.incidentType} onChange={(event) => setIncidentForm({ ...incidentForm, incidentType: event.target.value })} className={controlClass}><option value="ILLNESS">Ốm / bệnh</option><option value="INJURY">Chấn thương</option><option value="EMERGENCY">Cấp cứu</option><option value="MEDICATION">Cấp thuốc</option><option value="OTHER">Khác</option></select></label><label className={labelClass}>Thời điểm<input type="datetime-local" required value={incidentForm.occurredAt} onChange={(event) => setIncidentForm({ ...incidentForm, occurredAt: event.target.value })} className={controlClass} /></label></div>
@@ -262,14 +285,16 @@ const SecurityMedicalManagement = () => {
                   <label className={labelClass}>Sơ cứu / hướng xử lý<textarea required minLength={3} maxLength={2000} rows={3} value={incidentForm.treatment} onChange={(event) => setIncidentForm({ ...incidentForm, treatment: event.target.value })} className={controlClass} /></label>
                   <div className="rounded-xl border border-slate-200 bg-slate-50 p-4"><h3 className="flex items-center gap-2 text-sm font-bold text-slate-800"><Pill className="h-4 w-4 text-blue-700" />Thông tin thuốc đã cấp <span className="font-normal text-slate-500">(nếu có)</span></h3><div className="mt-3 grid gap-3 sm:grid-cols-2"><label className={labelClass}>Tên thuốc<input maxLength={160} value={incidentForm.medicationName} onChange={(event) => setIncidentForm({ ...incidentForm, medicationName: event.target.value })} className={controlClass} /></label><label className={labelClass}>Liều dùng<input maxLength={120} value={incidentForm.medicationDose} onChange={(event) => setIncidentForm({ ...incidentForm, medicationDose: event.target.value })} className={controlClass} placeholder="Ví dụ: 1 viên sau ăn" /></label><label className={`${labelClass} sm:col-span-2`}>Số lượng<input type="number" min="1" step="1" value={incidentForm.medicationQuantity} onChange={(event) => setIncidentForm({ ...incidentForm, medicationQuantity: event.target.value })} className={controlClass} /></label></div></div>
                   <label className={labelClass}>Hướng dẫn theo dõi <span className="font-normal text-slate-500">(không bắt buộc)</span><textarea maxLength={1000} rows={2} value={incidentForm.followUp} onChange={(event) => setIncidentForm({ ...incidentForm, followUp: event.target.value })} className={controlClass} /></label>
-                  <button disabled={busy || !residents.length} className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-blue-700 px-4 py-3 text-sm font-bold text-white hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50"><HeartPulse className="h-4 w-4" />{busy ? 'Đang lưu…' : 'Lưu sự cố y tế'}</button>
+                  <button disabled={busy || !residents.length} className={medicalButtonClass}><HeartPulse className="h-4 w-4" />{busy ? 'Đang lưu…' : 'Lưu sự cố y tế'}</button>
                 </form>
-              </section>
-              <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"><div className="flex items-center justify-between border-b p-5"><div><h2 className="font-bold">Sự cố y tế gần đây</h2><p className="mt-1 text-xs text-slate-500">Lịch sử sự cố trên toàn KTX</p></div><span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-bold text-blue-800">{medicalIncidents.length}</span></div>{medicalIncidents.length === 0 ? <p className="p-8 text-center text-sm text-slate-500">Chưa có sự cố y tế được ghi nhận.</p> : <div className="divide-y">{medicalIncidents.map((incident) => <article key={incident.id} className="p-4 sm:p-5"><div className="flex flex-wrap items-start justify-between gap-2"><div><p className="font-semibold">{incident.sinhVien?.hoTen} · {incident.sinhVien?.maSV}</p><p className="mt-1 text-xs text-slate-500">{incident.toaNha?.tenToaNha} · Phòng {incident.phong?.soPhong || '—'} · {formatDate(incident.occurredAt)}</p></div><span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-800">{incident.incidentType}</span></div><p className="mt-3 text-sm text-slate-700"><strong>Biểu hiện:</strong> {incident.symptoms}</p><p className="mt-1 text-sm text-slate-700"><strong>Hướng xử lý:</strong> {incident.treatment}</p>{incident.medicationName && <p className="mt-2 flex items-center gap-1.5 text-sm font-semibold text-indigo-800"><Pill className="h-4 w-4" />{incident.medicationName}{incident.medicationDose ? ` · ${incident.medicationDose}` : ''}{incident.medicationQuantity ? ` · ${incident.medicationQuantity} đơn vị` : ''}</p>}{incident.followUp && <p className="mt-2 whitespace-pre-wrap text-xs text-slate-500">Theo dõi: {incident.followUp}</p>}</article>)}</div>}</section>
+              </MedicalPanel>
+              <MedicalPanel title="Sự cố y tế gần đây" description="Lịch sử sự cố trên toàn KTX" noPadding actions={<span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-bold text-blue-800">{medicalIncidents.length}</span>}>
+                {medicalIncidents.length === 0 ? <p className="p-8 text-center text-sm text-slate-500">Chưa có sự cố y tế được ghi nhận.</p> : <div className="divide-y">{medicalIncidents.map((incident) => <article key={incident.id} className="p-4 sm:p-5"><div className="flex flex-wrap items-start justify-between gap-2"><div><p className="font-semibold">{incident.sinhVien?.hoTen} · {incident.sinhVien?.maSV}</p><p className="mt-1 text-xs text-slate-500">{incident.toaNha?.tenToaNha} · Phòng {incident.phong?.soPhong || '—'} · {formatDate(incident.occurredAt)}</p></div><span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-800">{incident.incidentType}</span></div><p className="mt-3 text-sm text-slate-700"><strong>Biểu hiện:</strong> {incident.symptoms}</p><p className="mt-1 text-sm text-slate-700"><strong>Hướng xử lý:</strong> {incident.treatment}</p>{incident.medicationName && <p className="mt-2 flex items-center gap-1.5 text-sm font-semibold text-indigo-800"><Pill className="h-4 w-4" />{incident.medicationName}{incident.medicationDose ? ` · ${incident.medicationDose}` : ''}{incident.medicationQuantity ? ` · ${incident.medicationQuantity} đơn vị` : ''}</p>}{incident.followUp && <p className="mt-2 whitespace-pre-wrap text-xs text-slate-500">Theo dõi: {incident.followUp}</p>}</article>)}</div>}
+              </MedicalPanel>
             </div>}
           </>}
         </div>
-  </FacilitiesLayout>;
+  </WorkspaceLayout>;
 };
 
 export default SecurityMedicalManagement;

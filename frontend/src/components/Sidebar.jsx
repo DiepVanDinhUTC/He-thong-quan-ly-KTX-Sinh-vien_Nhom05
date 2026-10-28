@@ -20,6 +20,9 @@ import {
   ChevronRight
 } from 'lucide-react';
 import AdminUserProfile from './AdminUserProfile';
+import { rolePermissions } from '../utils/accessControl';
+import { financialSections } from '../utils/financialNavigation';
+import { securitySections } from '../utils/securityNavigation';
 
 const Sidebar = ({ additionalMenuItems = [] }) => {
   // Trạng thái thu gọn/mở rộng thanh điều hướng
@@ -32,19 +35,21 @@ const Sidebar = ({ additionalMenuItems = [] }) => {
   // Trạng thái lưu mục đang được chọn (Active)
   // Danh sách các mục menu chính
   const mainMenuItems = [
-    { id: 'dashboard', path: '/', label: 'Tổng quan', icon: LayoutDashboard, roles: ['BOARD_CHAIR', 'BOARD_DEPUTY', 'ADMIN'] },
+    { id: 'dashboard', path: '/', label: 'Thống kê BQL', icon: LayoutDashboard, roles: rolePermissions['/'] },
     { id: 'students', path: '/students', label: 'Quản lý Sinh viên', icon: Users, roles: ['BOARD_CHAIR', 'BOARD_DEPUTY', 'ARCHIVIST', 'BUILDING_MANAGER', 'MEDICAL_OFFICER', 'ADMIN'] },
     { id: 'staff-accounts', path: '/staff-accounts', label: 'Quản lý tài khoản nhân viên', icon: UserCog, roles: ['BOARD_CHAIR', 'BOARD_DEPUTY'] },
-    { id: 'rooms', path: '/rooms', label: 'Quản lý Phòng & CSVC', icon: DoorOpen, roles: ['BOARD_CHAIR', 'BOARD_DEPUTY', 'FACILITIES_MANAGER', 'BUILDING_MANAGER', 'SECURITY', 'ADMIN'] },
+    { id: 'rooms', path: '/rooms', label: 'Quản lý Phòng & CSVC', icon: DoorOpen, roles: rolePermissions['/rooms'] },
     { id: 'buildings', path: '/buildings', label: 'Danh mục Tòa nhà', icon: Building2, roles: ['FACILITIES_MANAGER', 'BUILDING_MANAGER', 'ADMIN'] },
     { id: 'assets', path: '/assets', label: 'Danh mục Tài sản', icon: Wrench, roles: ['FACILITIES_MANAGER', 'BUILDING_MANAGER', 'ADMIN'] },
-    { id: 'meter-readings', path: '/meter-readings', label: 'Ghi chỉ số điện nước', icon: Zap, roles: ['FACILITIES_MANAGER', 'BUILDING_MANAGER', 'ACCOUNTANT', 'ADMIN'] },
+    { id: 'meter-readings', path: '/meter-readings', label: 'Ghi chỉ số điện nước', icon: Zap, roles: rolePermissions['/meter-readings'] },
     { id: 'contracts', path: '/contracts', label: 'Quản lý Hợp đồng', icon: Receipt, roles: ['BOARD_CHAIR', 'BOARD_DEPUTY', 'ARCHIVIST', 'BUILDING_MANAGER', 'ADMIN'] },
-    { id: 'billing', path: '/financial-dashboard', label: 'Quản lý Hóa đơn & Điện nước', icon: Receipt, roles: ['ACCOUNTANT', 'TREASURER', 'BOARD_CHAIR', 'BOARD_DEPUTY', 'ADMIN'] },
-    { id: 'tickets', path: '/tickets', label: 'Yêu cầu sửa chữa', icon: Wrench, roles: ['BOARD_CHAIR', 'BOARD_DEPUTY', 'FACILITIES_MANAGER', 'BUILDING_MANAGER', 'SECURITY', 'SERVICE_PROVIDER', 'ADMIN'] },
+    ...financialSections.map(({ id, to, label, Icon }) => ({ id: `financial-${id}`, path: to, label, icon: Icon, roles: rolePermissions[to] })),
+    { id: 'tickets', path: '/tickets', label: 'Yêu cầu sửa chữa', icon: Wrench, roles: rolePermissions['/tickets'] },
     { id: 'self-service', path: '/self-service', label: role === 'SERVICE_PROVIDER' ? 'Đăng ký dịch vụ' : 'Yêu cầu tự phục vụ', icon: ClipboardList, roles: ['BOARD_CHAIR', 'BOARD_DEPUTY', 'BUILDING_MANAGER', 'SERVICE_PROVIDER', 'ADMIN'] },
-    { id: 'security-medical', path: '/security-medical', label: role === 'MEDICAL_OFFICER' ? 'Quản lý y tế' : 'Trật tự - trị an', icon: ShieldCheck, roles: ['SECURITY', 'MEDICAL_OFFICER', 'ADMIN'] },
+    ...securitySections.map(({ id, to, label, Icon }) => ({ id: `security-${id}`, path: to, label, icon: Icon, roles: rolePermissions[to] })),
+    { id: 'security-medical', path: '/security-medical', label: role === 'ADMIN' ? 'An ninh & y tế' : 'Quản lý y tế', icon: ShieldCheck, roles: ['MEDICAL_OFFICER', 'ADMIN'] },
     { id: 'military-management', path: '/military-management', label: 'Quản lý học viên quân sự', icon: ShieldCheck, roles: ['MILITARY_OFFICER', 'ADMIN'] },
+    { id: 'archive-management', path: '/archive-management', label: 'Quản lý hồ sơ lưu trữ', icon: ClipboardList, roles: ['ARCHIVIST'] },
   ];
   const customMenuItems = additionalMenuItems.map(({ to, label, Icon }) => ({
     id: `custom-${to}`,

@@ -53,6 +53,7 @@ app.use('/api/v1/security-medical', securityMedicalRoutes);
 app.use('/api/v1/staff-accounts', staffAccountRoutes);
 app.use('/api/v1/notifications', studentBillNotificationRoutes);
 app.use('/api/v1/military-management', militaryManagementRoutes);
+app.use('/api/v1/dashboard', dashboardRoutes);
 
 app.use('/api/v1/dang-ky-ktx', dangKyKtxRoutes);
 app.use('/api/v1/phong', phongRoutes);

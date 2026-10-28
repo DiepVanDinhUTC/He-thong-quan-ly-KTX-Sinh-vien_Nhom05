@@ -2,6 +2,8 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const prisma = require('../config/prisma');
 const { deriveStudentHousingStatus } = require('../services/studentHousingStatus');
+const { isPriorityStudent } = require('../services/studentPriority');
+const { roomMemberRelations, getRoomOccupancy } = require('../services/roomOccupancy');
 const ROLES = require('../config/roles');
 const { KNOWN_ROLES, ROLE_LABELS } = ROLES;
 
@@ -10,24 +12,29 @@ const studentProfileInclude = {
         where: { trangThai: { in: ['PENDING_PAYMENT', 'ACTIVE'] } },
         include: {
             phong: {
-                include: {
-                    hopDongs: {
-                        where: { trangThai: { in: ['PENDING_PAYMENT', 'ACTIVE'] } },
-                        include: { sinhVien: { select: { maSV: true, hoTen: true, nienKhoa: true } } },
-                        orderBy: { ngayTao: 'asc' }
-                    }
-                }
+                include: roomMemberRelations
             }
         },
         orderBy: { ngayTao: 'desc' }
     },
-    dangKyKTXs: { orderBy: { ngayDangKy: 'desc' }, take: 1 }
+    dangKyKTXs: { orderBy: { ngayDangKy: 'desc' }, take: 1 },
+    militaryRoomAssignments: {
+        where: { status: 'ACTIVE' }, orderBy: { assignedAt: 'desc' }, take: 1,
+        include: { phong: { include: roomMemberRelations } }
+    }
 };
 
 const serializeUser = (account) => {
     const student = account.sinhVien;
     const employee = account.nhanVien;
     const currentContract = student?.hopDongs?.find((contract) => ['PENDING_PAYMENT', 'ACTIVE'].includes(contract.trangThai));
+    const militaryAssignment = student?.militaryRoomAssignments?.[0];
+    const currentPlacement = militaryAssignment ? {
+        maHopDong: null, maPhanPhong: militaryAssignment.id, source: 'MILITARY',
+        maPhong: militaryAssignment.maPhong, phong: militaryAssignment.phong,
+        ngayBatDau: militaryAssignment.assignedAt, ngayKetThuc: null,
+        tongTien: null, trangThai: 'MILITARY_ASSIGNED'
+    } : currentContract;
     const latestApplication = student?.dangKyKTXs?.[0];
 
     return {
@@ -43,33 +50,33 @@ const serializeUser = (account) => {
         lop: student?.lop || null,
         nienKhoa: student?.nienKhoa || null,
         khoa: student?.khoa || null,
+        dienUuTien: student?.dienUuTien ?? null,
+        isPriority: isPriorityStudent(student),
         email: student?.email || employee?.email || null,
         phone: student?.phone || employee?.phone || null,
-        trangThaiNoiTru: student ? deriveStudentHousingStatus(
+        trangThaiNoiTru: militaryAssignment ? 'DANG_O' : student ? deriveStudentHousingStatus(
             student.hopDongs || [],
             latestApplication?.trangThai === 'PENDING'
         ) : null,
-        maPhong: currentContract?.phong?.maPhong || null,
-        soPhong: currentContract?.phong?.soPhong || null,
-        ngayKetThucHopDong: currentContract?.ngayKetThuc || null,
-        currentContract: currentContract ? {
-            maHopDong: currentContract.maHopDong,
-            maPhong: currentContract.maPhong,
-            soPhong: currentContract.phong?.soPhong || null,
-            loaiPhong: currentContract.phong?.loaiPhong || null,
-            phiNoiTruThang: currentContract.phong?.phiNoiTruThang ?? null,
-            ngayBatDau: currentContract.ngayBatDau,
-            ngayKetThuc: currentContract.ngayKetThuc,
-            tongTien: currentContract.tongTien,
-            trangThai: currentContract.trangThai,
-            thanhVien: currentContract.phong?.hopDongs?.map((contract) => {
-                return {
-                    maHopDong: contract.maHopDong,
-                    maSV: contract.sinhVien?.maSV || contract.maSinhVien,
-                    hoTen: contract.sinhVien?.hoTen || null,
-                    nienKhoa: contract.sinhVien?.nienKhoa || null
-                };
-            }) || []
+        maPhong: currentPlacement?.phong?.maPhong || null,
+        soPhong: currentPlacement?.phong?.soPhong || null,
+        ngayKetThucHopDong: currentPlacement?.ngayKetThuc || null,
+        currentContract: currentPlacement ? {
+            maHopDong: currentPlacement.maHopDong,
+            maPhanPhong: currentPlacement.maPhanPhong || null,
+            source: currentPlacement.source || 'CONTRACT',
+            maPhong: currentPlacement.maPhong,
+            soPhong: currentPlacement.phong?.soPhong || null,
+            loaiPhong: currentPlacement.phong?.loaiPhong || null,
+            phiNoiTruThang: currentPlacement.phong?.phiNoiTruThang ?? null,
+            ngayBatDau: currentPlacement.ngayBatDau,
+            ngayKetThuc: currentPlacement.ngayKetThuc,
+            tongTien: currentPlacement.tongTien,
+            trangThai: currentPlacement.trangThai,
+            thanhVien: getRoomOccupancy(currentPlacement.phong || {}).thanhVien.map((member) => ({
+                maHopDong: member.maHopDong, maPhanPhong: member.maPhanPhong || null, source: member.source,
+                maSV: member.maSV, hoTen: member.hoTen, nienKhoa: member.nienKhoa
+            }))
         } : null,
         latestApplication: latestApplication ? {
             maDangKy: latestApplication.maDangKy,

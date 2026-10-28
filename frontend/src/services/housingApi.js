@@ -2,6 +2,10 @@ import api from './api';
 
 export const housingApi = {
   roomMap: async () => (await api.get('/rooms')).data,
+  archiveRoomMap: async () => (await api.get('/rooms/archive-management')).data,
+  archiveRoomCandidates: async () => (await api.get('/rooms/archive-management/students')).data,
+  assignArchiveRoom: async (data) => (await api.post('/rooms/archive-assignments', data)).data,
+  moveArchiveMember: async (maPhong, maHopDong, maPhongMoi) => (await api.patch(`/rooms/archive-assignments/${encodeURIComponent(maPhong)}/${encodeURIComponent(maHopDong)}/move`, { maPhongMoi })).data,
   roomLocations: async () => (await api.get('/rooms/locations')).data,
   createBuilding: async (data) => (await api.post('/rooms/buildings', data)).data,
   updateBuilding: async (maToaNha, data) => (await api.patch(`/rooms/buildings/${encodeURIComponent(maToaNha)}`, data)).data,

@@ -13,7 +13,7 @@ const allowAllMedicalBuildings = (req, res, next) => {
 };
 
 const residentDirectoryScope = (req, res, next) => {
-    if ([ROLES.MEDICAL_OFFICER, ROLES.ADMIN].includes(req.user.role)) {
+    if ([ROLES.MEDICAL_OFFICER, ROLES.ARCHIVIST, ROLES.ADMIN].includes(req.user.role)) {
         return allowAllMedicalBuildings(req, res, next);
     }
     return restrictBuildingAccess(req, res, next);
@@ -21,7 +21,7 @@ const residentDirectoryScope = (req, res, next) => {
 
 router.get(
     '/residents',
-    restrictTo(ROLES.SECURITY, ROLES.MEDICAL_OFFICER, ROLES.ADMIN),
+    restrictTo(ROLES.SECURITY, ROLES.MEDICAL_OFFICER, ROLES.ARCHIVIST, ROLES.ADMIN),
     requirePermission('residents:read'),
     residentDirectoryScope,
     controller.getResidents
@@ -51,16 +51,16 @@ router.patch(
 
 router.get(
     '/violations',
-    restrictTo(ROLES.SECURITY, ROLES.ADMIN),
+    restrictTo(ROLES.SECURITY, ROLES.ARCHIVIST, ROLES.ADMIN),
     requirePermission('security:violation:read'),
-    restrictBuildingAccess,
+    residentDirectoryScope,
     controller.listViolations
 );
 router.post(
     '/violations',
-    restrictTo(ROLES.SECURITY, ROLES.ADMIN),
+    restrictTo(ROLES.SECURITY, ROLES.ARCHIVIST, ROLES.ADMIN),
     requirePermission('security:violation:create'),
-    restrictBuildingAccess,
+    residentDirectoryScope,
     controller.createViolation
 );
 

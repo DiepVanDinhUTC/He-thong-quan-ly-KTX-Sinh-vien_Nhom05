@@ -22,6 +22,8 @@
     "db:push": "prisma db push",
     "db:gdqp": "prisma db execute --schema prisma/schema.prisma --file prisma/sql/add-gdqp-allocation.sql",
     "db:repair": "prisma db execute --schema prisma/schema.prisma --file prisma/sql/align-existing-database.sql"
+    "vnpay:sandbox-relay": "node scripts/vnpaySandboxRelay.js",
+    "postinstall": "prisma skills sync || exit 0"
   },
   "keywords": [],
   "author": "",

@@ -1,6 +1,7 @@
 const syncStudentService = require('../services/syncStudentService');
 const prisma = require('../config/prisma');
 const { deriveStudentHousingStatus } = require('../services/studentHousingStatus');
+const { isPriorityStudent, sortByStudentPriority } = require('../services/studentPriority');
 
 const editableFields = [
     'hoTen', 'ngaySinh', 'gioiTinh', 'lop', 'nienKhoa', 'khoa', 'cccd',
@@ -23,6 +24,7 @@ const housingContractFilter = (buildingScope) => ({
 });
 const presentStudent = (student) => ({
     ...student,
+    isPriority: isPriorityStudent(student),
     trangThaiNoiTru: deriveStudentHousingStatus(student.hopDongs || [], Boolean(student.dangKyKTXs?.length))
 });
 
@@ -52,7 +54,7 @@ exports.getAllStudents = async (req, res) => {
                 dangKyKTXs: { where: { trangThai: 'PENDING' }, select: { maDangKy: true }, take: 1 }
             }
         });
-        return res.status(200).json({ success: true, data: students.map(presentStudent) });
+        return res.status(200).json({ success: true, data: sortByStudentPriority(students).map(presentStudent) });
     } catch (error) {
         return res.status(500).json({ success: false, message: 'Lỗi khi lấy danh sách sinh viên', error: error.message });
     }

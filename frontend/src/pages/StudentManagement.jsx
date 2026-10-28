@@ -1,5 +1,8 @@
+/* eslint-disable react/prop-types */
 import React, { useEffect, useMemo, useState } from 'react';
 import AdminLayout from '../components/AdminLayout';
+import MedicalLayout from '../components/MedicalLayout';
+import { useBoardWorkspace } from '../components/BoardLayout';
 import { useSelector } from 'react-redux';
 import { studentApi } from '../services/studentApi';
 import { studentRecordPermissions } from '../utils/accessControl';
@@ -13,8 +16,12 @@ import {
   Eye
 } from 'lucide-react';
 
-const StudentManagement = () => {
+const StudentManagement = ({ embedded = false }) => {
+  const isBoardWorkspace = useBoardWorkspace();
   const role = useSelector((state) => state.auth.user?.role);
+  const isArchivist = role === 'ARCHIVIST';
+  const isMedicalWorkspace = role === 'MEDICAL_OFFICER' && !embedded;
+  const hasWorkspaceHeader = isMedicalWorkspace || isBoardWorkspace;
   const canCreate = studentRecordPermissions.create.includes(role);
   const canUpdate = studentRecordPermissions.update.includes(role);
   const canDelete = studentRecordPermissions.delete.includes(role);
@@ -39,7 +46,7 @@ const StudentManagement = () => {
     setLoading(true);
     try {
       const response = await studentApi.list();
-      setStudents(response.data || []);
+      setStudents(Array.isArray(response.data) ? response.data : []);
       setError('');
     } catch (err) {
       setError(err.response?.data?.message || 'Không thể tải danh sách sinh viên. Hãy đăng nhập bằng tài khoản quản lý.');
@@ -50,9 +57,20 @@ const StudentManagement = () => {
 
   useEffect(() => { loadStudents(); }, []);
 
-  const filteredStudents = useMemo(() => students.filter((student) =>
-    `${student.maSV} ${student.hoTen} ${student.phone || ''}`.toLowerCase().includes(searchQuery.toLowerCase())
-  ), [students, searchQuery]);
+  const filteredStudents = useMemo(() => {
+    const query = searchQuery.trim().toLocaleLowerCase('vi');
+    if (!query) return students;
+    return students.filter((student) => [
+      student.maSV,
+      student.hoTen,
+      student.lop,
+      student.khoa,
+      student.phone,
+      student.email,
+      student.cccd,
+      student.hopDongs?.[0]?.phong?.soPhong,
+    ].filter(Boolean).join(' ').toLocaleLowerCase('vi').includes(query));
+  }, [students, searchQuery]);
 
   const handleSync = async () => {
     setIsSyncing(true);
@@ -155,13 +173,28 @@ const StudentManagement = () => {
     }
   };
 
+  const WorkspaceLayout = isMedicalWorkspace ? MedicalLayout : AdminLayout;
+  const refreshAction = <button
+    type="button"
+    onClick={loadStudents}
+    disabled={loading || isSyncing}
+    className="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+  >
+    <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+    <span>{loading ? 'Đang tải...' : 'Làm mới'}</span>
+  </button>;
+
   return (
-    <AdminLayout>
+    <WorkspaceLayout showShell={!embedded} title="Hồ sơ sinh viên" actions={isMedicalWorkspace ? refreshAction : undefined}>
       <div className="flex flex-col">
           <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
             <div>
-              <h1 className="text-2xl font-bold text-slate-900">Quản lý hồ sơ sinh viên</h1>
-              <p className="mt-1 text-sm text-slate-500">Tra cứu danh sách và thông tin lưu trú trong hệ thống KTX.</p>
+              {hasWorkspaceHeader ? <h2 className="font-semibold text-slate-900">{isMedicalWorkspace ? 'Tra cứu hồ sơ nội trú' : 'Tra cứu hồ sơ sinh viên'}</h2> : <h1 className="text-2xl font-bold text-slate-900">Quản lý hồ sơ sinh viên</h1>}
+              <p className="mt-1 text-sm text-slate-500">{isMedicalWorkspace
+                ? 'Tra cứu hồ sơ sinh viên đang hoặc chờ lưu trú tại tất cả tòa nhà trong KTX.'
+                : isArchivist
+                ? 'Tra cứu toàn bộ hồ sơ sinh viên trong KTX và đồng bộ dữ liệu từ SIS.'
+                : 'Tra cứu danh sách và thông tin lưu trú trong hệ thống KTX.'}</p>
             </div>
             {isReadOnly && <span className="rounded-full border border-slate-200 bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">Chế độ chỉ xem</span>}
           </div>
@@ -174,7 +207,7 @@ const StudentManagement = () => {
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                 <input
                   type="text"
-                  placeholder="Tìm kiếm theo tên, mã SV, phòng..."
+                  placeholder="Tìm tên, mã SV, lớp, khoa, phòng..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-full bg-white shadow-sm"
@@ -186,6 +219,7 @@ const StudentManagement = () => {
               </button>
             </div>
             <div className="flex items-center gap-3">
+              {!hasWorkspaceHeader && refreshAction}
               {/* Nút Đồng bộ dữ liệu thiết kế theo tính năng API đã nêu trong dự án */}
               {canSync && <button
                 onClick={handleSync}
@@ -193,7 +227,7 @@ const StudentManagement = () => {
                 disabled={isSyncing}
               >
                 <RefreshCw className={`w-4 h-4 ${isSyncing ? 'animate-spin' : ''}`} />
-                <span>{isSyncing ? 'Đang đồng bộ...' : 'Đồng bộ từ trường'}</span>
+                <span>{isSyncing ? 'Đang đồng bộ SIS...' : 'Đồng bộ SIS'}</span>
               </button>}
               {canCreate && <button onClick={() => openForm('create')} className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 shadow-sm transition-colors">
                 <Plus className="w-4 h-4" />
@@ -205,7 +239,7 @@ const StudentManagement = () => {
           {/* Table Container */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 flex-1 overflow-hidden flex flex-col">
             <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
+              <table className={`w-full text-left border-collapse ${isMedicalWorkspace ? 'min-w-[960px]' : ''}`}>
                 <thead>
                   <tr className="bg-gray-50 border-b border-gray-200 text-xs uppercase text-gray-500 font-semibold tracking-wider">
                     <th className="px-6 py-4">Mã SV</th>
@@ -227,7 +261,7 @@ const StudentManagement = () => {
                   {!loading && !error && filteredStudents.map((student) => (
                     <tr key={student.maSV} className="hover:bg-gray-50/50 transition-colors">
                       <td className="px-6 py-4 font-medium text-blue-600">{student.maSV}</td>
-                      <td className="px-6 py-4 font-semibold text-gray-800">{student.hoTen}</td>
+                      <td className="px-6 py-4 font-semibold text-gray-800">{student.hoTen}{student.isPriority && <span className="mt-1 block text-xs font-medium text-amber-700">Ưu tiên · {student.dienUuTien}</span>}</td>
                       <td className="px-6 py-4 text-gray-600">{student.nienKhoa || '—'}</td>
                       <td className="px-6 py-4">{student.laHocVienQuanSu
                         ? <span className="rounded-full bg-indigo-100 px-3 py-1 text-xs font-medium text-indigo-800">Học viên quân sự</span>
@@ -329,7 +363,7 @@ const StudentManagement = () => {
           </section>
         </div>
       )}
-    </AdminLayout>
+    </WorkspaceLayout>
   );
 };
 

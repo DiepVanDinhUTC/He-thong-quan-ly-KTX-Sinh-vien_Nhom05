@@ -110,9 +110,9 @@ test('board leaders have read-only student-record access', () => {
 });
 
 test('board leaders can read room data and decide applications, but cannot perform operational writes', () => {
-    assert.deepEqual(ROLES.ROOM_PERMISSIONS.read, ['BOARD_CHAIR', 'BOARD_DEPUTY', 'FACILITIES_MANAGER', 'BUILDING_MANAGER', 'SECURITY', 'ADMIN']);
+    assert.deepEqual(ROLES.ROOM_PERMISSIONS.read, ['BOARD_CHAIR', 'BOARD_DEPUTY', 'FACILITIES_MANAGER', 'BUILDING_MANAGER', 'ADMIN']);
     assert.deepEqual(ROLES.ROOM_PERMISSIONS.write, ['FACILITIES_MANAGER', 'BUILDING_MANAGER', 'ADMIN']);
-    assert.deepEqual(ROLES.APPLICATION_DECISION_ROLES, ['BOARD_CHAIR', 'BOARD_DEPUTY', 'BUILDING_MANAGER', 'ADMIN']);
+    assert.deepEqual(ROLES.APPLICATION_DECISION_ROLES, ['BOARD_CHAIR', 'BOARD_DEPUTY', 'ARCHIVIST', 'BUILDING_MANAGER', 'ADMIN']);
     assert.deepEqual(ROLES.CONTRACT_EDIT_ROLES, ['ARCHIVIST', 'BUILDING_MANAGER', 'ADMIN']);
     assert.equal(ROLES.CONTRACT_READ_ROLES.includes('BOARD_CHAIR'), true);
     assert.equal(ROLES.CONTRACT_READ_ROLES.includes('BOARD_DEPUTY'), true);
@@ -231,7 +231,8 @@ test('named permissions grant specialist access without granting management writ
         ['MEDICAL_OFFICER', 'medical:records:read', true],
         ['MEDICAL_OFFICER', 'medical:records:write', true],
         ['MEDICAL_OFFICER', 'medical:incidents:create', true],
-        ['SECURITY', 'rooms:read', true],
+        ['SECURITY', 'rooms:read', false],
+        ['SECURITY', 'tickets:read', false],
         ['SECURITY', 'rooms:write', false],
         ['SECURITY', 'residents:read', true],
         ['SECURITY', 'security:access-log:create', true],
@@ -256,6 +257,57 @@ test('named permissions grant specialist access without granting management writ
     }
     const unauthenticated = await invoke(requirePermission('students:read'), request());
     assert.equal(unauthenticated.statusCode, 401);
+});
+
+test('finance staff can manage billing but cannot read or write the meter register', async () => {
+    for (const role of ['ACCOUNTANT', 'TREASURER']) {
+        for (const permission of ['billing:read', 'billing:manage']) {
+            const result = await invoke(requirePermission(permission), request({ role }));
+            assert.equal(result.calledNext, true, `${role} must retain ${permission}`);
+        }
+        for (const permission of ['utilities:read', 'utilities:write', 'billing:meter-readings']) {
+            const result = await invoke(requirePermission(permission), request({ role }));
+            assert.equal(result.statusCode, 403, `${role} must not have ${permission}`);
+            assert.equal(result.calledNext, false);
+        }
+    }
+    for (const role of ['FACILITIES_MANAGER', 'BUILDING_MANAGER', 'ADMIN']) {
+        for (const permission of ['utilities:read', 'utilities:write']) {
+            const result = await invoke(requirePermission(permission), request({ role }));
+            assert.equal(result.calledNext, true, `${role} must retain ${permission}`);
+        }
+    }
+});
+
+test('finance pages and actions match API permissions for every role', async () => {
+    const { roleCanAccess, financialPermissions } = await import('../../frontend/src/utils/accessControl.js');
+    for (const role of ROLES.KNOWN_ROLES) {
+        for (const path of ['/financial-dashboard', '/financial-dashboard/invoices', '/financial-dashboard/transactions', '/financial-dashboard/reconciliation']) {
+            assert.equal(roleCanAccess(role, path), ROLES.hasPermission(role, 'billing:read'), `${role}: ${path}`);
+        }
+        assert.equal(financialPermissions.manage.includes(role), ROLES.hasPermission(role, 'billing:manage'), `${role}: billing actions`);
+        assert.equal(roleCanAccess(role, '/meter-readings'), ROLES.hasPermission(role, 'utilities:write'), `${role}: meter register`);
+    }
+});
+
+test('finance staff have global building scope without building assignments', async () => {
+    const guard = createRestrictBuildingAccess({ db: () => { throw new Error('finance scope must not query building assignments'); } });
+    const targets = [
+        {},
+        { params: { maToaNha: 'B9' } },
+        { query: { maToaNha: 'B9' } },
+        { body: { maToaNha: 'B9' } },
+        { params: { maPhong: 'P-B9' } },
+        { params: { maHopDong: 'HD-B9' } }
+    ];
+    for (const role of ['ACCOUNTANT', 'TREASURER']) {
+        for (const target of targets) {
+            const req = request({ id: 'no-assignments', role, ...target });
+            const result = await invoke(guard, req);
+            assert.equal(result.calledNext, true, `${role}: ${JSON.stringify(target)}`);
+            assert.equal(req.buildingScope, null);
+        }
+    }
 });
 
 test('building guard bypasses assignments for global oversight roles', async () => {
@@ -312,12 +364,12 @@ test('building guard resolves room and contract routes against their building', 
         assert.equal(result.statusCode, 403);
     });
     await t.test('allows a contract in an assigned building', async () => {
-        const req = request({ role: 'ACCOUNTANT', params: { maHopDong: 'HD-A1' } });
+        const req = request({ role: 'BUILDING_MANAGER', params: { maHopDong: 'HD-A1' } });
         const result = await invoke(buildingGuardWith(createDb()), req);
         assert.equal(result.calledNext, true);
     });
     await t.test('denies a contract in another building', async () => {
-        const req = request({ role: 'ACCOUNTANT', params: { maHopDong: 'HD-B9' } });
+        const req = request({ role: 'BUILDING_MANAGER', params: { maHopDong: 'HD-B9' } });
         const result = await invoke(buildingGuardWith(createDb()), req);
         assert.equal(result.statusCode, 403);
     });
@@ -395,7 +447,7 @@ test('student building guard limits list and detail requests to assigned residen
 
 test('student building guard rejects unassigned staff and handles database errors', async (t) => {
     await t.test('rejects a staff account without building assignments', async () => {
-        const req = request({ id: 'unassigned', role: 'ARCHIVIST' });
+        const req = request({ id: 'unassigned', role: 'BUILDING_MANAGER' });
         const result = await invoke(createRestrictStudentBuildingAccess({ db: createDb() }), req);
         assert.equal(result.statusCode, 403);
     });
@@ -406,7 +458,7 @@ test('student building guard rejects unassigned staff and handles database error
         const originalError = console.error;
         console.error = () => {};
         try {
-            const result = await invoke(createRestrictStudentBuildingAccess({ db }), request({ role: 'ARCHIVIST' }));
+            const result = await invoke(createRestrictStudentBuildingAccess({ db }), request({ role: 'BUILDING_MANAGER' }));
             assert.equal(result.statusCode, 503);
         } finally {
             console.error = originalError;
