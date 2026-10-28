@@ -1,4 +1,3 @@
-/* global Intl */
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Droplets, Loader2, RefreshCw, Search, Zap } from 'lucide-react';
 import FacilitiesLayout from '../components/FacilitiesLayout';

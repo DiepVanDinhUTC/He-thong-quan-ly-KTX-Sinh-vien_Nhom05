@@ -34,15 +34,15 @@ const hasCloudinaryConfig = () => (
 router.post(
     "/",
     protect,
-    restrictTo(ROLES.STUDENT, ROLES.MANAGER, ROLES.DIRECTOR),
+    restrictTo(ROLES.STUDENT, ROLES.MILITARY_STUDENT, ROLES.FACILITIES_MANAGER, ROLES.BUILDING_MANAGER),
     handleImageUpload,
     async (req, res) => {
         let uploadedImagePublicId = null;
 
         try {
             const { maThietBi, moTa } = req.body;
-            const maSinhVien = req.user.role === ROLES.STUDENT
-                ? req.user.id
+            const maSinhVien = [ROLES.STUDENT, ROLES.MILITARY_STUDENT].includes(req.user.role)
+                ? req.user.maSV
                 : req.body.maSinhVien;
 
             if (!maSinhVien || !maThietBi || !moTa?.trim()) {

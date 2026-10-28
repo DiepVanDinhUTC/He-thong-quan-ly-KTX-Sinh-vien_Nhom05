@@ -1,8 +1,6 @@
 import React, { useState } from 'react';
 import { 
   Bell, 
-  User, 
-  Wrench, 
   Clock, 
   MapPin, 
   AlertTriangle,
@@ -10,7 +8,6 @@ import {
   ChevronRight,
   ChevronLeft,
   ImageIcon,
-  Settings,
   HardHat,
   Info,
   Check,
@@ -226,7 +223,7 @@ const TechnicianApp = () => {
               <h3 className="text-xl font-bold text-gray-900 mb-2">{selectedTicket.issue}</h3>
               
               <div className="bg-gray-50 p-3 rounded-xl border border-gray-100 mb-4">
-                <p className="text-sm text-gray-600 italic">"{selectedTicket.description}"</p>
+                <p className="text-sm text-gray-600 italic">&quot;{selectedTicket.description}&quot;</p>
               </div>
 
               {/* Hình ảnh đính kèm */}
@@ -315,7 +312,7 @@ const TechnicianApp = () => {
           </div>
           <h2 className="text-2xl font-bold text-gray-900 mb-3">Xác nhận thành công!</h2>
           <p className="text-gray-500 mb-8 text-sm">
-            Hệ thống đã cập nhật trạng thái Ticket sang <strong className="text-gray-800">"Chờ nghiệm thu"</strong>. Sinh viên sẽ nhận được thông báo để kiểm tra và xác nhận đóng ticket.
+            Hệ thống đã cập nhật trạng thái Ticket sang <strong className="text-gray-800">&quot;Chờ nghiệm thu&quot;</strong>. Sinh viên sẽ nhận được thông báo để kiểm tra và xác nhận đóng ticket.
           </p>
           
           <button 

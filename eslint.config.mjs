@@ -4,7 +4,7 @@ import pluginReact from "eslint-plugin-react";
 
 export default [
   // 1. Bỏ qua toàn bộ thư mục backend
-  { ignores: ["backend/**"] },
+  { ignores: ["backend/**", "frontend/dist/**", "dist/**"] },
   
   // 2. Kế thừa các bộ quy tắc chuẩn (Thay thế cho "extends")
   js.configs.recommended,
@@ -14,7 +14,9 @@ export default [
   {
     files: ["**/*.{js,mjs,cjs,jsx}"],
     languageOptions: {
+      ecmaVersion: "latest",
       globals: {
+        ...globals.es2021,
         ...globals.browser,
         ...globals.node
       }
@@ -23,6 +25,9 @@ export default [
       react: {
         version: "detect"
       }
+    },
+    rules: {
+      "react/prop-types": "off"
     }
   }
 ];
