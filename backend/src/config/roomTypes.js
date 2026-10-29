@@ -29,6 +29,36 @@ const ROOM_TYPES = {
         monthlyFeeByCapacity: { 4: 1245000, 6: 830000 },
         amenities: ['Nâng cấp cơ sở hạ tầng', 'Giường tầng', 'Vệ sinh khép kín', 'Bình nước nóng', 'Điều hòa không khí', 'Internet']
     },
+    CG_A1: {
+        label: 'Cầu Giấy A1',
+        capacities: [4],
+        monthlyFeeByCapacity: { 4: 1300000 },
+        amenities: ['Nâng cấp cơ sở hạ tầng', 'Giường tầng', 'Vệ sinh khép kín', 'Bình nước nóng', 'Điều hòa không khí', 'Internet']
+    },
+    CG_A2: {
+        label: 'Cầu Giấy A2',
+        capacities: [4],
+        monthlyFeeByCapacity: { 4: 1625000 },
+        amenities: ['Nâng cấp cơ sở hạ tầng', 'Giường tầng', 'Vệ sinh khép kín', 'Bình nước nóng', 'Điều hòa không khí', 'Tủ quần áo', 'Tủ giày', 'Internet']
+    },
+    CG_B1: {
+        label: 'Cầu Giấy B1',
+        capacities: [1],
+        monthlyFeeByCapacity: { 1: 3600000 },
+        amenities: ['Nâng cấp cơ sở hạ tầng', 'Giường đơn', 'Vệ sinh khép kín', 'Bình nước nóng', 'Điều hòa không khí', 'Internet']
+    },
+    CG_B2: {
+        label: 'Cầu Giấy B2',
+        capacities: [2],
+        monthlyFeeByCapacity: { 2: 2100000 },
+        amenities: ['Nâng cấp cơ sở hạ tầng', 'Giường đơn', 'Vệ sinh khép kín', 'Bình nước nóng', 'Điều hòa không khí', 'Internet']
+    },
+    CG_B3: {
+        label: 'Cầu Giấy B3',
+        capacities: [2],
+        monthlyFeeByCapacity: { 2: 2400000 },
+        amenities: ['Nâng cấp cơ sở hạ tầng', 'Giường đơn', 'Vệ sinh khép kín', 'Bình nước nóng', 'Điều hòa không khí', 'Internet']
+    },
     TIEU_CHUAN: {
         label: 'Tiêu chuẩn',
         capacities: [4, 6],

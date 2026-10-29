@@ -12,7 +12,9 @@ const buildings = [
     { maToaNha: 'A3', maKhu: 'KHU_NCT', tenToaNha: 'Tòa A3', soTang: 4 },
     { maToaNha: 'A5', maKhu: 'KHU_NCT', tenToaNha: 'Tòa A5', soTang: 3 },
     { maToaNha: 'A6', maKhu: 'KHU_NCT', tenToaNha: 'Tòa A6', soTang: 5 },
-    { maToaNha: 'A2', maKhu: 'KHU_03CG', tenToaNha: 'Tòa A2', soTang: 0 }
+    { maToaNha: 'A2', maKhu: 'KHU_03CG', tenToaNha: 'Tòa A2', soTang: 0 },
+    { maToaNha: 'CG_3T', maKhu: 'KHU_03CG', tenToaNha: 'Tòa nhà 3 tầng', soTang: 3 },
+    { maToaNha: 'CG_4T', maKhu: 'KHU_03CG', tenToaNha: 'Tòa nhà 4 tầng', soTang: 4 }
 ];
 
 async function main() {
