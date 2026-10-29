@@ -2,6 +2,8 @@ const prisma = require('../config/prisma');
 const { createMilitaryStudentSyncService } = require('../services/militaryStudentSyncService');
 const { assignMilitaryStudentsToA1, selectA1MilitaryRooms } = require('../services/militaryRoomAssignmentService');
 const { occupancyRelations, presentRoomOccupancy } = require('../services/roomOccupancy');
+const { resolveMilitaryStayPeriod } = require('../services/militaryStay');
+const { endExpiredMilitaryStays, expireMilitaryStays, refreshMilitaryRoomCounts } = require('../services/militaryStayLifecycle');
 
 const syncMilitaryStudents = createMilitaryStudentSyncService({ db: prisma });
 const liveMilitaryAssignment = { status: 'ACTIVE' };
@@ -18,6 +20,7 @@ const sendError = (res, error, fallback) => {
 
 exports.getOverview = async (req, res) => {
     try {
+        await expireMilitaryStays(prisma);
         const [studentCount, assignedCount, equipmentCount, meetingRoomCount, upcomingBookingCount] = await Promise.all([
             prisma.sinhVien.count({ where: militaryStudentWhere }),
             prisma.militaryRoomAssignment.count({ where: { ...liveMilitaryAssignment, sinhVien: militaryStudentWhere } }),
@@ -39,7 +42,8 @@ exports.getMilitaryStudents = async (req, res) => {
             select: {
                 maSV: true, hoTen: true, lop: true, khoa: true, email: true, gioiTinh: true, laHocVienQuanSu: true,
                 militaryRoomAssignments: {
-                    where: liveMilitaryAssignment,
+                    where: { ...liveMilitaryAssignment, endsAt: { gt: new Date() } },
+                    orderBy: { startsAt: 'desc' },
                     take: 1,
                     include: { phong: { select: { maPhong: true, soPhong: true, maToaNha: true, tang: true, toaNha: { select: { tenToaNha: true } } } } }
                 }
@@ -54,12 +58,7 @@ exports.getMilitaryStudents = async (req, res) => {
 exports.syncMilitaryStudents = async (req, res) => {
     try {
         const data = await syncMilitaryStudents();
-        try {
-            data.roomAssignment = await assignMilitaryStudentsToA1({ db: prisma, assignedById: req.user.id });
-        } catch (assignmentError) {
-            data.roomAssignmentError = assignmentError.message;
-        }
-        return res.json({ success: true, data, message: 'Đã tiếp nhận danh sách học viên từ SIS.' });
+        return res.json({ success: true, data, message: 'Đã tiếp nhận học viên từ SIS. Chọn ngày bắt đầu đợt học trong Xếp phòng quân sự để bố trí phòng 14 ngày.' });
     } catch (error) {
         return sendError(res, error, 'Đồng bộ SIS thất bại.');
     }
@@ -90,8 +89,9 @@ exports.getRooms = async (req, res) => {
 };
 
 exports.autoAssignRooms = async (req, res) => {
+    if (!req.body?.startsAt) return res.status(400).json({ success: false, message: 'Chọn ngày bắt đầu đợt GDQP trước khi xếp phòng 14 ngày.' });
     try {
-        const data = await assignMilitaryStudentsToA1({ db: prisma, assignedById: req.user.id });
+        const data = await assignMilitaryStudentsToA1({ db: prisma, assignedById: req.user.id, startsAt: req.body?.startsAt, batchCode: req.body?.batchCode });
         return res.json({
             success: true,
             data,
@@ -108,6 +108,7 @@ exports.assignRoom = async (req, res) => {
     if (!maSinhVien || !maPhong) return res.status(400).json({ success: false, message: 'Hãy chọn học viên và phòng.' });
     try {
         const data = await prisma.$transaction(async (tx) => {
+            await endExpiredMilitaryStays(tx);
             const student = await tx.sinhVien.findFirst({ where: { maSV: maSinhVien, ...militaryStudentWhere }, select: { maSV: true, gioiTinh: true } });
             if (!student) throw Object.assign(new Error('Không tìm thấy tài khoản học viên quân sự đã được cấp.'), { status: 404 });
             const destination = await tx.phong.findUnique({ where: { maPhong } });
@@ -120,6 +121,9 @@ exports.assignRoom = async (req, res) => {
             const allowedRoomIds = new Set(selectA1MilitaryRooms(a1Rooms).map((room) => room.maPhong));
             if (!allowedRoomIds.has(maPhong)) throw Object.assign(new Error('Học viên quân sự chỉ được xếp vào một nửa số phòng đã dành cho quân sự tại từng tầng A1.'), { status: 400 });
             const current = await tx.militaryRoomAssignment.findFirst({ where: { maSinhVien, status: 'ACTIVE' } });
+            const period = current
+                ? { startsAt: current.startsAt, endsAt: current.endsAt, batchCode: current.batchCode }
+                : resolveMilitaryStayPeriod(req.body);
             if (current?.maPhong === maPhong) throw Object.assign(new Error('Học viên đã được xếp vào phòng này.'), { status: 409 });
             const occupants = await tx.militaryRoomAssignment.findMany({
                 where: { maPhong, status: 'ACTIVE', maSinhVien: { not: maSinhVien }, sinhVien: militaryStudentWhere },
@@ -141,7 +145,7 @@ exports.assignRoom = async (req, res) => {
                 data: { soSinhVienHienTai: { increment: 1 } }
             });
             if (!updatedRoom.count) throw Object.assign(new Error('Phòng đã hết chỗ.'), { status: 409 });
-            return tx.militaryRoomAssignment.create({ data: { maSinhVien, maPhong, assignedById: req.user.id } });
+            return tx.militaryRoomAssignment.create({ data: { maSinhVien, maPhong, assignedById: req.user.id, ...period } });
         }, { isolationLevel: 'Serializable' });
         return res.status(201).json({ success: true, data, message: 'Đã xếp phòng cho học viên.' });
     } catch (error) {
@@ -155,7 +159,7 @@ exports.endRoomAssignment = async (req, res) => {
             const assignment = await tx.militaryRoomAssignment.findFirst({ where: { id: req.params.id, status: 'ACTIVE' } });
             if (!assignment) throw Object.assign(new Error('Không tìm thấy phân phòng đang hiệu lực.'), { status: 404 });
             await tx.militaryRoomAssignment.update({ where: { id: assignment.id }, data: { status: 'ENDED', endedAt: new Date() } });
-            await tx.phong.updateMany({ where: { maPhong: assignment.maPhong, soSinhVienHienTai: { gt: 0 } }, data: { soSinhVienHienTai: { decrement: 1 } } });
+            await refreshMilitaryRoomCounts(tx, [assignment.maPhong]);
         }, { isolationLevel: 'Serializable' });
         return res.json({ success: true, message: 'Đã kết thúc phân phòng.' });
     } catch (error) {

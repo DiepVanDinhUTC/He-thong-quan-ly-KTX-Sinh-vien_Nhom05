@@ -16,9 +16,11 @@ import RoomRegistration from './pages/RoomRegistration';
 import TicketReport from './pages/TicketReport';
 import BillPayment from './pages/BillPayment';
 import FinancialDashboard from './pages/FinancialDashboard';
+import { FacilitiesHome, FinancialHome } from './pages/StaffHome';
 import SystemSettings from './pages/SystemSettings';
 import StudentLayout from './components/StudentLayout';
 import MyRoom from './pages/MyRoom';
+import MilitaryStudentStay from './pages/MilitaryStudentStay';
 import ServiceRegistration from './pages/ServiceRegistration';
 import SelfServiceManagement from './pages/SelfServiceManagement';
 import SecurityMedicalManagement from './pages/SecurityMedicalManagement';
@@ -43,6 +45,7 @@ function App() {
       <Route path="/admin-dashboard" element={<Navigate to="/" replace />} />
       <Route element={<BoardLayout />}>
       <Route path="/" element={<RequireRole allowedRoles={rolePermissions['/']}><DashboardOverview key={`${role}:${user?.id}`} /></RequireRole>} />
+      <Route path="/facilities" element={<RequireRole allowedRoles={rolePermissions['/facilities']}><FacilitiesHome /></RequireRole>} />
       <Route path="/students" element={<RequireRole allowedRoles={rolePermissions['/students']}><StudentManagement /></RequireRole>} />
       <Route path="/staff-accounts" element={<RequireRole allowedRoles={rolePermissions['/staff-accounts']}><StaffAccountManagement /></RequireRole>} />
       <Route path="/rooms" element={<RequireRole allowedRoles={rolePermissions['/rooms']}><RoomManagement /></RequireRole>} />
@@ -61,15 +64,15 @@ function App() {
       <Route element={<RequireRole allowedRoles={rolePermissions['/student-portal']}><StudentLayout /></RequireRole>}>
         <Route path="/student-portal" element={<StudentPortal />} />
         <Route path="/my-room" element={<MyRoom />} />
+        <Route path="/military-stay" element={<MilitaryStudentStay />} />
         <Route path="/room-registration" element={<RequireRole allowedRoles={rolePermissions['/room-registration']}><RoomRegistration /></RequireRole>} />
         <Route path="/housing-requests" element={<Navigate to="/my-room" replace />} />
         <Route path="/service-registration" element={<RequireRole allowedRoles={rolePermissions['/service-registration']}><ServiceRegistration /></RequireRole>} />
         <Route path="/ticket-report" element={<TicketReport />} />
         <Route path="/bill-payment" element={<BillPayment />} />
       </Route>
-      <Route path="/financial-dashboard" element={<RequireRole allowedRoles={rolePermissions['/financial-dashboard']}><FinancialDashboard /></RequireRole>} />
-      <Route path="/bills" element={<Navigate to="/financial-dashboard" replace />} />
-      <Route path="/financial-dashboard" element={<Navigate to="/financial-dashboard/invoices" replace />} />
+      <Route path="/financial-dashboard" element={<RequireRole allowedRoles={rolePermissions['/financial-dashboard']}><FinancialHome /></RequireRole>} />
+      <Route path="/bills" element={<Navigate to="/financial-dashboard/invoices" replace />} />
       <Route path="/financial-dashboard/:section" element={<RequireRole allowedRoles={rolePermissions['/financial-dashboard']}><FinancialDashboard /></RequireRole>} />
       <Route path="/settings" element={<RequireRole allowedRoles={rolePermissions['/settings']}><SystemSettings /></RequireRole>} />
       <Route path="/technician" element={<Navigate to="/tickets" replace />} />

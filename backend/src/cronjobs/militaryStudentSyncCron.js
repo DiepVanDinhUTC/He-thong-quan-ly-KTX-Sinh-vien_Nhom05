@@ -1,7 +1,13 @@
 const cron = require('node-cron');
 const prisma = require('../config/prisma');
 const { createMilitaryStudentSyncService, validateConfiguration } = require('../services/militaryStudentSyncService');
-const { assignMilitaryStudentsToA1 } = require('../services/militaryRoomAssignmentService');
+const { expireMilitaryStays } = require('../services/militaryStayLifecycle');
+
+// Expiry is independent of SIS synchronization being enabled.
+cron.schedule('*/5 * * * *', async () => {
+    try { await expireMilitaryStays(prisma); }
+    catch (error) { console.error('[military-stay.expire]', error.message); }
+}, { timezone: 'Asia/Ho_Chi_Minh', noOverlap: true });
 
 const runMilitaryStudentSync = createMilitaryStudentSyncService();
 let running = false;
@@ -16,28 +22,13 @@ const execute = async () => {
     running = true;
     try {
         const result = await runMilitaryStudentSync();
-        const officer = await prisma.user.findFirst({ where: { role: 'MILITARY_OFFICER', isActive: true }, select: { id: true } });
-        if (officer) {
-            try {
-                result.roomAssignment = await assignMilitaryStudentsToA1({ db: prisma, assignedById: officer.id });
-            } catch (error) {
-                result.roomAssignmentError = error.message;
-                console.warn('[sis.gdqp] Không thể tự xếp phòng A1:', error.message);
-            }
-        } else {
-            result.roomAssignmentError = 'Chưa có tài khoản cán bộ quân sự để ghi nhận người thực hiện xếp phòng.';
-            console.warn('[sis.gdqp] Bỏ qua tự xếp phòng vì chưa có tài khoản cán bộ quân sự.');
-        }
         console.log('[sis.gdqp] Đồng bộ hoàn tất:', JSON.stringify({
             received: result.received,
             selected: result.selected,
             createdAccounts: result.createdAccounts,
             militaryStudentsMarked: result.militaryStudentsMarked,
             linkedProfiles: result.linkedProfiles,
-            skipped: result.skipped.length,
-            assignedRooms: result.roomAssignment?.assigned ?? 0,
-            unassignedStudents: result.roomAssignment?.unassignedCount ?? null,
-            roomAssignmentError: result.roomAssignmentError
+            skipped: result.skipped.length
         }));
         if (result.skipped.length) console.warn('[sis.gdqp] Một số đăng ký chưa được cấp tài khoản:', JSON.stringify(result.skipped));
     } catch (error) {

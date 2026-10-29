@@ -28,6 +28,7 @@ const securityMedicalRoutes = require('./src/routes/api/v1/securityMedical');
 const staffAccountRoutes = require('./src/routes/api/v1/staffAccounts');
 const studentBillNotificationRoutes = require('./src/routes/api/v1/studentBillNotifications');
 const militaryManagementRoutes = require('./src/routes/api/v1/militaryManagement');
+const dashboardRoutes = require('./src/routes/api/v1/dashboard');
 const dangKyKtxRoutes = require('./src/routes/api/v1/dangKyKtx');
 const phongRoutes = require('./src/routes/api/v1/phongRoutes');
 const baoHongRoutes = require('./src/routes/api/v1/baoHongRoutes');

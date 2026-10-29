@@ -1,4 +1,7 @@
 const prisma = require('../config/prisma');
+const { occupancyRelations, getRoomOccupancy } = require('./roomOccupancy');
+const { resolveMilitaryStayPeriod } = require('./militaryStay');
+const { endExpiredMilitaryStays } = require('./militaryStayLifecycle');
 
 const militaryStudentWhere = { laHocVienQuanSu: true };
 
@@ -75,24 +78,27 @@ const balanceEmptyRoomsByGender = ({ targetRooms, roomById, pendingStudents }) =
 
 const createError = (message, status = 409) => Object.assign(new Error(message), { status });
 
-const assignMilitaryStudentsToA1 = async ({ db = prisma, assignedById }) => {
+const assignMilitaryStudentsToA1 = async ({ db = prisma, assignedById, startsAt, batchCode, studentIds, now = new Date() }) => {
     if (!assignedById) throw createError('Thiếu tài khoản cán bộ thực hiện xếp phòng.', 400);
+    const period = resolveMilitaryStayPeriod({ startsAt, batchCode }, now);
+    const explicitPeriod = startsAt != null;
 
     return db.$transaction(async (tx) => {
+        await endExpiredMilitaryStays(tx, now);
         const [students, rooms, activeAssignments] = await Promise.all([
             tx.sinhVien.findMany({
-                where: militaryStudentWhere,
+                where: { ...militaryStudentWhere, ...(studentIds ? { maSV: { in: studentIds } } : {}) },
                 orderBy: { maSV: 'asc' },
-                select: { maSV: true, gioiTinh: true }
+                select: { maSV: true, gioiTinh: true, militaryRoomAssignments: { select: { id: true, startsAt: true, endsAt: true } } }
             }),
             tx.phong.findMany({
                 where: { maToaNha: 'A1' },
                 orderBy: [{ tang: 'asc' }, { soPhong: 'asc' }],
-                select: { maPhong: true, soPhong: true, tang: true, maToaNha: true, soSinhVienToiDa: true, soSinhVienHienTai: true }
+                include: occupancyRelations
             }),
             tx.militaryRoomAssignment.findMany({
                 where: { status: 'ACTIVE', sinhVien: militaryStudentWhere },
-                select: { id: true, maSinhVien: true, maPhong: true, sinhVien: { select: { gioiTinh: true } } }
+                select: { id: true, maSinhVien: true, maPhong: true, startsAt: true, endsAt: true, batchCode: true, sinhVien: { select: { gioiTinh: true } } }
             })
         ]);
 
@@ -100,7 +106,11 @@ const assignMilitaryStudentsToA1 = async ({ db = prisma, assignedById }) => {
 
         const targetRooms = selectA1MilitaryRooms(rooms);
         const targetRoomIds = new Set(targetRooms.map((room) => room.maPhong));
-        const roomById = new Map(rooms.map((room) => [room.maPhong, { ...room, occupancy: room.soSinhVienHienTai, militaryCount: 0, gender: null, eligible: false }]));
+        const roomById = new Map(rooms.map((room) => [room.maPhong, { ...room, occupancy: getRoomOccupancy(room, now).soSinhVienHienTai, militaryCount: 0, gender: null, eligible: false }]));
+        for (const room of rooms) {
+            const count = roomById.get(room.maPhong).occupancy;
+            if (count !== room.soSinhVienHienTai) await tx.phong.update({ where: { maPhong: room.maPhong }, data: { soSinhVienHienTai: count } });
+        }
         const assignmentsByRoom = new Map();
 
         for (const assignment of activeAssignments) {
@@ -144,7 +154,7 @@ const assignMilitaryStudentsToA1 = async ({ db = prisma, assignedById }) => {
                     data: { soSinhVienHienTai: { decrement: count } }
                 });
                 if (!result.count) throw createError(`Số người hiện tại của phòng ${maPhong} không khớp với danh sách phân phòng.`);
-                roomById.get(maPhong).occupancy -= count;
+                if (roomById.has(maPhong)) roomById.get(maPhong).occupancy -= count;
             }
         }
 
@@ -166,7 +176,14 @@ const assignMilitaryStudentsToA1 = async ({ db = prisma, assignedById }) => {
         }
 
         const alreadyAssigned = new Set(validAssignments.map((assignment) => assignment.maSinhVien));
-        const pendingStudents = students.filter((student) => !alreadyAssigned.has(student.maSV));
+        const reassignedPeriods = new Map(invalid.map((assignment) => [assignment.maSinhVien, {
+            startsAt: assignment.startsAt, endsAt: assignment.endsAt, batchCode: assignment.batchCode
+        }]));
+        // A cron rerun must not start a new two-week stay for a completed cohort.
+        // A new period is selected explicitly by the military officer.
+        const pendingStudents = students.filter((student) => !alreadyAssigned.has(student.maSV)
+            && (reassignedPeriods.has(student.maSV) || !student.militaryRoomAssignments.length || (explicitPeriod
+                && student.militaryRoomAssignments.every((item) => new Date(item.endsAt) <= period.startsAt))));
         balanceEmptyRoomsByGender({ targetRooms, roomById, pendingStudents });
         const unassignedStudents = [];
         let assigned = 0;
@@ -202,7 +219,7 @@ const assignMilitaryStudentsToA1 = async ({ db = prisma, assignedById }) => {
             });
             if (!updatedRoom.count) throw createError(`Phòng ${destination.soPhong} vừa hết chỗ. Hãy chạy tự xếp lại.`);
             await tx.militaryRoomAssignment.create({
-                data: { maSinhVien: student.maSV, maPhong: destination.maPhong, assignedById }
+                data: { maSinhVien: student.maSV, maPhong: destination.maPhong, assignedById, ...(reassignedPeriods.get(student.maSV) || period) }
             });
             destination.occupancy += 1;
             destination.militaryCount += 1;
@@ -216,6 +233,8 @@ const assignMilitaryStudentsToA1 = async ({ db = prisma, assignedById }) => {
             assigned,
             alreadyAssigned: validAssignments.length,
             unassignedCount: unassignedStudents.length,
+            completedCount: students.length - pendingStudents.length - students.filter((student) => alreadyAssigned.has(student.maSV)).length,
+            period,
             unassignedByGender: {
                 female: unassignedStudents.filter((student) => student.gioiTinh === false).length,
                 male: unassignedStudents.filter((student) => student.gioiTinh === true).length

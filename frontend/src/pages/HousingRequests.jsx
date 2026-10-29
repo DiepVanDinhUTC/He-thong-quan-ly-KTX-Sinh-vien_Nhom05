@@ -11,6 +11,7 @@ const STATUS = { PENDING: 'Chờ xử lý', APPROVED: 'Đã duyệt', REJECTED: 
 const HousingRequests = ({ embedded = false }) => {
   const navigate = useNavigate();
   const [contract, setContract] = useState(null);
+  const [atMilitaryStudy, setAtMilitaryStudy] = useState(false);
   const [requests, setRequests] = useState([]);
   const [requestType, setRequestType] = useState('TRANSFER');
   const [roomType, setRoomType] = useState('CO_BAN');
@@ -32,6 +33,7 @@ const HousingRequests = ({ embedded = false }) => {
     Promise.all([authApi.me(), housingApi.myHousingRequests()]).then(([profile, data]) => {
       if (!active) return;
       setContract(profile.user.currentContract || null);
+      setAtMilitaryStudy(profile.user.militaryStay?.state === 'ACTIVE');
       setRequests(data.requests || []);
     }).catch((requestError) => {
       if (active) setError(requestError.response?.data?.message || 'Không thể tải thông tin lưu trú.');
@@ -75,6 +77,7 @@ const HousingRequests = ({ embedded = false }) => {
       {!embedded && <button onClick={() => navigate('/student-portal')} className="inline-flex items-center gap-2 text-sm font-medium text-blue-700"><ArrowLeft className="h-4 w-4" />Về trang chủ</button>}
       <section className="rounded-2xl border bg-white p-5 shadow-sm sm:p-7">
         <div className="mb-5 flex items-center gap-3"><span className="rounded-xl bg-blue-50 p-3 text-blue-700"><ArrowLeftRight className="h-5 w-5" /></span><div><h1 className="text-xl font-bold">Chuyển hoặc trả phòng</h1><p className="mt-1 text-sm text-slate-500">Đơn chuyển phòng do nhân viên quản lý hồ sơ xác nhận và cập nhật hợp đồng.</p></div></div>
+        {atMilitaryStudy && <p className="mb-4 rounded-xl bg-blue-50 p-4 text-sm leading-6 text-blue-900">Bạn đang ở phòng GDQP tạm thời. Yêu cầu ở đây thay đổi hợp đồng nội trú gốc, không phải phòng quân sự. Bạn không cần gửi yêu cầu chuyển hoặc trả phòng để tham gia hay kết thúc đợt GDQP.</p>}
         {loading ? <p className="text-sm text-slate-500">Đang tải thông tin...</p> : !contract ? <div className="rounded-xl bg-amber-50 p-4 text-sm text-amber-900"><p>Bạn chưa có phòng lưu trú.</p>{!embedded && <button onClick={() => navigate('/room-registration')} className="mt-3 inline-flex items-center gap-2 rounded-lg bg-blue-700 px-4 py-2 font-semibold text-white"><DoorOpen className="h-4 w-4" />Đăng ký nội trú</button>}</div> : contract.trangThai !== 'ACTIVE' ? <p className="rounded-xl bg-amber-50 p-4 text-sm text-amber-900">Hợp đồng đang chờ thanh toán nên chưa thể gửi yêu cầu chuyển hoặc trả phòng.</p> : null}
 
         {canRequest && <form onSubmit={submit} className="space-y-4">

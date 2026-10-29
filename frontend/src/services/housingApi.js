@@ -1,6 +1,7 @@
 import api from './api';
 
 export const housingApi = {
+  myMilitaryStay: async () => (await api.get('/self-service/military-stay/mine')).data,
   roomMap: async () => (await api.get('/rooms')).data,
   archiveRoomMap: async () => (await api.get('/rooms/archive-management')).data,
   archiveRoomCandidates: async () => (await api.get('/rooms/archive-management/students')).data,

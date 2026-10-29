@@ -2,7 +2,7 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { useSelector } from 'react-redux';
-import { Building2, DoorOpen, Wrench, Zap } from 'lucide-react';
+import { Building2, ClipboardList, DoorOpen, FileText, Home, Users, Wrench, Zap } from 'lucide-react';
 import AdminLogoutButton from './AdminLogoutButton';
 import AdminUserProfile from './AdminUserProfile';
 import { roleCanAccess } from '../utils/accessControl';
@@ -10,11 +10,15 @@ import { useBoardWorkspace } from './BoardLayout';
 import DashboardNavLink from './DashboardNavLink';
 
 const facilityMenuItems = [
+  { to: '/facilities', label: 'Trang chủ', Icon: Home },
   { to: '/rooms', label: 'Quản lý phòng & CSVC', Icon: DoorOpen },
   { to: '/buildings', label: 'Danh mục tòa nhà', Icon: Building2 },
   { to: '/assets', label: 'Kho tài sản, thiết bị', Icon: Wrench },
   { to: '/meter-readings', label: 'Ghi chỉ số điện nước', Icon: Zap },
   { to: '/tickets', label: 'Yêu cầu sửa chữa', Icon: Wrench },
+  { to: '/students', label: 'Hồ sơ sinh viên', Icon: Users },
+  { to: '/contracts', label: 'Đăng ký & hợp đồng', Icon: FileText },
+  { to: '/self-service', label: 'Yêu cầu lưu trú', Icon: ClipboardList },
 ];
 
 const roleHeading = {

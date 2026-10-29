@@ -78,6 +78,8 @@ const ticketFilter = (req, extraWhere = {}) => {
     return where;
 };
 
+const { currentMilitaryStayWhere } = require('../services/militaryStay');
+
 const createTicketController = ({ db = getPrisma, now = () => new Date() } = {}) => {
     const database = () => typeof db === 'function' ? db() : db;
     const serializeTicket = (ticket) => ({ ...ticket, sla: getTicketSla(ticket, now()) });
@@ -191,11 +193,15 @@ const createTicketController = ({ db = getPrisma, now = () => new Date() } = {})
             const title = validateText(req.body.title, 'Tên sự cố', 160, 3);
             const description = validateText(req.body.description, 'Mô tả', 2000, 5);
             const photos = parsePhotos(req.body.photos, 'INITIAL');
-            const contract = await dbClient.hopDong.findFirst({
+            const militaryStay = await dbClient.militaryRoomAssignment.findFirst({
+                where: { maSinhVien: req.user.maSV, ...currentMilitaryStayWhere(createdAt) },
+                orderBy: { startsAt: 'desc' }, include: { phong: true }
+            });
+            const contract = militaryStay || await dbClient.hopDong.findFirst({
                 where: { maSinhVien: req.user.maSV, trangThai: { in: ['ACTIVE', 'PENDING_PAYMENT'] } },
                 orderBy: { ngayTao: 'desc' }, include: { phong: true }
             });
-            if (!contract?.phong?.maPhong) throw new TicketError(403, 'Sinh viên chưa có phòng nội trú đang hiệu lực.');
+            if (!contract?.phong?.maPhong) throw new TicketError(403, 'Bạn chưa có phòng nội trú hoặc phòng GDQP đang hiệu lực.');
             const ticket = await dbClient.maintenanceTicket.create({
                 data: {
                     maSinhVien: req.user.maSV,

@@ -4,6 +4,7 @@ const prisma = require('../config/prisma');
 const { deriveStudentHousingStatus } = require('../services/studentHousingStatus');
 const { isPriorityStudent } = require('../services/studentPriority');
 const { roomMemberRelations, getRoomOccupancy } = require('../services/roomOccupancy');
+const { getMilitaryStayPeriod, militaryStayState } = require('../services/militaryStay');
 const ROLES = require('../config/roles');
 const { KNOWN_ROLES, ROLE_LABELS } = ROLES;
 
@@ -19,22 +20,43 @@ const studentProfileInclude = {
     },
     dangKyKTXs: { orderBy: { ngayDangKy: 'desc' }, take: 1 },
     militaryRoomAssignments: {
-        where: { status: 'ACTIVE' }, orderBy: { assignedAt: 'desc' }, take: 1,
+        orderBy: { assignedAt: 'desc' }, take: 5,
         include: { phong: { include: roomMemberRelations } }
     }
 };
 
-const serializeUser = (account) => {
+const serializePlacement = (placement, now = new Date()) => placement ? {
+    maHopDong: placement.maHopDong || null,
+    maPhanPhong: placement.maPhanPhong || null,
+    source: placement.source || 'CONTRACT', maPhong: placement.maPhong,
+    soPhong: placement.phong?.soPhong || null,
+    tenToaNha: placement.phong?.toaNha?.tenToaNha || placement.phong?.maToaNha || null,
+    loaiPhong: placement.phong?.loaiPhong || null,
+    phiNoiTruThang: placement.source === 'MILITARY' ? null : placement.phong?.phiNoiTruThang ?? null,
+    ngayBatDau: placement.ngayBatDau, ngayKetThuc: placement.ngayKetThuc,
+    tongTien: placement.tongTien ?? null, trangThai: placement.trangThai,
+    thanhVien: getRoomOccupancy(placement.phong || {}, now).thanhVien.map((member) => ({
+        maHopDong: member.maHopDong, maPhanPhong: member.maPhanPhong || null, source: member.source,
+        maSV: member.maSV, hoTen: member.hoTen, nienKhoa: member.nienKhoa
+    }))
+} : null;
+
+const serializeUser = (account, now = new Date()) => {
     const student = account.sinhVien;
     const employee = account.nhanVien;
     const currentContract = student?.hopDongs?.find((contract) => ['PENDING_PAYMENT', 'ACTIVE'].includes(contract.trangThai));
-    const militaryAssignment = student?.militaryRoomAssignments?.[0];
-    const currentPlacement = militaryAssignment ? {
+    const assignments = student?.militaryRoomAssignments || [];
+    const militaryAssignment = assignments.find((item) => militaryStayState(item, now) === 'ACTIVE')
+        || assignments.find((item) => militaryStayState(item, now) === 'UPCOMING') || assignments[0];
+    const stayState = militaryAssignment ? militaryStayState(militaryAssignment, now) : null;
+    const period = militaryAssignment ? getMilitaryStayPeriod(militaryAssignment) : null;
+    const militaryPlacement = militaryAssignment ? {
         maHopDong: null, maPhanPhong: militaryAssignment.id, source: 'MILITARY',
         maPhong: militaryAssignment.maPhong, phong: militaryAssignment.phong,
-        ngayBatDau: militaryAssignment.assignedAt, ngayKetThuc: null,
+        ngayBatDau: period.startsAt, ngayKetThuc: period.endsAt,
         tongTien: null, trangThai: 'MILITARY_ASSIGNED'
-    } : currentContract;
+    } : null;
+    const currentPlacement = stayState === 'ACTIVE' ? militaryPlacement : currentContract;
     const latestApplication = student?.dangKyKTXs?.[0];
 
     return {
@@ -42,6 +64,9 @@ const serializeUser = (account) => {
         username: account.username,
         hoTen: student?.hoTen || employee?.hoTen || account.username,
         role: account.role,
+        laHocVienQuanSu: Boolean(student?.laHocVienQuanSu || account.role === 'MILITARY_STUDENT'),
+        militaryStay: militaryPlacement ? { ...serializePlacement(militaryPlacement, now), state: stayState, batchCode: militaryAssignment.batchCode || null } : null,
+        currentResidence: serializePlacement(currentPlacement, now),
         maSV: student?.maSV || null,
         maNhanVien: employee?.maNhanVien || null,
         chucVu: employee?.chucVu || null,
@@ -54,30 +79,14 @@ const serializeUser = (account) => {
         isPriority: isPriorityStudent(student),
         email: student?.email || employee?.email || null,
         phone: student?.phone || employee?.phone || null,
-        trangThaiNoiTru: militaryAssignment ? 'DANG_O' : student ? deriveStudentHousingStatus(
+        trangThaiNoiTru: stayState === 'ACTIVE' ? 'DANG_O' : student ? deriveStudentHousingStatus(
             student.hopDongs || [],
             latestApplication?.trangThai === 'PENDING'
         ) : null,
         maPhong: currentPlacement?.phong?.maPhong || null,
         soPhong: currentPlacement?.phong?.soPhong || null,
-        ngayKetThucHopDong: currentPlacement?.ngayKetThuc || null,
-        currentContract: currentPlacement ? {
-            maHopDong: currentPlacement.maHopDong,
-            maPhanPhong: currentPlacement.maPhanPhong || null,
-            source: currentPlacement.source || 'CONTRACT',
-            maPhong: currentPlacement.maPhong,
-            soPhong: currentPlacement.phong?.soPhong || null,
-            loaiPhong: currentPlacement.phong?.loaiPhong || null,
-            phiNoiTruThang: currentPlacement.phong?.phiNoiTruThang ?? null,
-            ngayBatDau: currentPlacement.ngayBatDau,
-            ngayKetThuc: currentPlacement.ngayKetThuc,
-            tongTien: currentPlacement.tongTien,
-            trangThai: currentPlacement.trangThai,
-            thanhVien: getRoomOccupancy(currentPlacement.phong || {}).thanhVien.map((member) => ({
-                maHopDong: member.maHopDong, maPhanPhong: member.maPhanPhong || null, source: member.source,
-                maSV: member.maSV, hoTen: member.hoTen, nienKhoa: member.nienKhoa
-            }))
-        } : null,
+        ngayKetThucHopDong: currentContract?.ngayKetThuc || null,
+        currentContract: serializePlacement(currentContract, now),
         latestApplication: latestApplication ? {
             maDangKy: latestApplication.maDangKy,
             loaiPhongYeuCau: latestApplication.loaiPhongYeuCau,
@@ -86,6 +95,8 @@ const serializeUser = (account) => {
         } : null
     };
 };
+
+exports.serializeUser = serializeUser;
 
 const generateToken = (id, role) => jwt.sign(
     { id, role },

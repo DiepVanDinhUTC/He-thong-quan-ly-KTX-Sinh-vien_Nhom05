@@ -87,7 +87,6 @@ model SinhVien {
 
   trangThaiNoiTru String          @default("Chưa đăng ký") @db.VarChar(50)
   role            String          @default("STUDENT") @db.VarChar(20)
-  baoHongs        BaoHong[]
   hoSoSucKhoe     HoSoSucKhoe?
   lichSuKhams     LichSuKham[]
   phanPhongGDQPs  PhanPhongGDQP[]
@@ -178,8 +177,6 @@ model Phong {
   medicalIncidents        MedicalIncident[]
   utilityMeterReadings    UtilityMeterReading[]
   militaryRoomAssignments MilitaryRoomAssignment[]
-
-  legacyThietBis ThietBi[]
 
   @@index([maToaNha, tang])
 }
@@ -617,6 +614,9 @@ model MilitaryRoomAssignment {
   assignedById String
   status       String    @default("ACTIVE") @db.VarChar(16)
   assignedAt   DateTime  @default(now())
+  startsAt     DateTime  @default(now())
+  endsAt       DateTime  @default(dbgenerated("(CURRENT_TIMESTAMP + '14 days'::interval)"))
+  batchCode    String?   @db.VarChar(50)
   endedAt      DateTime?
 
   sinhVien   SinhVien @relation(fields: [maSinhVien], references: [maSV], onDelete: NoAction, onUpdate: NoAction)
@@ -625,6 +625,7 @@ model MilitaryRoomAssignment {
 
   @@index([maSinhVien, status])
   @@index([maPhong, status])
+  @@index([status, endsAt])
   @@map("MILITARY_ROOM_ASSIGNMENT")
 }
 

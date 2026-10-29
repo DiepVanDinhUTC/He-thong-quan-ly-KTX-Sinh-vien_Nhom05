@@ -3,11 +3,12 @@ import { useDispatch, useSelector } from 'react-redux';
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import {
   BedDouble, Building, ChevronDown, Home, LockKeyhole,
-  LogOut, Mail, PackageCheck, Receipt, UserRound, Wrench, X,
+  LogOut, Mail, PackageCheck, Receipt, Shield, UserRound, Wrench, X,
 } from 'lucide-react';
 import { authApi } from '../services/authApi';
 import StudentNotificationBell from './StudentNotificationBell';
 import { logout, userUpdated } from '../store/authSlice';
+import { isMilitaryLearner } from '../utils/studentResidence';
 
 const navLinkClass = ({ isActive }) => `flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition ${
   isActive ? 'bg-blue-50 font-semibold text-blue-800' : 'text-slate-600 hover:bg-slate-50 hover:text-blue-800'
@@ -27,7 +28,7 @@ const StudentLayout = () => {
   const [message, setMessage] = useState({ type: '', text: '' });
   const studentName = student?.hoTen || student?.username || 'Sinh viên';
   const initials = studentName.split(/\s+/).slice(-2).map((part) => part[0]).join('').toUpperCase();
-  const roleLabel = student?.role === 'MILITARY_STUDENT' ? 'Học viên quân sự' : 'Sinh viên';
+  const roleLabel = isMilitaryLearner(authenticatedUser) ? 'Sinh viên · Học viên GDQP' : 'Sinh viên';
 
   useEffect(() => {
     let active = true;
@@ -101,6 +102,7 @@ const StudentLayout = () => {
   const mobileLinks = [
     { to: '/student-portal', label: 'Trang chủ', Icon: Home, end: true },
     { to: '/my-room', label: 'Phòng ở', Icon: BedDouble },
+    ...(isMilitaryLearner(authenticatedUser) ? [{ to: '/military-stay', label: 'GDQP', Icon: Shield }] : []),
     { to: '/service-registration', label: 'Dịch vụ', Icon: PackageCheck },
     { to: '/bill-payment', label: 'Hóa đơn', Icon: Receipt },
     { to: '/ticket-report', label: 'Báo hỏng', Icon: Wrench },
@@ -117,6 +119,7 @@ const StudentLayout = () => {
           <NavLink to="/student-portal" end className={navLinkClass}><Home className="h-5 w-5 shrink-0" />Tổng quan</NavLink>
           {student?.role === 'STUDENT' && <NavLink to="/room-registration" className={navLinkClass}><Building className="h-5 w-5 shrink-0" />Đăng ký nội trú</NavLink>}
           <NavLink to="/my-room" className={navLinkClass}><BedDouble className="h-5 w-5 shrink-0" />{student?.role === 'MILITARY_STUDENT' ? 'Tra cứu phòng' : 'Phòng ở & yêu cầu'}</NavLink>
+          {isMilitaryLearner(authenticatedUser) && <NavLink to="/military-stay" className={navLinkClass}><Shield className="h-5 w-5 shrink-0" />Đợt học GDQP</NavLink>}
           <NavLink to="/service-registration" className={navLinkClass}><PackageCheck className="h-5 w-5 shrink-0" />Đăng ký dịch vụ</NavLink>
           <NavLink to="/bill-payment" className={navLinkClass}><Receipt className="h-5 w-5 shrink-0" />Hóa đơn & thanh toán</NavLink>
           <NavLink to="/ticket-report" className={navLinkClass}><Wrench className="h-5 w-5 shrink-0" />Báo hỏng CSVC</NavLink>
@@ -159,7 +162,7 @@ const StudentLayout = () => {
         </div>
       </>}
 
-      <nav aria-label="Điều hướng nhanh" className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t bg-white/95 px-1 pb-[env(safe-area-inset-bottom)] pt-1 shadow-[0_-4px_16px_rgba(15,23,42,0.08)] backdrop-blur md:hidden">
+      <nav aria-label="Điều hướng nhanh" className={`fixed inset-x-0 bottom-0 z-30 grid ${mobileLinks.length === 6 ? 'grid-cols-6' : 'grid-cols-5'} border-t bg-white/95 px-1 pb-[env(safe-area-inset-bottom)] pt-1 shadow-[0_-4px_16px_rgba(15,23,42,0.08)] backdrop-blur md:hidden`}>
         {mobileLinks.map(({ to, label, Icon, end }) => <NavLink key={to} to={to} end={end} className={({ isActive }) => `flex min-w-0 flex-col items-center gap-1 rounded-lg px-1 py-2 text-[10px] font-medium ${isActive ? 'text-blue-800' : 'text-slate-500'}`}>
           {({ isActive }) => <><Icon className={`h-5 w-5 ${isActive ? 'stroke-[2.5]' : ''}`} /><span className="max-w-full truncate">{label}</span></>}
         </NavLink>)}

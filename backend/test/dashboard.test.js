@@ -149,13 +149,14 @@ const controllerFixture = ({ scope = ['A1'] } = {}) => {
     return { calls, invoke };
 };
 
-test('every internal BQL role can access aggregate statistics while students and external providers cannot', async () => {
-    const { roleCanAccess } = await import('../../frontend/src/utils/accessControl.js');
+test('board statistics page is limited to leadership and every role has an accessible home', async () => {
+    const { roleCanAccess, homeForRole } = await import('../../frontend/src/utils/accessControl.js');
     const permissionGate = dashboardRouter.stack.find((layer) => layer.route?.path === '/').route.stack[1].handle;
     for (const role of ROLES.KNOWN_ROLES) {
         const expected = !['STUDENT', 'MILITARY_STUDENT', 'SERVICE_PROVIDER'].includes(role);
         assert.equal(ROLES.hasPermission(role, 'dashboard:read'), expected, role);
-        assert.equal(roleCanAccess(role, '/'), expected, role);
+        assert.equal(roleCanAccess(role, '/'), ['BOARD_CHAIR', 'BOARD_DEPUTY', 'ADMIN'].includes(role), role);
+        assert.equal(roleCanAccess(role, homeForRole(role)), true, `${role}: home`);
         let next = false;
         const res = response();
         permissionGate({ user: { role } }, res, () => { next = true; });
