@@ -19,7 +19,7 @@ const defaultContractTerms = (room, now = new Date()) => {
 const approveApplication = async (tx, { maDangKy, maPhong, ngayBatDau, ngayKetThuc, tongTien }) => {
     const application = await tx.dangKyKTX.findUnique({
         where: { maDangKy },
-        include: { sinhVien: { select: { militaryRoomAssignments: { where: { status: 'ACTIVE' }, select: { id: true }, take: 1 } } } }
+        include: { sinhVien: { select: { militaryRoomAssignments: { where: { status: 'ACTIVE', endsAt: { gt: new Date() } }, select: { id: true }, take: 1 } } } }
     });
     if (!application) throw reject(404, 'Không tìm thấy đơn đăng ký KTX.');
     if (application.trangThai !== 'PENDING') throw reject(409, 'Đơn đăng ký không còn ở trạng thái chờ duyệt.');

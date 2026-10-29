@@ -5,7 +5,8 @@ export const financialPermissions = {
 };
 
 export const rolePermissions = {
-  '/': ['BOARD_CHAIR', 'BOARD_DEPUTY', 'ARCHIVIST', 'ACCOUNTANT', 'TREASURER', 'FACILITIES_MANAGER', 'BUILDING_MANAGER', 'SECURITY', 'MILITARY_OFFICER', 'MEDICAL_OFFICER', 'ADMIN'],
+  '/': ['BOARD_CHAIR', 'BOARD_DEPUTY', 'ADMIN'],
+  '/facilities': ['FACILITIES_MANAGER', 'BUILDING_MANAGER', 'ADMIN'],
   '/students': ['BOARD_CHAIR', 'BOARD_DEPUTY', 'ARCHIVIST', 'BUILDING_MANAGER', 'MEDICAL_OFFICER', 'ADMIN'],
   '/staff-accounts': ['BOARD_CHAIR', 'BOARD_DEPUTY', 'ADMIN'],
   '/rooms': ['BOARD_CHAIR', 'BOARD_DEPUTY', 'FACILITIES_MANAGER', 'BUILDING_MANAGER', 'ADMIN'],
@@ -22,6 +23,7 @@ export const rolePermissions = {
   '/technician': ['FACILITIES_MANAGER', 'BUILDING_MANAGER', 'ADMIN'],
   '/student-portal': ['STUDENT', 'MILITARY_STUDENT'],
   '/my-room': ['STUDENT', 'MILITARY_STUDENT'],
+  '/military-stay': ['STUDENT', 'MILITARY_STUDENT'],
   '/room-registration': ['STUDENT'],
   '/service-registration': ['STUDENT', 'MILITARY_STUDENT'],
   '/ticket-report': ['STUDENT', 'MILITARY_STUDENT'],
@@ -59,8 +61,8 @@ export const homeForRole = (role) => ({
   ARCHIVIST: '/archive-management',
   ACCOUNTANT: '/financial-dashboard',
   TREASURER: '/financial-dashboard',
-  FACILITIES_MANAGER: '/rooms',
-  BUILDING_MANAGER: '/rooms',
+  FACILITIES_MANAGER: '/facilities',
+  BUILDING_MANAGER: '/facilities',
   SECURITY: '/security',
   MILITARY_OFFICER: '/military-management',
   MEDICAL_OFFICER: '/security-medical',

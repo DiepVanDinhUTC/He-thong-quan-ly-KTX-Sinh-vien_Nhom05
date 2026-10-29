@@ -196,7 +196,7 @@ const createMilitaryStudentSyncService = ({ db = prisma, httpClient = axios, has
 
     const { selected, rejected } = selectRegistrations(registrations, config);
     const passwordHash = selected.length ? await hashPassword(config.defaultPassword, 12) : null;
-    const result = { received: registrations.length, selected: selected.length, createdAccounts: 0, militaryStudentsMarked: 0, linkedProfiles: 0, skipped: rejected };
+    const result = { received: registrations.length, selected: selected.length, createdAccounts: 0, militaryStudentsMarked: 0, linkedProfiles: 0, studentIds: [], skipped: rejected };
 
     const syncOneStudent = async (item) => {
         const student = item.student;
@@ -258,6 +258,7 @@ const createMilitaryStudentSyncService = ({ db = prisma, httpClient = axios, has
                 continue;
             }
             if (outcome.createdAccount) result.createdAccounts += 1;
+            result.studentIds.push(student.maSV);
             result.militaryStudentsMarked += 1;
             if (outcome.linkedProfile) result.linkedProfiles += 1;
         }

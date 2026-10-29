@@ -19,7 +19,7 @@ exports.createApplication = async (req, res) => {
     try {
         const result = await prisma.$transaction(async (tx) => {
             const student = await tx.sinhVien.findFirst({
-                where: { userId: req.user.id }, select: { maSV: true, dienUuTien: true, militaryRoomAssignments: { where: { status: 'ACTIVE' }, select: { id: true }, take: 1 } }
+                where: { userId: req.user.id }, select: { maSV: true, dienUuTien: true, militaryRoomAssignments: { where: { status: 'ACTIVE', endsAt: { gt: new Date() } }, select: { id: true }, take: 1 } }
             });
             if (!student) throw Object.assign(new Error('Tài khoản chưa liên kết hồ sơ sinh viên.'), { status: 404 });
             if (student.militaryRoomAssignments?.length) throw Object.assign(new Error('Bạn đã được phân phòng quân sự và không thể đăng ký giữ thêm chỗ nội trú.'), { status: 409 });

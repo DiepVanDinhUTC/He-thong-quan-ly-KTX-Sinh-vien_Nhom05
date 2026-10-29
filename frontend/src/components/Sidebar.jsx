@@ -6,6 +6,7 @@ import { logout } from '../store/authSlice';
 import { 
   Building2, 
   ClipboardList,
+  Home,
   LayoutDashboard, 
   Users, 
   UserCog,
@@ -20,7 +21,7 @@ import {
   ChevronRight
 } from 'lucide-react';
 import AdminUserProfile from './AdminUserProfile';
-import { rolePermissions } from '../utils/accessControl';
+import { homeForRole, rolePermissions } from '../utils/accessControl';
 import { financialSections } from '../utils/financialNavigation';
 import { securitySections } from '../utils/securityNavigation';
 
@@ -35,6 +36,7 @@ const Sidebar = ({ additionalMenuItems = [] }) => {
   // Trạng thái lưu mục đang được chọn (Active)
   // Danh sách các mục menu chính
   const mainMenuItems = [
+    { id: 'home', path: homeForRole(role), label: 'Trang chủ', icon: Home, roles: ['ACCOUNTANT', 'TREASURER', 'ARCHIVIST', 'FACILITIES_MANAGER', 'BUILDING_MANAGER', 'MILITARY_OFFICER'] },
     { id: 'dashboard', path: '/', label: 'Thống kê BQL', icon: LayoutDashboard, roles: rolePermissions['/'] },
     { id: 'students', path: '/students', label: 'Quản lý Sinh viên', icon: Users, roles: ['BOARD_CHAIR', 'BOARD_DEPUTY', 'ARCHIVIST', 'BUILDING_MANAGER', 'MEDICAL_OFFICER', 'ADMIN'] },
     { id: 'staff-accounts', path: '/staff-accounts', label: 'Quản lý tài khoản nhân viên', icon: UserCog, roles: ['BOARD_CHAIR', 'BOARD_DEPUTY'] },
@@ -59,6 +61,7 @@ const Sidebar = ({ additionalMenuItems = [] }) => {
     roles: role ? [role] : [],
   }));
   const allMenuItems = [...mainMenuItems, ...customMenuItems]
+    .filter((item) => item.id !== 'home' || item.roles.includes(role))
     .filter((item, index, items) => items.findIndex((candidate) => candidate.path === item.path) === index);
   const visibleMenuItems = allMenuItems.filter((item) => role === 'ADMIN' || item.roles.includes(role));
   const activeItem = allMenuItems.find((item) => item.path === location.pathname)?.id;

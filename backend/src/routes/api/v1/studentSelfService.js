@@ -10,6 +10,7 @@ const housingDeciders = [...new Set(Object.values(ROLES.HOUSING_REQUEST_DECISION
 const serviceManagers = [ROLES.SERVICE_PROVIDER, ROLES.BUILDING_MANAGER, ROLES.ADMIN];
 
 router.use(protect);
+router.get('/military-stay/mine', restrictTo(...studentRoles), controller.myMilitaryStay);
 
 router.get('/housing-requests/mine', restrictTo(ROLES.STUDENT), controller.myHousingRequests);
 router.post('/housing-requests', restrictTo(ROLES.STUDENT), controller.createHousingRequest);

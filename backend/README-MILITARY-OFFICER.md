@@ -1,5 +1,7 @@
 # Demo chức năng cán bộ quản lý quân sự
 
+> Cập nhật thời hạn GDQP: học viên dùng chung cổng sinh viên; phòng quân sự tách biệt với hợp đồng nội trú gốc và có thời hạn 14 ngày. Đồng bộ SIS chỉ tiếp nhận hồ sơ. Sau đó cán bộ chọn ngày bắt đầu thực tế trong **Xếp phòng quân sự**. Xem quy tắc hiện hành và cách cập nhật database tại [README-MILITARY-STUDENT.md](README-MILITARY-STUDENT.md).
+
 Tài liệu này hướng dẫn chạy demo bốn nghiệp vụ: tiếp nhận học viên GDQP, tự động xếp phòng A1 theo giới tính, quản lý cấp/hoàn trả quân tư trang và quản lý phòng giao ban. Bộ tài khoản học viên demo không cần kết nối SIS.
 
 ## 1. Khởi động database demo
@@ -76,7 +78,7 @@ Học viên demo có tài khoản `QSDEMO001` đến `QSDEMO006`; mật khẩu m
 ### Học viên và SIS
 
 1. Mở **Học viên từ SIS**. Bộ dữ liệu tài khoản seed vẫn có sáu học viên demo; SIS mock trên localhost chính cung cấp 50 hồ sơ đăng ký GDQP để đồng bộ.
-2. Khi endpoint SIS hoạt động và đã cấu hình mã học phần, đợt học, khoa, bấm **Đồng bộ SIS ngay**. Hệ thống đánh dấu hồ sơ thuộc diện học viên quân sự, chỉ tạo tài khoản khi chưa có, sau đó tự xếp phòng cho học viên chưa có phòng hợp lệ.
+2. Khi endpoint SIS hoạt động và đã cấu hình mã học phần, đợt học, khoa, bấm **Đồng bộ SIS ngay**. Hệ thống đánh dấu hồ sơ thuộc diện học viên quân sự và chỉ tạo tài khoản khi chưa có. Mở **Xếp phòng quân sự**, chọn ngày bắt đầu thực tế để bố trí phòng 14 ngày.
 3. Cấu hình mock trả 50 đăng ký hợp lệ thuộc hai đợt và năm khoa mẫu. Chạy lại cập nhật cùng mã sinh viên, không tạo tài khoản trùng.
 
 Nếu cần khôi phục cấu hình mock trong PowerShell chạy backend, đặt các biến sau trước `npm run dev`:
@@ -94,7 +96,7 @@ Thông báo thiếu `SIS_GDQP_COURSE_CODE`, `SIS_GDQP_BATCHES`, `SIS_GDQP_FACULT
 ### Tự động xếp phòng
 
 1. Mở **Xếp phòng quân sự**. Từng tầng A1 dành tối đa một nửa số phòng cho học viên quân sự (với số lẻ, làm tròn lên); trong số phòng đó, hệ thống ưu tiên phòng có sức chứa lớn hơn.
-2. Sau đồng bộ SIS, xếp phòng chạy tự động. Có thể bấm **Tự xếp phòng ngay** để chạy lại.
+2. Chọn ngày bắt đầu và mã đợt (nếu có), sau đó bấm **Xếp phòng đợt 14 ngày**. Đồng bộ SIS không tự bắt đầu đợt ở phòng quân sự. Chạy xếp lại giữ nguyên thời hạn của các phân phòng đang hiệu lực.
 3. Học viên nam và nữ được bố trí vào các phòng riêng. Phòng có người ngoài danh sách học viên quân sự sẽ không được chọn. Các phân phòng hợp lệ được giữ lại; phân phòng sai khu vực hoặc lẫn giới tính sẽ được kết thúc và phân lại. Nếu sức chứa nửa số phòng không đủ, số còn lại được báo chờ phòng thay vì làm rollback toàn bộ lượt xếp.
 4. Lịch sử phân phòng cũ được giữ lại; phân phòng quân sự không phát sinh hợp đồng hoặc hóa đơn.
 

@@ -1,13 +1,15 @@
 /* eslint-disable react/prop-types */
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { NavLink } from 'react-router-dom';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { NavLink, useSearchParams } from 'react-router-dom';
 import {
-  ArrowLeftRight, CheckCircle2, ClipboardCheck, DoorOpen, RefreshCw,
-  Shield, ShieldAlert, Users, XCircle
+  ArrowLeftRight, CheckCircle2, DoorOpen, RefreshCw,
+  Home, Shield, ShieldAlert, XCircle
 } from 'lucide-react';
 import AdminLogoutButton from '../components/AdminLogoutButton';
 import AdminUserProfile from '../components/AdminUserProfile';
 import DashboardNavLink from '../components/DashboardNavLink';
+import StaffHomeContent from '../components/StaffHomeContent';
+import { archivistSections } from '../utils/staffNavigation';
 import StudentManagement from './StudentManagement';
 import ContractManagement from './ContractManagement';
 import SelfServiceManagement from './SelfServiceManagement';
@@ -16,11 +18,8 @@ import { securityMedicalApi } from '../services/securityMedicalApi';
 import { currentHousingDate, housingPeriodEnd, defaultHousingAmount } from '../utils/housingBilling';
 
 const tabs = [
-  { id: 'students', label: 'Hồ sơ sinh viên', Icon: Users },
-  { id: 'applications', label: 'Xét duyệt lưu trú', Icon: ClipboardCheck },
-  { id: 'rooms', label: 'Xếp / chuyển phòng', Icon: DoorOpen },
-  { id: 'transfers', label: 'Duyệt chuyển phòng', Icon: ArrowLeftRight },
-  { id: 'discipline', label: 'Thông tin & kỷ luật', Icon: ShieldAlert },
+  { id: 'home', label: 'Trang chủ', Icon: Home },
+  ...archivistSections,
 ];
 
 const formatDate = (value) => value ? new Date(value).toLocaleDateString('vi-VN') : '—';
@@ -246,10 +245,14 @@ const DisciplineManagement = () => {
 };
 
 const ArchivistWorkspace = () => {
-  const [activeTab, setActiveTab] = useState('students');
+  const contentScrollRef = useRef(null);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const active = tabs.find((tab) => tab.id === searchParams.get('section')) || tabs[0];
+  const activeTab = active.id;
+  const setActiveTab = (section) => setSearchParams(section === 'home' ? {} : { section });
   const [panelKey, setPanelKey] = useState(0);
-  const active = tabs.find((tab) => tab.id === activeTab) || tabs[0];
   const refreshPanel = () => setPanelKey((key) => key + 1);
+  useEffect(() => { contentScrollRef.current?.scrollTo({ top: 0 }); }, [activeTab]);
 
   return <div className="flex h-screen min-h-0 overflow-hidden bg-slate-50 font-sans text-slate-800">
     <aside className="flex h-full min-h-0 w-64 shrink-0 flex-col bg-blue-950 text-white">
@@ -261,8 +264,9 @@ const ArchivistWorkspace = () => {
       <div className="border-t border-blue-900 p-4"><AdminUserProfile /></div><AdminLogoutButton />
     </aside>
     <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-      <header className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-white px-6 py-4 shadow-sm sm:px-8"><div><p className="text-xs font-semibold uppercase tracking-[0.16em] text-blue-700">Cán bộ quản lý hồ sơ</p><h1 className="mt-1 text-xl font-bold text-slate-900">{active.label}</h1></div><button type="button" onClick={refreshPanel} className={secondaryButton}><RefreshCw className="h-4 w-4" />Tải lại mục này</button></header>
-      <main className="min-h-0 flex-1 overflow-y-auto p-5 sm:p-8">
+      <header className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-white px-6 py-4 shadow-sm sm:px-8"><div><p className="text-xs font-semibold uppercase tracking-[0.16em] text-blue-700">Cán bộ quản lý hồ sơ</p><h1 className="mt-1 text-xl font-bold text-slate-900">{active.label}</h1></div>{activeTab !== 'home' && <button type="button" onClick={refreshPanel} className={secondaryButton}><RefreshCw className="h-4 w-4" />Tải lại mục này</button>}</header>
+      <main ref={contentScrollRef} className="min-h-0 flex-1 overflow-y-auto p-5 sm:p-8">
+        {activeTab === 'home' && <StaffHomeContent role="ARCHIVIST" />}
         {activeTab === 'students' && <StudentManagement key={panelKey} embedded />}
         {activeTab === 'applications' && <ContractManagement key={panelKey} embedded />}
         {activeTab === 'rooms' && <RoomAssignments key={panelKey} />}

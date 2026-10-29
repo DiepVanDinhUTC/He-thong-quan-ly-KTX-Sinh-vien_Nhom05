@@ -1,20 +1,20 @@
 /* eslint-disable react/prop-types */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useSearchParams } from 'react-router-dom';
 import {
-  CalendarDays, CheckCircle2, DoorOpen, Package, RefreshCw,
-  Shield, Users, Warehouse, XCircle
+  CalendarDays, CheckCircle2, DoorOpen, Home, Package, RefreshCw,
+  Shield, Users, XCircle
 } from 'lucide-react';
 import AdminLogoutButton from '../components/AdminLogoutButton';
 import AdminUserProfile from '../components/AdminUserProfile';
 import DashboardNavLink from '../components/DashboardNavLink';
+import StaffHomeContent from '../components/StaffHomeContent';
+import { militarySections } from '../utils/staffNavigation';
 import { militaryManagementApi as api } from '../services/militaryManagementApi';
 
 const tabs = [
-  { id: 'students', label: 'Học viên từ SIS', Icon: Users },
-  { id: 'rooms', label: 'Xếp phòng quân sự', Icon: DoorOpen },
-  { id: 'equipment', label: 'Kho quân tư trang', Icon: Warehouse },
-  { id: 'meetings', label: 'Phòng giao ban', Icon: CalendarDays },
+  { id: 'home', label: 'Trang chủ', Icon: Home },
+  ...militarySections,
 ];
 const emptyOverview = { studentCount: 0, assignedCount: 0, equipmentCount: 0, meetingRoomCount: 0, upcomingBookingCount: 0 };
 const fieldClass = 'w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100';
@@ -37,7 +37,10 @@ const Stat = ({ label, value, Icon, color = 'blue' }) => <div className="flex it
 
 const MilitaryManagement = () => {
   const contentScrollRef = useRef(null);
-  const [activeTab, setActiveTab] = useState('students');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = tabs.find(({ id }) => id === searchParams.get('section'))?.id || 'home';
+  const isHome = activeTab === 'home';
+  const setActiveTab = (section) => setSearchParams(section === 'home' ? {} : { section });
   const [overview, setOverview] = useState(emptyOverview);
   const [students, setStudents] = useState([]);
   const [rooms, setRooms] = useState([]);
@@ -56,6 +59,7 @@ const MilitaryManagement = () => {
   const [meetingRoomForm, setMeetingRoomForm] = useState({ code: '', name: '', location: '', capacity: '10' });
   const [editingMeetingRoomId, setEditingMeetingRoomId] = useState('');
   const [bookingForm, setBookingForm] = useState({ meetingRoomId: '', title: '', purpose: '', startsAt: '', endsAt: '' });
+  const [studyPeriod, setStudyPeriod] = useState({ startsAt: new Date(Date.now() + 7 * 60 * 60 * 1000).toISOString().slice(0, 10), batchCode: '' });
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -73,7 +77,8 @@ const MilitaryManagement = () => {
     setLoading(false);
   }, []);
 
-  useEffect(() => { loadData(); }, [loadData]);
+  useEffect(() => { if (!isHome) loadData(); }, [loadData, isHome]);
+  useEffect(() => { contentScrollRef.current?.scrollTo({ top: 0 }); }, [activeTab]);
 
   const activeRooms = useMemo(() => meetingRooms.filter((room) => room.isActive), [meetingRooms]);
   const militaryRooms = useMemo(() => rooms.filter((room) => room.isMilitaryTarget), [rooms]);
@@ -109,6 +114,7 @@ const MilitaryManagement = () => {
       }
 
       let message = `SIS trả ${result.received ?? 0} đăng ký; ${result.selected ?? 0} hồ sơ phù hợp; tạo ${result.createdAccounts ?? 0} tài khoản, gắn diện quân sự ${result.militaryStudentsMarked ?? 0} hồ sơ, liên kết ${result.linkedProfiles ?? 0}.`;
+      if (result.linkedProfiles || result.militaryStudentsMarked) message += ' Mở Xếp phòng quân sự và chọn ngày bắt đầu thực tế để bố trí phòng trong 14 ngày.';
       if (result.roomAssignment) message += ` Tự xếp phòng A1: ${result.roomAssignment.assigned ?? 0} học viên mới; ${result.roomAssignment.alreadyAssigned ?? 0} học viên đã có phòng hợp lệ.`;
       if (result.roomAssignment?.unassignedCount) message += ` Còn ${result.roomAssignment.unassignedCount} học viên chưa có phòng do không đủ chỗ trong nửa số phòng A1 dành cho quân sự.`;
       if (result.roomAssignmentError) message += ` Chưa xếp được phòng tự động: ${result.roomAssignmentError}`;
@@ -137,7 +143,7 @@ const MilitaryManagement = () => {
   };
 
   const runAutoAssignment = async () => {
-    await act(() => api.autoAssignRooms(), 'Đã tự xếp phòng A1 theo giới tính.');
+    await act(() => api.autoAssignRooms(studyPeriod), 'Đã xếp phòng GDQP trong 14 ngày, giữ nguyên hợp đồng nội trú gốc.');
   };
 
   const submitEquipment = async (event) => {
@@ -214,12 +220,13 @@ const MilitaryManagement = () => {
 
     <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
       <header className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-white px-6 py-4 shadow-sm sm:px-8">
-        <div><p className="text-xs font-semibold uppercase tracking-[0.16em] text-blue-700">Cán bộ quản lý Quân sự</p><h1 className="mt-1 text-xl font-bold text-slate-900">Quản lý học viên và cơ sở quân sự</h1></div>
-        <button type="button" onClick={loadData} disabled={loading} className={secondaryButtonClass}><RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />Làm mới</button>
+        <div><p className="text-xs font-semibold uppercase tracking-[0.16em] text-blue-700">Cán bộ quản lý Quân sự</p><h1 className="mt-1 text-xl font-bold text-slate-900">{isHome ? 'Trang chủ' : 'Quản lý học viên và cơ sở quân sự'}</h1></div>
+        {!isHome && <button type="button" onClick={loadData} disabled={loading} className={secondaryButtonClass}><RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />Làm mới</button>}
       </header>
 
       <main ref={contentScrollRef} className="min-h-0 flex-1 overflow-y-auto">
       <div className="space-y-5 p-5 sm:p-8">
+        {isHome ? <StaffHomeContent role="MILITARY_OFFICER" /> : <>
         {error && <div role="alert" className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"><XCircle className="mt-0.5 h-4 w-4 shrink-0" />{error}</div>}
         {notice && <div role="status" className="flex items-start gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800"><CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />{notice}</div>}
 
@@ -257,10 +264,11 @@ const MilitaryManagement = () => {
         </Panel>}
 
         {activeTab === 'rooms' && <div className="space-y-5">
-          <Panel title="Tự động xếp phòng A1 theo giới tính" description="Sau mỗi lượt đồng bộ SIS, hệ thống tự xếp học viên vào tối đa một nửa số phòng của từng tầng A1 và không ghép nam, nữ chung phòng.">
+          <Panel title="Xếp phòng GDQP trong 2 tuần" description="Phòng quân sự được bố trí trong 14 ngày, tách biệt với hợp đồng nội trú gốc. Học viên nam, nữ ở phòng riêng.">
+            <div className="mb-4 grid gap-3 sm:grid-cols-2"><label className="text-sm font-medium text-slate-700">Ngày bắt đầu đợt học<input required type="date" value={studyPeriod.startsAt} onChange={(event) => setStudyPeriod({ ...studyPeriod, startsAt: event.target.value })} className={`${fieldClass} mt-1`} /></label><label className="text-sm font-medium text-slate-700">Mã đợt GDQP (nếu có)<input maxLength={50} value={studyPeriod.batchCode} onChange={(event) => setStudyPeriod({ ...studyPeriod, batchCode: event.target.value })} className={`${fieldClass} mt-1`} placeholder="VD: GDQP-2026-01" /></label></div>
             <div className="flex flex-wrap items-center justify-between gap-4 rounded-lg bg-blue-50 p-4">
-              <p className="max-w-3xl text-sm leading-6 text-blue-950">Có thể bấm chạy lại bất cứ lúc nào. Hệ thống giữ phòng hợp lệ, tự sửa các phân phòng ngoài khu vực quân sự hoặc sai giới tính, và không dùng phòng đang có người ngoài danh sách học viên quân sự.</p>
-              <button type="button" className={buttonClass} disabled={saving || loading || !students.length} onClick={runAutoAssignment}><DoorOpen className="h-4 w-4" />{saving ? 'Đang xếp phòng…' : 'Tự xếp phòng ngay'}</button>
+              <p className="max-w-3xl text-sm leading-6 text-blue-950">Hết 14 ngày, hệ thống kết thúc chỗ ở quân sự và hiển thị lại phòng nội trú gốc nếu hợp đồng còn hiệu lực. Chạy lại không kéo dài đợt đang có. Muốn bố trí đợt tiếp theo, chọn ngày bắt đầu sau khi đợt trước kết thúc.</p>
+              <button type="button" className={buttonClass} disabled={saving || loading || !students.length || !studyPeriod.startsAt} onClick={runAutoAssignment}><DoorOpen className="h-4 w-4" />{saving ? 'Đang xếp phòng…' : 'Xếp phòng đợt 14 ngày'}</button>
             </div>
             <div className="mt-5">
               <h3 className="mb-3 text-sm font-semibold text-slate-800">Phòng dành cho quân sự · {militaryRooms.length} phòng</h3>
@@ -283,7 +291,7 @@ const MilitaryManagement = () => {
                   <td className={tdClass}>{student.hoTen}</td>
                   <td className={tdClass}>{student.gioiTinh ? 'Nam' : 'Nữ'}</td>
                   <td className={tdClass}>{student.lop}</td>
-                  <td className={tdClass}>{room ? `${room.toaNha?.tenToaNha || room.maToaNha} · tầng ${room.tang ?? '—'} · ${room.soPhong}` : '—'}</td>
+                  <td className={tdClass}>{room ? <><p>{room.toaNha?.tenToaNha || room.maToaNha} · tầng {room.tang ?? '—'} · {room.soPhong}</p><p className="mt-1 text-xs text-slate-500">{moneyDate(assignment.startsAt)} – {moneyDate(assignment.endsAt)}</p>{assignment.batchCode && <p className="mt-1 text-xs text-slate-500">{assignment.batchCode}</p>}</> : '—'}</td>
                   <td className={tdClass}>{room ? <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700">Đã xếp</span> : <span className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-700">Chưa xếp</span>}</td>
                 </tr>;
               })}{!students.length && <tr><td className={`${tdClass} py-8 text-center text-slate-500`} colSpan="6">Chưa có học viên. Hãy tạo bộ tài khoản demo hoặc đồng bộ SIS trước.</td></tr>}</tbody>
@@ -368,6 +376,7 @@ const MilitaryManagement = () => {
             </table></div>
           </Panel>
         </div>}
+        </>}
       </div>
       </main>
     </div>

@@ -396,7 +396,7 @@ exports.getArchiveRoomCandidates = async (req, res) => {
             where: {
                 hopDongs: { none: { trangThai: { in: liveContractStatuses } } },
                 dangKyKTXs: { none: { trangThai: 'PENDING' } },
-                militaryRoomAssignments: { none: { status: 'ACTIVE' } }
+                militaryRoomAssignments: { none: { status: 'ACTIVE', endsAt: { gt: new Date() } } }
             },
             select: { maSV: true, hoTen: true, lop: true, phone: true, dienUuTien: true },
             orderBy: { hoTen: 'asc' }
@@ -426,7 +426,7 @@ exports.assignArchiveRoom = async (req, res) => {
     try {
         const contract = await prisma.$transaction(async (tx) => {
             const [student, room, existingContract, pendingApplication] = await Promise.all([
-                tx.sinhVien.findUnique({ where: { maSV: maSinhVien }, select: { maSV: true, militaryRoomAssignments: { where: { status: 'ACTIVE' }, select: { id: true }, take: 1 } } }),
+                tx.sinhVien.findUnique({ where: { maSV: maSinhVien }, select: { maSV: true, militaryRoomAssignments: { where: { status: 'ACTIVE', endsAt: { gt: new Date() } }, select: { id: true }, take: 1 } } }),
                 tx.phong.findUnique({ where: { maPhong } }),
                 tx.hopDong.findFirst({
                     where: { maSinhVien, trangThai: { in: liveContractStatuses } },

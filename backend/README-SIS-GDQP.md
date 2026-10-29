@@ -1,5 +1,7 @@
 # Job cấp tài khoản học viên quân sự từ SIS
 
+> Quy tắc hiện hành: job SIS chỉ cập nhật hồ sơ/tài khoản, không tự phân phòng theo thời điểm chạy job. Cán bộ chọn ngày bắt đầu để bố trí đợt 14 ngày tại **Xếp phòng quân sự**. Hợp đồng và chỗ nội trú gốc được giữ riêng. Xem [README-MILITARY-STUDENT.md](README-MILITARY-STUDENT.md) trước khi chạy demo phân phòng.
+
 Job lấy danh sách đăng ký học phần GDQP từ SIS, giữ các bản ghi khớp mã học phần, đợt học và khoa đã cấu hình, rồi đánh dấu hồ sơ `laHocVienQuanSu=true` và cấp tài khoản nếu cần. Job có thể chạy theo lịch hoặc chạy một lượt bằng lệnh.
 
 ## Cấu hình SIS
@@ -41,7 +43,7 @@ Backend chính dùng endpoint SIS mock trên cùng cổng `5000`. Cấu hình hi
 
 SIS mock trả 50 đăng ký hợp lệ. Đồng bộ chạy theo lô tối đa 5 hồ sơ để giới hạn kết nối database; hồ sơ đã xử lý được cập nhật theo mã sinh viên nên chạy lại không tạo tài khoản trùng. Các đăng ký lặp cho cùng mã sinh viên được gộp thành một hồ sơ.
 
-Database chính hiện có sức chứa 48 chỗ trong nửa số phòng A1 được chọn, nên với 50 học viên, hệ thống tiếp nhận đủ hồ sơ, tự xếp tối đa 48 người theo giới tính và báo số còn chờ phòng. Muốn xếp đủ 50 cần tăng sức chứa hợp lệ hoặc cho phép thêm phòng A1.
+Với bộ phòng mẫu có 48 chỗ quân sự và 50 học viên, đồng bộ tiếp nhận đủ hồ sơ. Sau đó cán bộ chọn ngày bắt đầu và bấm **Xếp phòng đợt 14 ngày**: tối đa 48 người được xếp theo giới tính, số còn lại chờ phòng. Muốn xếp đủ 50 cần tăng sức chứa hợp lệ hoặc cho phép thêm phòng A1.
 
 ## Demo tách biệt trên database Docker
 
@@ -87,11 +89,11 @@ $env:SIS_GDQP_TIMEZONE = 'Asia/Ho_Chi_Minh'
 npm run dev
 ```
 
-Backend chạy ở `http://localhost:5001`. Gọi `http://localhost:5001/api/v1/mock/sis-utc/students` để xem nguồn SIS dùng chung. API trả 50 hồ sơ và 50 đăng ký GDQP hợp lệ; với database demo mới, job tiếp nhận đủ 50 hồ sơ. Phòng A1 trong bộ dữ liệu demo có 48 chỗ trong khu dành riêng cho quân sự, vì vậy hai học viên sẽ được báo là đang chờ xếp phòng.
+Backend chạy ở `http://localhost:5001`. Gọi `http://localhost:5001/api/v1/mock/sis-utc/students` để xem nguồn SIS dùng chung. API trả 50 hồ sơ và 50 đăng ký GDQP hợp lệ; với database demo mới, job tiếp nhận đủ 50 hồ sơ. Chọn ngày bắt đầu trong giao diện cán bộ trước khi phân phòng. Nếu bộ phòng demo có 48 chỗ quân sự thì sau lượt phân phòng, hai học viên còn chờ chỗ phù hợp.
 
 ### 4. Xem job tự động chạy
 
-Chờ tối đa một phút và xem terminal backend. Ở lượt đầu trên DB demo mới, log tổng kết dự kiến có `received: 50`, `selected: 50`, `createdAccounts: 50`, `linkedProfiles: 50`, `skipped: 0`; kết quả xếp phòng báo tối đa 48 người được xếp, hai người chờ sức chứa bổ sung. Các lượt sau cập nhật cùng 50 hồ sơ, không tạo tài khoản trùng.
+Chờ tối đa một phút và xem terminal backend. Ở lượt đầu trên DB demo mới, log tổng kết dự kiến có `received: 50`, `selected: 50`, `createdAccounts: 50`, `linkedProfiles: 50`, `skipped: 0`. Các lượt sau cập nhật cùng 50 hồ sơ, không tạo tài khoản trùng và không mở lại hoặc kéo dài phân phòng. Cán bộ chủ động chọn ngày bắt đầu để phân phòng đợt 14 ngày.
 
 Để chạy ngay một lượt khác thủ công, mở PowerShell thứ ba, đặt lại các biến DB và SIS như ở bước 3 rồi chạy:
 

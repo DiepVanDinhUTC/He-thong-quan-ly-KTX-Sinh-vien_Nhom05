@@ -127,11 +127,11 @@ test('availability, contract and military room APIs use the same sources and omi
 test('a military placement appears in the student room profile with all four roommates and no roommate phone numbers', async (t) => {
     const room = militaryRoom();
     t.mock.method(prisma.user, 'findUnique', async ({ include }) => {
-        assert.deepEqual(include.sinhVien.include.militaryRoomAssignments.where, { status: 'ACTIVE' });
+        assert.equal(include.sinhVien.include.militaryRoomAssignments.orderBy.assignedAt, 'desc');
         assert.ok(include.sinhVien.include.hopDongs.include.phong.include.militaryRoomAssignments);
         return {
             id: 'user0', username: 'student0', isActive: true, role: 'STUDENT',
-            sinhVien: { ...student('SV0'), hopDongs: [], dangKyKTXs: [], militaryRoomAssignments: [{ id: 'QS0', maPhong: room.maPhong, assignedAt: new Date('2026-10-01'), phong: room }] }
+            sinhVien: { ...student('SV0'), hopDongs: [], dangKyKTXs: [], militaryRoomAssignments: [{ id: 'QS0', maPhong: room.maPhong, assignedAt: new Date(), phong: room }] }
         };
     });
     const res = response();
@@ -140,11 +140,12 @@ test('a military placement appears in the student room profile with all four roo
     const user = res.body.user;
     assert.equal(user.trangThaiNoiTru, 'DANG_O');
     assert.equal(user.maPhong, room.maPhong);
-    assert.equal(user.currentContract.source, 'MILITARY');
-    assert.equal(user.currentContract.maHopDong, null);
-    assert.equal(user.currentContract.tongTien, null);
-    assert.equal(user.currentContract.thanhVien.length, 4);
-    assert.ok(user.currentContract.thanhVien.every((member) => member.phone === undefined));
+    assert.equal(user.currentContract, null);
+    assert.equal(user.currentResidence.source, 'MILITARY');
+    assert.equal(user.currentResidence.maHopDong, null);
+    assert.equal(user.currentResidence.tongTien, null);
+    assert.equal(user.currentResidence.thanhVien.length, 4);
+    assert.ok(user.currentResidence.thanhVien.every((member) => member.phone === undefined));
 });
 
 test('ordinary student room profiles include military roommates and pending payment holds', async (t) => {
@@ -165,7 +166,8 @@ test('ordinary student room profiles include military roommates and pending paym
 
 test('archive candidates exclude students already assigned to a military room', async (t) => {
     t.mock.method(prisma.sinhVien, 'findMany', async ({ where }) => {
-        assert.deepEqual(where.militaryRoomAssignments, { none: { status: 'ACTIVE' } });
+        assert.equal(where.militaryRoomAssignments.none.status, 'ACTIVE');
+        assert.ok(where.militaryRoomAssignments.none.endsAt.gt instanceof Date);
         return [];
     });
     const res = response();

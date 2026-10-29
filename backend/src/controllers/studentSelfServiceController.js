@@ -229,6 +229,24 @@ exports.myServiceRegistrations = async (req, res) => {
     } catch (error) { return sendError(res, error, 'Không thể tải đăng ký dịch vụ.'); }
 };
 
+const createMilitaryStayController = ({ db = prisma } = {}) => async (req, res) => {
+    try {
+        const student = await db.sinhVien.findFirst({ where: { userId: req.user.id }, select: { maSV: true } });
+        if (!student) throw fail(404, 'Tài khoản chưa liên kết hồ sơ sinh viên.');
+        const issues = await db.militaryEquipmentIssue.findMany({
+            where: { maSinhVien: student.maSV },
+            select: {
+                id: true, quantity: true, returnedQuantity: true, issuedAt: true, lastReturnedAt: true,
+                item: { select: { name: true, code: true, size: true, unit: true } }
+            },
+            orderBy: { issuedAt: 'desc' }
+        });
+        return res.json({ success: true, issues });
+    } catch (error) { return sendError(res, error, 'Không thể tải thông tin quân tư trang của bạn.'); }
+};
+exports.myMilitaryStay = createMilitaryStayController();
+exports.createMilitaryStayController = createMilitaryStayController;
+
 exports.createServiceRegistration = async (req, res) => {
     const serviceCode = String(req.body.serviceCode || '').trim().toUpperCase();
     const note = typeof req.body.note === 'string' ? req.body.note.trim() : '';
