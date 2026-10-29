@@ -13,6 +13,8 @@
     "seed:test-data": "node seedTestData.js",
     "seed:locations": "node seedLocations.js",
     "seed:nct-rooms": "node seedNctRooms.js",
+    "seed:cau-giay-rooms": "node seedCauGiayRooms.js",
+    "seed:cau-giay-managers": "node seedCauGiayManagers.js",
     "backfill:nien-khoa": "node backfillStudentCohorts.js",
     "job:sync-gdqp": "node src/jobs/syncMilitaryStudents.js",
     "test": "node --test",

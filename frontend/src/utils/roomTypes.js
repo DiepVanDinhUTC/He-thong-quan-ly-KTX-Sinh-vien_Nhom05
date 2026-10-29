@@ -5,6 +5,11 @@ export const roomTypes = [
   { value: 'PHO_THONG_KHONG_DIEU_HOA', label: 'Phổ thông không điều hòa', capacities: [4, 6, 8], feeRange: '570.000–1.140.000', detail: 'Nâng cấp hạ tầng, giường tầng, vệ sinh khép kín, bình nước nóng, internet.' },
   { value: 'PHO_THONG_CO_DIEU_HOA', label: 'Phổ thông có điều hòa', capacities: [4, 6], feeRange: '830.000–1.245.000', detail: 'Nâng cấp hạ tầng, giường tầng, vệ sinh khép kín, bình nước nóng, điều hòa, internet.' },
   { value: 'TIEU_CHUAN', label: 'Tiêu chuẩn', capacities: [4, 6], feeRange: '850.000–1.275.000', detail: 'Có điều hòa, bình nước nóng, tủ quần áo, tủ giày, bàn học, internet.' },
+  { value: 'CG_A1', label: 'Cầu Giấy A1', capacities: [4], feeRange: '1.300.000', detail: 'Tòa 3 tầng, 4 sinh viên/phòng; giường tầng, vệ sinh khép kín, bình nước nóng, điều hòa, internet.' },
+  { value: 'CG_A2', label: 'Cầu Giấy A2', capacities: [4], feeRange: '1.625.000', detail: 'Tòa 3 tầng, 4 sinh viên/phòng; giường tầng, vệ sinh khép kín, bình nước nóng, điều hòa, tủ quần áo, tủ giày, internet.' },
+  { value: 'CG_B1', label: 'Cầu Giấy B1', capacities: [1], feeRange: '3.600.000', detail: 'Tòa 4 tầng, 1 sinh viên/phòng; 1 giường đơn, vệ sinh khép kín, bình nước nóng, điều hòa, internet.' },
+  { value: 'CG_B2', label: 'Cầu Giấy B2', capacities: [2], feeRange: '2.100.000', detail: 'Tòa 4 tầng, 2 sinh viên/phòng; 2 giường đơn, vệ sinh khép kín, bình nước nóng, điều hòa, internet.' },
+  { value: 'CG_B3', label: 'Cầu Giấy B3', capacities: [2], feeRange: '2.400.000', detail: 'Tòa 4 tầng, 2 sinh viên/phòng; 2 giường đơn, vệ sinh khép kín, bình nước nóng, điều hòa, internet.' },
   { value: 'QUAT', label: 'Phòng quạt', capacities: [], feeRange: '', detail: 'Loại phòng cũ.' },
   { value: 'DIEU_HOA', label: 'Phòng điều hòa', capacities: [], feeRange: '', detail: 'Loại phòng cũ.' },
 ];
