@@ -116,7 +116,7 @@ const MilitaryManagement = () => {
       let message = `SIS trả ${result.received ?? 0} đăng ký; ${result.selected ?? 0} hồ sơ phù hợp; tạo ${result.createdAccounts ?? 0} tài khoản, gắn diện quân sự ${result.militaryStudentsMarked ?? 0} hồ sơ, liên kết ${result.linkedProfiles ?? 0}.`;
       if (result.linkedProfiles || result.militaryStudentsMarked) message += ' Mở Xếp phòng quân sự và chọn ngày bắt đầu thực tế để bố trí phòng trong 14 ngày.';
       if (result.roomAssignment) message += ` Tự xếp phòng A1: ${result.roomAssignment.assigned ?? 0} học viên mới; ${result.roomAssignment.alreadyAssigned ?? 0} học viên đã có phòng hợp lệ.`;
-      if (result.roomAssignment?.unassignedCount) message += ` Còn ${result.roomAssignment.unassignedCount} học viên chưa có phòng do không đủ chỗ trong nửa số phòng A1 dành cho quân sự.`;
+      if (result.roomAssignment?.unassignedCount) message += ` Còn ${result.roomAssignment.unassignedCount} học viên chưa có phòng do không đủ chỗ trong các phòng A1 dành cho quân sự.`;
       if (result.roomAssignmentError) message += ` Chưa xếp được phòng tự động: ${result.roomAssignmentError}`;
       if (Number(result.selected) === 0) {
         message += ' SIS đã kết nối nhưng không có đăng ký nào khớp bộ lọc học phần, đợt học và khoa.';
@@ -264,7 +264,7 @@ const MilitaryManagement = () => {
         </Panel>}
 
         {activeTab === 'rooms' && <div className="space-y-5">
-          <Panel title="Xếp phòng GDQP trong 2 tuần" description="Phòng quân sự được bố trí trong 14 ngày, tách biệt với hợp đồng nội trú gốc. Học viên nam, nữ ở phòng riêng.">
+          <Panel title="Xếp phòng GDQP trong 2 tuần" description="Phòng quân sự A1: 103–107, 201–209, 301–309, 401–409. Bố trí trong 14 ngày, học viên nam và nữ ở phòng riêng.">
             <div className="mb-4 grid gap-3 sm:grid-cols-2"><label className="text-sm font-medium text-slate-700">Ngày bắt đầu đợt học<input required type="date" value={studyPeriod.startsAt} onChange={(event) => setStudyPeriod({ ...studyPeriod, startsAt: event.target.value })} className={`${fieldClass} mt-1`} /></label><label className="text-sm font-medium text-slate-700">Mã đợt GDQP (nếu có)<input maxLength={50} value={studyPeriod.batchCode} onChange={(event) => setStudyPeriod({ ...studyPeriod, batchCode: event.target.value })} className={`${fieldClass} mt-1`} placeholder="VD: GDQP-2026-01" /></label></div>
             <div className="flex flex-wrap items-center justify-between gap-4 rounded-lg bg-blue-50 p-4">
               <p className="max-w-3xl text-sm leading-6 text-blue-950">Hết 14 ngày, hệ thống kết thúc chỗ ở quân sự và hiển thị lại phòng nội trú gốc nếu hợp đồng còn hiệu lực. Chạy lại không kéo dài đợt đang có. Muốn bố trí đợt tiếp theo, chọn ngày bắt đầu sau khi đợt trước kết thúc.</p>

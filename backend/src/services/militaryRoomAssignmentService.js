@@ -2,23 +2,13 @@ const prisma = require('../config/prisma');
 const { occupancyRelations, getRoomOccupancy } = require('./roomOccupancy');
 const { resolveMilitaryStayPeriod } = require('./militaryStay');
 const { endExpiredMilitaryStays } = require('./militaryStayLifecycle');
+const { isA1MilitaryRoom } = require('../config/a1Rooms');
 
 const militaryStudentWhere = { laHocVienQuanSu: true };
 
 const sortRooms = (left, right) => left.tang - right.tang || left.soPhong.localeCompare(right.soPhong, 'vi');
 
-const selectA1MilitaryRooms = (rooms) => {
-    const floors = new Map();
-    for (const room of rooms.filter((item) => item.maToaNha === 'A1').sort(sortRooms)) {
-        if (!floors.has(room.tang)) floors.set(room.tang, []);
-        floors.get(room.tang).push(room);
-    }
-    return [...floors.values()].flatMap((floorRooms) => floorRooms
-        .slice()
-        .sort((left, right) => right.soSinhVienToiDa - left.soSinhVienToiDa || sortRooms(left, right))
-        .slice(0, Math.ceil(floorRooms.length / 2))
-        .sort(sortRooms));
-};
+const selectA1MilitaryRooms = (rooms) => rooms.filter(isA1MilitaryRoom).sort(sortRooms);
 
 const balanceEmptyRoomsByGender = ({ targetRooms, roomById, pendingStudents }) => {
     const needs = {

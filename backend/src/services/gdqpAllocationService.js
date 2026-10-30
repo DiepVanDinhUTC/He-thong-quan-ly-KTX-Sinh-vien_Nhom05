@@ -1,13 +1,9 @@
 const prisma = require("../config/prisma");
 const { layDangKyGDQP } = require("./sisGdqpService");
+const { A1_MILITARY_ROOM_NUMBERS } = require('../config/a1Rooms');
 
 // Tòa A1 được trả trống sau mỗi đợt GDQP; mỗi phòng có 8 chỗ.
-const DANH_SACH_PHONG = [
-    ...Array.from({ length: 5 }, (_, i) => String(103 + i)),
-    ...Array.from({ length: 9 }, (_, i) => String(201 + i)),
-    ...Array.from({ length: 9 }, (_, i) => String(301 + i)),
-    ...Array.from({ length: 9 }, (_, i) => String(401 + i))
-];
+const DANH_SACH_PHONG = A1_MILITARY_ROOM_NUMBERS;
 const SUC_CHUA = 8;
 
 function loi(message, statusCode) {

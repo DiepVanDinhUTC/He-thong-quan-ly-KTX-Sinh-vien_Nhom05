@@ -27,7 +27,7 @@ npm run seed:demo-accounts
 npm run seed:military-demo
 ```
 
-`db push` áp dụng schema hiện tại lên database demo tạm. Dữ liệu phòng mẫu gồm các tầng của tòa A1; tài khoản cán bộ mẫu là `actor.military_officer`. Lệnh `seed:military-demo` tạo sáu tài khoản `MILITARY_STUDENT` (ba nam, ba nữ), đánh dấu hồ sơ `laHocVienQuanSu=true` và tự xếp phòng vào tối đa một nửa số phòng của mỗi tầng A1. Seeder từ chối database không chạy trên máy local.
+`db push` áp dụng schema hiện tại lên database demo tạm. Dữ liệu phòng mẫu gồm các tầng của tòa A1; tài khoản cán bộ mẫu là `actor.military_officer`. Lệnh `seed:military-demo` tạo sáu tài khoản `MILITARY_STUDENT` (ba nam, ba nữ), đánh dấu hồ sơ `laHocVienQuanSu=true` và tự xếp phòng trong danh sách quân sự A1: 103–107, 201–209, 301–309, 401–409. Seeder từ chối database không chạy trên máy local.
 
 ## 3. Chạy backend và job SIS
 
@@ -95,9 +95,9 @@ Thông báo thiếu `SIS_GDQP_COURSE_CODE`, `SIS_GDQP_BATCHES`, `SIS_GDQP_FACULT
 
 ### Tự động xếp phòng
 
-1. Mở **Xếp phòng quân sự**. Từng tầng A1 dành tối đa một nửa số phòng cho học viên quân sự (với số lẻ, làm tròn lên); trong số phòng đó, hệ thống ưu tiên phòng có sức chứa lớn hơn.
+1. Mở **Xếp phòng quân sự**. A1 có 68 phòng (101–117, 201–217, 301–317, 401–417); chỉ 32 phòng 103–107, 201–209, 301–309, 401–409 dành cho học viên quân sự. Bổ sung riêng các phòng A1 còn thiếu bằng `npm run seed:a1-rooms`; xem [cấu hình phòng A1](README-A1-ROOMS.md).
 2. Chọn ngày bắt đầu và mã đợt (nếu có), sau đó bấm **Xếp phòng đợt 14 ngày**. Đồng bộ SIS không tự bắt đầu đợt ở phòng quân sự. Chạy xếp lại giữ nguyên thời hạn của các phân phòng đang hiệu lực.
-3. Học viên nam và nữ được bố trí vào các phòng riêng. Phòng có người ngoài danh sách học viên quân sự sẽ không được chọn. Các phân phòng hợp lệ được giữ lại; phân phòng sai khu vực hoặc lẫn giới tính sẽ được kết thúc và phân lại. Nếu sức chứa nửa số phòng không đủ, số còn lại được báo chờ phòng thay vì làm rollback toàn bộ lượt xếp.
+3. Học viên nam và nữ được bố trí vào các phòng riêng. Phòng có người ngoài danh sách học viên quân sự sẽ không được chọn. Các phân phòng hợp lệ được giữ lại; phân phòng sai khu vực hoặc lẫn giới tính sẽ được kết thúc và phân lại. Nếu sức chứa các phòng quân sự không đủ, số còn lại được báo chờ phòng thay vì làm rollback toàn bộ lượt xếp.
 4. Lịch sử phân phòng cũ được giữ lại; phân phòng quân sự không phát sinh hợp đồng hoặc hóa đơn.
 
 ### Quản lý kho quân tư trang
