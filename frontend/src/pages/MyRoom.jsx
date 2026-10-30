@@ -86,7 +86,7 @@ const MyRoom = () => {
         </section>}
         {!loading && !error && militaryRoom && regularContract && <section className="mt-5 rounded-2xl border border-blue-200 bg-white p-6"><h2 className="font-bold text-blue-950">Giữ chỗ nội trú gốc: phòng {regularContract.soPhong || regularContract.maPhong}</h2><p className="mt-2 text-sm leading-7 text-slate-600">Hợp đồng {regularContract.maHopDong} · đến {formatDate(regularContract.ngayKetThuc)}. Giường này vẫn được giữ cho bạn trong đợt GDQP. Sau đợt học, hệ thống hiển thị lại phòng gốc nếu hợp đồng còn hiệu lực.</p></section>}
         {isMilitaryLearner(student) && <Link to="/military-stay" className="mt-5 inline-block text-sm font-semibold text-blue-700">Xem đợt học GDQP và quân tư trang</Link>}
-        {!isMilitaryStudent && <HousingRequests embedded />}
+        {(!isMilitaryStudent || regularContract) && <HousingRequests embedded />}
       </div>
     </div>
   );

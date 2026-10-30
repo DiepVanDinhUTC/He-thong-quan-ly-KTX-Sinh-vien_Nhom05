@@ -12,8 +12,8 @@ const serviceManagers = [ROLES.SERVICE_PROVIDER, ROLES.BUILDING_MANAGER, ROLES.A
 router.use(protect);
 router.get('/military-stay/mine', restrictTo(...studentRoles), controller.myMilitaryStay);
 
-router.get('/housing-requests/mine', restrictTo(ROLES.STUDENT), controller.myHousingRequests);
-router.post('/housing-requests', restrictTo(ROLES.STUDENT), controller.createHousingRequest);
+router.get('/housing-requests/mine', restrictTo(...studentRoles), controller.myHousingRequests);
+router.post('/housing-requests', restrictTo(...studentRoles), controller.createHousingRequest);
 router.get('/housing-requests', restrictTo(...ROLES.HOUSING_REQUEST_READ_ROLES), controller.listHousingRequests);
 router.patch('/housing-requests/:id', restrictTo(...housingDeciders), controller.decideHousingRequest);
 

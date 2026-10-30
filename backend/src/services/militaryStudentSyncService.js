@@ -196,7 +196,7 @@ const createMilitaryStudentSyncService = ({ db = prisma, httpClient = axios, has
 
     const { selected, rejected } = selectRegistrations(registrations, config);
     const passwordHash = selected.length ? await hashPassword(config.defaultPassword, 12) : null;
-    const result = { received: registrations.length, selected: selected.length, createdAccounts: 0, militaryStudentsMarked: 0, linkedProfiles: 0, studentIds: [], skipped: rejected };
+    const result = { received: registrations.length, selected: selected.length, createdAccounts: 0, convertedAccounts: 0, completedRegistrations: 0, militaryStudentsMarked: 0, linkedProfiles: 0, studentIds: [], skipped: rejected };
 
     const syncOneStudent = async (item) => {
         const student = item.student;
@@ -218,6 +218,8 @@ const createMilitaryStudentSyncService = ({ db = prisma, httpClient = axios, has
                     ? await tx.user.findUnique({ where: { id: existingProfile.userId } })
                     : usernameAccount;
                 let createdAccount = false;
+                let convertedAccount = false;
+                let completedRegistration = false;
                 let linkedProfile = false;
 
                 if (account && !['STUDENT', 'MILITARY_STUDENT'].includes(account.role)) {
@@ -228,6 +230,19 @@ const createMilitaryStudentSyncService = ({ db = prisma, httpClient = axios, has
                         data: { username: student.maSV, password: passwordHash, role: 'MILITARY_STUDENT', isActive: true }
                     });
                     createdAccount = true;
+                } else if (account.role === 'STUDENT') {
+                    const courseCode = normalizeCode(item.metadata.courseCode);
+                    const batchCode = normalizeCode(item.metadata.batchCode);
+                    if (courseCode.length > 50 || batchCode.length > 50) throw new Error('Mã học phần hoặc mã đợt GDQP không được vượt quá 50 ký tự.');
+                    completedRegistration = Boolean(account.gdqpRoleRestoredAt
+                        && account.gdqpCourseCode === courseCode && account.gdqpBatchCode === batchCode);
+                    if (!completedRegistration) {
+                        account = await tx.user.update({
+                            where: { id: account.id, role: 'STUDENT' },
+                            data: { role: 'MILITARY_STUDENT', gdqpPreviousRole: 'STUDENT', gdqpCourseCode: courseCode, gdqpBatchCode: batchCode, gdqpRoleAssignedAt: new Date(), gdqpRoleRestoredAt: null }
+                        });
+                        convertedAccount = true;
+                    }
                 }
 
                 if (existingProfile) {
@@ -241,7 +256,7 @@ const createMilitaryStudentSyncService = ({ db = prisma, httpClient = axios, has
                     await tx.sinhVien.create({ data: { maSV: student.maSV, ...militaryProfileFields, userId: account.id } });
                     linkedProfile = true;
                 }
-                return { createdAccount, linkedProfile };
+                return { createdAccount, convertedAccount, completedRegistration, linkedProfile };
             });
             return { student, outcome };
         } catch (error) {
@@ -258,6 +273,8 @@ const createMilitaryStudentSyncService = ({ db = prisma, httpClient = axios, has
                 continue;
             }
             if (outcome.createdAccount) result.createdAccounts += 1;
+            if (outcome.convertedAccount) result.convertedAccounts += 1;
+            if (outcome.completedRegistration) result.completedRegistrations += 1;
             result.studentIds.push(student.maSV);
             result.militaryStudentsMarked += 1;
             if (outcome.linkedProfile) result.linkedProfiles += 1;

@@ -29,7 +29,7 @@ const registration = (overrides = {}) => ({
     ...overrides
 });
 
-const fakeDb = ({ users = [], students = [] } = {}) => {
+const fakeDb = ({ users = [], students = [], failProfileUpdate = false } = {}) => {
     const state = { users: new Map(users.map((user) => [user.id, { ...user }])), students: new Map(students.map((student) => [student.maSV, { ...student }])) };
     let idCounter = 0;
     const tx = {
@@ -55,13 +55,23 @@ const fakeDb = ({ users = [], students = [] } = {}) => {
                 return data;
             },
             update: async ({ where, data }) => {
+                if (failProfileUpdate) throw new Error('Không thể cập nhật hồ sơ');
                 const updated = { ...state.students.get(where.maSV), ...data };
                 state.students.set(where.maSV, updated);
                 return updated;
             }
         }
     };
-    return { state, $transaction: (callback) => callback(tx) };
+    return { state, $transaction: async (callback) => {
+        const usersBefore = structuredClone([...state.users]);
+        const studentsBefore = structuredClone([...state.students]);
+        try { return await callback(tx); }
+        catch (error) {
+            state.users = new Map(usersBefore);
+            state.students = new Map(studentsBefore);
+            throw error;
+        }
+    } };
 };
 
 test('GDQP sync requires SIS endpoint, course, batch, and faculty configuration', async () => {
@@ -106,10 +116,11 @@ test('GDQP sync creates a linked MILITARY_STUDENT account only for selected regi
     assert.equal(db.state.students.get('SV-GDQP-001').userId, account.id);
 });
 
-test('GDQP sync marks a linked STUDENT profile without changing login role or password', async () => {
+test('GDQP sync converts an existing student account while preserving its password and contract', async () => {
+    const contract = { maHopDong: 'HD1', maPhong: 'B201', trangThai: 'ACTIVE', tongTien: 1200000 };
     const db = fakeDb({
         users: [{ id: 'existing-user', username: 'SV-GDQP-001', password: 'existing-hash', role: 'STUDENT', isActive: true }],
-        students: [{ maSV: 'SV-GDQP-001', userId: 'existing-user', hoTen: 'Old Name' }]
+        students: [{ maSV: 'SV-GDQP-001', userId: 'existing-user', hoTen: 'Old Name', hopDongs: [contract] }]
     });
     const run = createMilitaryStudentSyncService({
         db,
@@ -121,11 +132,66 @@ test('GDQP sync marks a linked STUDENT profile without changing login role or pa
     const result = await run();
 
     assert.equal(result.createdAccounts, 0);
+    assert.equal(result.convertedAccounts, 1);
     assert.equal(result.militaryStudentsMarked, 1);
-    assert.equal(db.state.users.get('existing-user').role, 'STUDENT');
+    assert.equal(db.state.users.get('existing-user').role, 'MILITARY_STUDENT');
+    assert.equal(db.state.users.get('existing-user').gdqpPreviousRole, 'STUDENT');
+    assert.equal(db.state.users.get('existing-user').gdqpCourseCode, 'GDQP101');
+    assert.equal(db.state.users.get('existing-user').gdqpBatchCode, 'DOT-1');
+    assert.ok(db.state.users.get('existing-user').gdqpRoleAssignedAt instanceof Date);
     assert.equal(db.state.users.get('existing-user').password, 'existing-hash');
+    assert.deepEqual(db.state.students.get('SV-GDQP-001').hopDongs, [contract]);
     assert.equal(db.state.students.get('SV-GDQP-001').hoTen, 'Nguyen Van A');
     assert.equal(db.state.students.get('SV-GDQP-001').laHocVienQuanSu, true);
+    assert.equal((await run()).convertedAccounts, 0);
+    assert.equal(db.state.users.size, 1);
+});
+
+test('a completed registration does not promote the same student again, but a new batch can', async () => {
+    const db = fakeDb({
+        users: [{ id: 'existing-user', username: 'SV-GDQP-001', password: 'existing-hash', role: 'STUDENT', isActive: true, gdqpPreviousRole: 'STUDENT', gdqpCourseCode: 'GDQP101', gdqpBatchCode: 'DOT-1', gdqpRoleRestoredAt: new Date('2026-11-15') }],
+        students: [{ maSV: 'SV-GDQP-001', userId: 'existing-user', hoTen: 'Old Name' }]
+    });
+    const run = (batchCode) => createMilitaryStudentSyncService({
+        db, httpClient: { get: async () => ({ data: { data: [registration({ batchCode })] } }) },
+        env: config, hashPassword: async () => 'unused-hash'
+    })();
+    const same = await run('DOT-1');
+    assert.equal(same.completedRegistrations, 1);
+    assert.equal(same.convertedAccounts, 0);
+    assert.equal(db.state.users.get('existing-user').role, 'STUDENT');
+    const next = await run('DOT-2');
+    assert.equal(next.convertedAccounts, 1);
+    assert.equal(db.state.users.get('existing-user').gdqpBatchCode, 'DOT-2');
+    assert.equal(db.state.users.get('existing-user').gdqpRoleRestoredAt, null);
+    assert.equal(db.state.users.get('existing-user').password, 'existing-hash');
+});
+
+test('SIS sync never changes an existing non-student account or its profile', async () => {
+    const db = fakeDb({
+        users: [{ id: 'staff-user', username: 'SV-GDQP-001', password: 'staff-hash', role: 'ADMIN', isActive: true }],
+        students: [{ maSV: 'SV-GDQP-001', userId: 'staff-user', hoTen: 'Existing Name' }]
+    });
+    const run = createMilitaryStudentSyncService({ db, httpClient: { get: async () => ({ data: { data: [registration()] } }) }, env: config, hashPassword: async () => 'unused' });
+    const result = await run();
+    assert.equal(result.skipped.length, 1);
+    assert.equal(result.convertedAccounts, 0);
+    assert.equal(db.state.users.get('staff-user').role, 'ADMIN');
+    assert.equal(db.state.students.get('SV-GDQP-001').hoTen, 'Existing Name');
+});
+
+test('an unsuccessful profile update rolls back the role change in the same transaction', async () => {
+    const db = fakeDb({
+        users: [{ id: 'user', username: 'SV-GDQP-001', password: 'old-hash', role: 'STUDENT', isActive: true }],
+        students: [{ maSV: 'SV-GDQP-001', userId: 'user', hoTen: 'Existing Name' }], failProfileUpdate: true
+    });
+    const run = createMilitaryStudentSyncService({ db, httpClient: { get: async () => ({ data: { data: [registration()] } }) }, env: config, hashPassword: async () => 'unused' });
+    const result = await run();
+    assert.equal(result.convertedAccounts, 0);
+    assert.equal(result.skipped.length, 1);
+    assert.equal(db.state.users.get('user').role, 'STUDENT');
+    assert.equal(db.state.users.get('user').password, 'old-hash');
+    assert.equal(db.state.students.get('SV-GDQP-001').hoTen, 'Existing Name');
 });
 
 test('GDQP sync does not create a partial student profile when required SIS data is missing', async () => {

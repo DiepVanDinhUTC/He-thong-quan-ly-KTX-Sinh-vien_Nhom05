@@ -18,6 +18,11 @@ model User {
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  gdqpPreviousRole   String?   @db.VarChar(20)
+  gdqpCourseCode     String?   @db.VarChar(50)
+  gdqpBatchCode      String?   @db.VarChar(50)
+  gdqpRoleAssignedAt DateTime?
+  gdqpRoleRestoredAt DateTime?
 
   sinhVien                    SinhVien?
   nhanVien                    NhanVien?

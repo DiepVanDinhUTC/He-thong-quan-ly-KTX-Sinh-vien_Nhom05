@@ -75,17 +75,84 @@ test('expiry releases only military places, is idempotent, and never updates a r
     const tx = {
         militaryRoomAssignment: {
             findMany: async () => status === 'ACTIVE' ? [stay()] : [],
-            updateMany: async ({ data }) => { status = data.status; assert.equal(data.endedAt, end); return { count: 1 }; }
+            updateMany: async ({ data }) => { status = data.status; assert.equal(data.endedAt.getTime(), end.getTime()); return { count: 1 }; }
         },
         phong: {
             findMany: async () => [{ maPhong: 'QS101', soSinhVienToiDa: 1, militaryRoomAssignments: [stay({ status })] }],
             update: async ({ where, data }) => { assert.equal(where.maPhong, 'QS101'); counter = data.soSinhVienHienTai; }
         },
+        user: { updateMany: async () => ({ count: 0 }) },
         hopDong: new Proxy({}, { get() { assert.fail('GDQP must never write the regular contract'); } })
     };
     assert.equal(await endExpiredMilitaryStays(tx, end), 1);
     assert.equal(counter, 0);
     assert.equal(await endExpiredMilitaryStays(tx, end), 0);
+});
+
+test('end of a military stay restores only previously converted students without another active placement', async () => {
+    const { restoreStudentRole } = require('../src/services/militaryStayLifecycle');
+    const accounts = {
+        converted: { role: 'MILITARY_STUDENT', gdqpPreviousRole: 'STUDENT', gdqpRoleRestoredAt: null },
+        newMilitary: { role: 'MILITARY_STUDENT', gdqpPreviousRole: null, gdqpRoleRestoredAt: null },
+        pendingStay: { role: 'MILITARY_STUDENT', gdqpPreviousRole: 'STUDENT', gdqpRoleRestoredAt: null },
+        changedByAdmin: { role: 'ADMIN', gdqpPreviousRole: 'STUDENT', gdqpRoleRestoredAt: null }
+    };
+    const tx = { user: { updateMany: async ({ where, data }) => {
+        const [id] = where.sinhVien.is.maSV.in;
+        const account = accounts[id];
+        assert.equal(where.role, 'MILITARY_STUDENT');
+        assert.equal(where.gdqpPreviousRole, 'STUDENT');
+        assert.equal(where.gdqpRoleRestoredAt, null);
+        assert.equal(where.gdqpRoleAssignedAt.lte, end);
+        assert.deepEqual(where.sinhVien.is.militaryRoomAssignments.none, { status: 'ACTIVE', endsAt: { gt: end } });
+        if (!account || account.role !== where.role || account.gdqpPreviousRole !== where.gdqpPreviousRole || id === 'pendingStay') return { count: 0 };
+        Object.assign(account, data);
+        return { count: 1 };
+    } } };
+    assert.equal(await restoreStudentRole(tx, 'converted', end), 1);
+    assert.equal(accounts.converted.role, 'STUDENT');
+    assert.equal(accounts.converted.gdqpRoleRestoredAt, end);
+    for (const id of ['newMilitary', 'pendingStay', 'changedByAdmin']) assert.equal(await restoreStudentRole(tx, id, end), 0, id);
+    assert.equal(accounts.newMilitary.role, 'MILITARY_STUDENT');
+    assert.equal(accounts.pendingStay.role, 'MILITARY_STUDENT');
+    assert.equal(accounts.changedByAdmin.role, 'ADMIN');
+});
+
+test('automatic expiry ends the assignment and restores the previous student role in one transaction', async () => {
+    const assignment = stay();
+    const user = { role: 'MILITARY_STUDENT', gdqpPreviousRole: 'STUDENT', gdqpRoleRestoredAt: null };
+    const tx = {
+        militaryRoomAssignment: {
+            findMany: async () => assignment.status === 'ACTIVE' ? [assignment] : [],
+            updateMany: async ({ where, data }) => { assert.deepEqual(where.id.in, ['QS1']); assignment.status = data.status; return { count: 1 }; }
+        },
+        phong: { findMany: async () => [] },
+        user: { updateMany: async ({ where, data }) => {
+            assert.equal(assignment.status, 'ENDED');
+            assert.deepEqual(where.sinhVien.is.maSV.in, ['SV1']);
+            Object.assign(user, data);
+            return { count: 1 };
+        } }
+    };
+    assert.equal(await endExpiredMilitaryStays(tx, end), 1);
+    assert.equal(user.role, 'STUDENT');
+    assert.equal(user.gdqpRoleRestoredAt, end);
+    assert.equal(await endExpiredMilitaryStays(tx, end), 0);
+});
+
+test('an old expired assignment cannot restore the role for a newer SIS enrollment', async () => {
+    const { restoreStudentRole } = require('../src/services/militaryStayLifecycle');
+    const oldEnd = new Date('2026-10-15T00:00:00Z');
+    const promoted = new Date('2026-10-20T00:00:00Z');
+    const current = new Date('2026-10-29T00:00:00Z');
+    const user = { role: 'MILITARY_STUDENT', gdqpRoleAssignedAt: promoted };
+    const tx = { user: { updateMany: async ({ where, data }) => {
+        if (user.gdqpRoleAssignedAt > where.gdqpRoleAssignedAt.lte) return { count: 0 };
+        Object.assign(user, data);
+        return { count: 1 };
+    } } };
+    assert.equal(await restoreStudentRole(tx, 'SV1', current, oldEnd), 0);
+    assert.equal(user.role, 'MILITARY_STUDENT');
 });
 
 test('SIS reruns cannot reassign a completed student; officers may explicitly select a later study period', async () => {

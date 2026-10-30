@@ -113,7 +113,8 @@ const MilitaryManagement = () => {
         throw new Error(payload?.message || 'SIS không trả về kết quả đồng bộ hợp lệ.');
       }
 
-      let message = `SIS trả ${result.received ?? 0} đăng ký; ${result.selected ?? 0} hồ sơ phù hợp; tạo ${result.createdAccounts ?? 0} tài khoản, gắn diện quân sự ${result.militaryStudentsMarked ?? 0} hồ sơ, liên kết ${result.linkedProfiles ?? 0}.`;
+      let message = `SIS trả ${result.received ?? 0} đăng ký; ${result.selected ?? 0} hồ sơ phù hợp; tạo ${result.createdAccounts ?? 0} tài khoản, chuyển ${result.convertedAccounts ?? 0} tài khoản sinh viên sang học viên quân sự, gắn diện quân sự ${result.militaryStudentsMarked ?? 0} hồ sơ, liên kết ${result.linkedProfiles ?? 0}.`;
+      if (result.completedRegistrations) message += ` ${result.completedRegistrations} hồ sơ đã hoàn thành đợt này và giữ vai trò sinh viên.`;
       if (result.linkedProfiles || result.militaryStudentsMarked) message += ' Mở Xếp phòng quân sự và chọn ngày bắt đầu thực tế để bố trí phòng trong 14 ngày.';
       if (result.roomAssignment) message += ` Tự xếp phòng A1: ${result.roomAssignment.assigned ?? 0} học viên mới; ${result.roomAssignment.alreadyAssigned ?? 0} học viên đã có phòng hợp lệ.`;
       if (result.roomAssignment?.unassignedCount) message += ` Còn ${result.roomAssignment.unassignedCount} học viên chưa có phòng do không đủ chỗ trong các phòng A1 dành cho quân sự.`;
@@ -239,7 +240,7 @@ const MilitaryManagement = () => {
 
         {activeTab === 'students' && <Panel title="Tiếp nhận danh sách học viên từ SIS" description="Dùng chung API nguồn với đồng bộ sinh viên chính quy. SIS mock có 50 hồ sơ với 50 đăng ký GDQP hợp lệ thuộc hai đợt và năm khoa; khi có SIS thật, thay URL cùng mã lọc trong cấu hình.">
           <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-lg bg-blue-50 p-4">
-            <div className="max-w-3xl text-sm text-blue-900">Hồ sơ đủ điều kiện được đánh dấu là học viên quân sự. Nếu đã có tài khoản sinh viên, hệ thống giữ nguyên vai trò và mật khẩu; chỉ tạo tài khoản mới khi chưa có.</div>
+            <div className="max-w-3xl text-sm text-blue-900">Hồ sơ đủ điều kiện được cấp vai trò học viên quân sự. Tài khoản sinh viên hiện có giữ mật khẩu và hợp đồng nội trú; hết đợt GDQP, vai trò sinh viên được khôi phục. Hệ thống chỉ tạo tài khoản mới khi chưa có.</div>
             <button type="button" onClick={runSync} disabled={syncing || loading} className={buttonClass}><RefreshCw className={`h-4 w-4 ${syncing ? 'animate-spin' : ''}`} />{syncing ? 'Đang lấy dữ liệu SIS…' : 'Đồng bộ SIS ngay'}</button>
           </div>
           {syncError && <div role="alert" aria-live="assertive" className="mb-4 flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800"><XCircle className="mt-0.5 h-4 w-4 shrink-0" /><div><p className="font-semibold">Đồng bộ SIS thất bại</p><p className="mt-1">{syncError}</p></div></div>}
