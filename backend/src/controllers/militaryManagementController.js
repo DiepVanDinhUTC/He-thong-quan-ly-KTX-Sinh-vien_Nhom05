@@ -3,7 +3,7 @@ const { createMilitaryStudentSyncService } = require('../services/militaryStuden
 const { assignMilitaryStudentsToA1, selectA1MilitaryRooms } = require('../services/militaryRoomAssignmentService');
 const { occupancyRelations, presentRoomOccupancy } = require('../services/roomOccupancy');
 const { resolveMilitaryStayPeriod } = require('../services/militaryStay');
-const { endExpiredMilitaryStays, expireMilitaryStays, refreshMilitaryRoomCounts } = require('../services/militaryStayLifecycle');
+const { endExpiredMilitaryStays, expireMilitaryStays, refreshMilitaryRoomCounts, restoreStudentRole } = require('../services/militaryStayLifecycle');
 
 const syncMilitaryStudents = createMilitaryStudentSyncService({ db: prisma });
 const liveMilitaryAssignment = { status: 'ACTIVE' };
@@ -158,8 +158,10 @@ exports.endRoomAssignment = async (req, res) => {
         await prisma.$transaction(async (tx) => {
             const assignment = await tx.militaryRoomAssignment.findFirst({ where: { id: req.params.id, status: 'ACTIVE' } });
             if (!assignment) throw Object.assign(new Error('Không tìm thấy phân phòng đang hiệu lực.'), { status: 404 });
-            await tx.militaryRoomAssignment.update({ where: { id: assignment.id }, data: { status: 'ENDED', endedAt: new Date() } });
+            const now = new Date();
+            await tx.militaryRoomAssignment.update({ where: { id: assignment.id }, data: { status: 'ENDED', endedAt: now } });
             await refreshMilitaryRoomCounts(tx, [assignment.maPhong]);
+            await restoreStudentRole(tx, assignment.maSinhVien, now, assignment.endsAt < now ? assignment.endsAt : now);
         }, { isolationLevel: 'Serializable' });
         return res.json({ success: true, message: 'Đã kết thúc phân phòng.' });
     } catch (error) {

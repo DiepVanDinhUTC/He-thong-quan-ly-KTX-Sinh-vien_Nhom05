@@ -94,6 +94,23 @@ test('housing API role gates and frontend actions agree for every role', async (
     }
 });
 
+test('a military learner can use their own housing-request and room-list endpoints, but cannot create a new dorm application', async () => {
+    const applications = require('../src/routes/api/v1/applications');
+    for (const [route, path, method, expected] of [
+        [router, '/housing-requests/mine', 'get', true],
+        [router, '/housing-requests', 'post', true],
+        [applications, '/rooms', 'get', true],
+        [applications, '/', 'post', false]
+    ]) {
+        const gate = route.stack.find((layer) => layer.route?.path === path && layer.route.methods[method]).route.stack[0].handle;
+        let allowed = false;
+        const res = response();
+        await gate({ user: { role: 'MILITARY_STUDENT', maSV: 'SV1' } }, res, () => { allowed = true; });
+        assert.equal(allowed, expected, `${method} ${path}`);
+        if (!expected) assert.equal(res.statusCode, 403);
+    }
+});
+
 test('archivists list transfer requests across buildings without assignments', async () => {
     const f = fixture();
     assert.equal((await f.list('ARCHIVIST')).statusCode, 200);

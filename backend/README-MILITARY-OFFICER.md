@@ -78,7 +78,7 @@ Học viên demo có tài khoản `QSDEMO001` đến `QSDEMO006`; mật khẩu m
 ### Học viên và SIS
 
 1. Mở **Học viên từ SIS**. Bộ dữ liệu tài khoản seed vẫn có sáu học viên demo; SIS mock trên localhost chính cung cấp 50 hồ sơ đăng ký GDQP để đồng bộ.
-2. Khi endpoint SIS hoạt động và đã cấu hình mã học phần, đợt học, khoa, bấm **Đồng bộ SIS ngay**. Hệ thống đánh dấu hồ sơ thuộc diện học viên quân sự và chỉ tạo tài khoản khi chưa có. Mở **Xếp phòng quân sự**, chọn ngày bắt đầu thực tế để bố trí phòng 14 ngày.
+2. Khi endpoint SIS hoạt động và đã cấu hình mã học phần, đợt học, khoa, bấm **Đồng bộ SIS ngay**. Hệ thống tạo tài khoản học viên nếu chưa có hoặc chuyển tài khoản sinh viên hiện có sang học viên quân sự, giữ mật khẩu và hợp đồng nội trú. Mở **Xếp phòng quân sự**, chọn ngày bắt đầu thực tế để bố trí phòng 14 ngày; vai trò sinh viên được khôi phục khi đợt kết thúc.
 3. Cấu hình mock trả 50 đăng ký hợp lệ thuộc hai đợt và năm khoa mẫu. Chạy lại cập nhật cùng mã sinh viên, không tạo tài khoản trùng.
 
 Nếu cần khôi phục cấu hình mock trong PowerShell chạy backend, đặt các biến sau trước `npm run dev`:

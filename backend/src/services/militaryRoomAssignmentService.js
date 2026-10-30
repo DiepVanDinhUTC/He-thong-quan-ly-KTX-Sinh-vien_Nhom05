@@ -77,7 +77,7 @@ const assignMilitaryStudentsToA1 = async ({ db = prisma, assignedById, startsAt,
         await endExpiredMilitaryStays(tx, now);
         const [students, rooms, activeAssignments] = await Promise.all([
             tx.sinhVien.findMany({
-                where: { ...militaryStudentWhere, ...(studentIds ? { maSV: { in: studentIds } } : {}) },
+                where: { ...militaryStudentWhere, user: { is: { role: 'MILITARY_STUDENT', isActive: true } }, ...(studentIds ? { maSV: { in: studentIds } } : {}) },
                 orderBy: { maSV: 'asc' },
                 select: { maSV: true, gioiTinh: true, militaryRoomAssignments: { select: { id: true, startsAt: true, endsAt: true } } }
             }),

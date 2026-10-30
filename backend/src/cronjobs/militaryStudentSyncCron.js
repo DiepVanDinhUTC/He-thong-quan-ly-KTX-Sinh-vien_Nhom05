@@ -26,6 +26,8 @@ const execute = async () => {
             received: result.received,
             selected: result.selected,
             createdAccounts: result.createdAccounts,
+            convertedAccounts: result.convertedAccounts,
+            completedRegistrations: result.completedRegistrations,
             militaryStudentsMarked: result.militaryStudentsMarked,
             linkedProfiles: result.linkedProfiles,
             skipped: result.skipped.length

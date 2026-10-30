@@ -49,7 +49,7 @@ const StudentLayout = () => {
       }
     });
     return () => { active = false; };
-  }, [dispatch, navigate]);
+  }, [dispatch, navigate, location.pathname]);
 
   useEffect(() => {
     setProfileMenuOpen(false);
@@ -118,7 +118,7 @@ const StudentLayout = () => {
         <nav aria-label="Điều hướng chính" className="min-h-0 flex-1 space-y-1 overflow-y-auto">
           <NavLink to="/student-portal" end className={navLinkClass}><Home className="h-5 w-5 shrink-0" />Tổng quan</NavLink>
           {student?.role === 'STUDENT' && <NavLink to="/room-registration" className={navLinkClass}><Building className="h-5 w-5 shrink-0" />Đăng ký nội trú</NavLink>}
-          <NavLink to="/my-room" className={navLinkClass}><BedDouble className="h-5 w-5 shrink-0" />{student?.role === 'MILITARY_STUDENT' ? 'Tra cứu phòng' : 'Phòng ở & yêu cầu'}</NavLink>
+          <NavLink to="/my-room" className={navLinkClass}><BedDouble className="h-5 w-5 shrink-0" />{student?.role === 'MILITARY_STUDENT' && !authenticatedUser?.currentContract ? 'Tra cứu phòng' : 'Phòng ở & yêu cầu'}</NavLink>
           {isMilitaryLearner(authenticatedUser) && <NavLink to="/military-stay" className={navLinkClass}><Shield className="h-5 w-5 shrink-0" />Đợt học GDQP</NavLink>}
           <NavLink to="/service-registration" className={navLinkClass}><PackageCheck className="h-5 w-5 shrink-0" />Đăng ký dịch vụ</NavLink>
           <NavLink to="/bill-payment" className={navLinkClass}><Receipt className="h-5 w-5 shrink-0" />Hóa đơn & thanh toán</NavLink>

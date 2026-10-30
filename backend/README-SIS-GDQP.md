@@ -30,10 +30,11 @@ Mỗi hồ sơ SIS cần kèm danh sách đăng ký trong `courseRegistrations`,
 ## Cách cấp tài khoản
 
 - Username là mã sinh viên; tài khoản mới có vai trò `MILITARY_STUDENT` và mật khẩu khởi tạo lấy từ `SIS_MILITARY_STUDENT_DEFAULT_PASSWORD` (hoặc biến mật khẩu SIS sinh viên hiện có nếu biến này để trống).
-- Hồ sơ được đánh dấu `laHocVienQuanSu=true`; nếu đã có tài khoản `STUDENT` hoặc `MILITARY_STUDENT`, job giữ nguyên vai trò và mật khẩu. Tài khoản vai trò khác được bỏ qua để kiểm tra thủ công.
+- Hồ sơ được đánh dấu `laHocVienQuanSu=true`; tài khoản `STUDENT` hiện có chuyển sang `MILITARY_STUDENT`, giữ nguyên tên đăng nhập, mật khẩu, hợp đồng và hóa đơn. Tài khoản `MILITARY_STUDENT` hiện có được giữ nguyên; vai trò khác được bỏ qua để kiểm tra thủ công.
+- Với tài khoản được chuyển từ `STUDENT`, hệ thống lưu vai trò gốc và mã học phần/đợt; khi phân phòng quân sự kết thúc, tài khoản tự trở về `STUDENT`. Tài khoản học viên tạo mới không bị chuyển. Cùng một học phần/đợt đã kết thúc không tự chuyển lại khi đồng bộ SIS; đợt mới cần có mã đợt khác.
 - Nếu chưa có tài khoản, job tạo tài khoản `MILITARY_STUDENT`. Hồ sơ được cập nhật theo mã sinh viên; job chạy lại không tạo tài khoản trùng. Lỗi từng học viên được đưa vào `skipped`, các học viên còn lại vẫn tiếp tục xử lý.
 - Chạy thủ công: `cd backend` rồi `npm run job:sync-gdqp`.
-- Log cron ghi tổng số đăng ký nhận được, được chọn, tài khoản tạo, hồ sơ gắn diện quân sự, hồ sơ liên kết và danh sách lý do bỏ qua.
+- Log cron và kết quả trên giao diện ghi tổng số đăng ký nhận được, được chọn, tài khoản tạo mới, tài khoản chuyển vai trò, hồ sơ gắn diện quân sự và hồ sơ liên kết.
 
 > Nếu chạy nhiều instance backend, chỉ bật cron trên một instance. Cơ chế chống chạy chồng chỉ áp dụng trong cùng tiến trình.
 
