@@ -90,7 +90,7 @@ test('expiry releases only military places, is idempotent, and never updates a r
 
 test('SIS reruns cannot reassign a completed student; officers may explicitly select a later study period', async () => {
     const created = [];
-    const room = { maPhong: 'QS101', maToaNha: 'A1', soPhong: '101', tang: 1, soSinhVienToiDa: 4, soSinhVienHienTai: 0, hopDongs: [], militaryRoomAssignments: [] };
+    const room = { maPhong: 'QS103', maToaNha: 'A1', soPhong: '103', tang: 1, soSinhVienToiDa: 4, soSinhVienHienTai: 0, hopDongs: [], militaryRoomAssignments: [] };
     const tx = {
         sinhVien: { findMany: async () => [{ maSV: 'SV1', gioiTinh: true, militaryRoomAssignments: [stay({ status: 'ENDED' })] }] },
         militaryRoomAssignment: { findMany: async () => [], create: async ({ data }) => { created.push(data); return data; } },

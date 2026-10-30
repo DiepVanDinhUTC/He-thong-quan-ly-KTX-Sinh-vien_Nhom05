@@ -2,17 +2,12 @@ require('dotenv').config();
 const { randomUUID } = require('crypto');
 const { PrismaClient } = require('@prisma/client');
 const { ROOM_TYPES } = require('./src/config/roomTypes');
+const { buildA1RoomRows, seedA1RoomsInTransaction } = require('./seedA1Rooms');
 
 const prisma = new PrismaClient();
 
 // Each entry is [room type code, capacity, optional small-room marker].
 const layoutByBuilding = {
-    A1: [
-        [['CO_BAN', 4], ['CO_BAN', 6], ['CO_BAN_NHO', 4], ['PHO_THONG_KHONG_DIEU_HOA', 4, true]],
-        [['CO_BAN', 8], ['CO_BAN_NHO', 6], ['PHO_THONG_KHONG_DIEU_HOA', 4], ['PHO_THONG_KHONG_DIEU_HOA', 6]],
-        [['CO_BAN', 4], ['CO_BAN', 6], ['PHO_THONG_KHONG_DIEU_HOA', 8]],
-        [['CO_BAN_NHO', 4], ['CO_BAN_NHO', 6], ['PHO_THONG_KHONG_DIEU_HOA', 4]]
-    ],
     A3: [
         [['CO_BAN', 4], ['CO_BAN', 6], ['CO_BAN', 8]],
         [['CO_BAN_NHO', 4], ['CO_BAN_NHO', 6], ['PHO_THONG_KHONG_DIEU_HOA', 4]],
@@ -35,11 +30,11 @@ const layoutByBuilding = {
 };
 
 const floorCountByBuilding = { A1: 4, A2: 0, A3: 4, A4: 4, A5: 3, A6: 5 };
-const residentialBuildingIds = Object.keys(layoutByBuilding);
+const residentialBuildingIds = ['A1', ...Object.keys(layoutByBuilding)];
 const noDormBuildingIds = ['A2', 'A5'];
 
 function buildRoomRows() {
-    const rows = [];
+    const rows = buildA1RoomRows().map((room) => ({ ...room, amenities: ROOM_TYPES[room.loaiPhong].amenities }));
     for (const [buildingId, floors] of Object.entries(layoutByBuilding)) {
         floors.forEach((floorRooms, floorIndex) => {
             const floor = floorIndex + 1;
@@ -71,9 +66,9 @@ function buildRoomRows() {
 
 async function main() {
     const rows = buildRoomRows();
-    if (rows.length !== 50) throw new Error(`Expected 50 rooms, got ${rows.length}`);
+    if (rows.length !== 104) throw new Error(`Expected 104 rooms, got ${rows.length}`);
 
-    await prisma.$transaction(async (tx) => {
+    const a1Summary = await prisma.$transaction(async (tx) => {
         const buildings = await tx.toaNha.findMany({
             where: { maToaNha: { in: [...residentialBuildingIds, ...noDormBuildingIds] } },
             select: { maToaNha: true, maKhu: true }
@@ -99,6 +94,8 @@ async function main() {
             await tx.toaNha.update({ where: { maToaNha }, data: { soTang } });
         }
 
+        const a1 = await seedA1RoomsInTransaction(tx);
+
         const existingRooms = await tx.phong.findMany({
             where: { maPhong: { in: rows.map(({ maPhong }) => maPhong) } },
             select: { maPhong: true, maToaNha: true, soSinhVienHienTai: true }
@@ -106,6 +103,7 @@ async function main() {
         const existingByCode = new Map(existingRooms.map((room) => [room.maPhong, room]));
 
         for (const room of rows) {
+            if (room.maToaNha === 'A1') continue;
             const existing = existingByCode.get(room.maPhong);
             if (existing && existing.maToaNha !== room.maToaNha) {
                 throw new Error(`${room.maPhong} exists under a different building`);
@@ -150,13 +148,14 @@ async function main() {
                 }
             }
         }
-    }, { maxWait: 10000, timeout: 120000 });
+        return a1;
+    }, { isolationLevel: 'Serializable', maxWait: 10000, timeout: 120000 });
 
     const summary = Object.fromEntries(residentialBuildingIds.map((buildingId) => [
         buildingId,
         rows.filter((room) => room.maToaNha === buildingId).length
     ]));
-    console.log(JSON.stringify({ createdOrUpdated: rows.length, roomsByBuilding: summary, roomlessBuildings: noDormBuildingIds }));
+    console.log(JSON.stringify({ roomsInLayout: rows.length, a1: a1Summary, roomsByBuilding: summary, roomlessBuildings: noDormBuildingIds }));
 }
 
 main()

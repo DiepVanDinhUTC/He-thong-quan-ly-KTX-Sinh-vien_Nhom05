@@ -119,7 +119,7 @@ exports.assignRoom = async (req, res) => {
                 select: { maPhong: true, soPhong: true, tang: true, maToaNha: true, soSinhVienToiDa: true }
             });
             const allowedRoomIds = new Set(selectA1MilitaryRooms(a1Rooms).map((room) => room.maPhong));
-            if (!allowedRoomIds.has(maPhong)) throw Object.assign(new Error('Học viên quân sự chỉ được xếp vào một nửa số phòng đã dành cho quân sự tại từng tầng A1.'), { status: 400 });
+            if (!allowedRoomIds.has(maPhong)) throw Object.assign(new Error('Học viên quân sự chỉ được xếp vào các phòng A1: 103–107, 201–209, 301–309, 401–409.'), { status: 400 });
             const current = await tx.militaryRoomAssignment.findFirst({ where: { maSinhVien, status: 'ACTIVE' } });
             const period = current
                 ? { startsAt: current.startsAt, endsAt: current.endsAt, batchCode: current.batchCode }
