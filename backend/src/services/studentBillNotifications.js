@@ -4,7 +4,7 @@ const { getContractInvoiceDueAt, getMonthlyInvoiceDueAt } = require('./invoiceDu
 
 const formatMoney = (amount) => `${Math.round(Number(amount) || 0).toLocaleString('vi-VN')} đ`;
 const formatDate = (date) => new Intl.DateTimeFormat('vi-VN', {
-    dateStyle: 'short',
+    dateStyle: 'short', timeStyle: 'short',
     timeZone: 'Asia/Ho_Chi_Minh'
 }).format(date);
 
@@ -33,7 +33,7 @@ const createStudentBillNotificationSync = ({ db = prisma, now = () => new Date()
     const [contracts, monthlyInvoices] = await Promise.all([
         db.hopDong.findMany({
             where: { maSinhVien: studentId, trangThai: 'PENDING_PAYMENT' },
-            select: { maHopDong: true, maSinhVien: true, ngayTao: true, tongTien: true }
+            select: { maHopDong: true, maSinhVien: true, ngayTao: true, paymentDueAt: true, tongTien: true }
         }),
         db.monthlyInvoice.findMany({
             where: { maSinhVien: studentId, status: 'UNPAID' },

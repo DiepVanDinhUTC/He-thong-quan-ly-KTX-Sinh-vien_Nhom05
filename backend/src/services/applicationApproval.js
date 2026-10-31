@@ -1,4 +1,6 @@
 const { calculateContractRent } = require('./contractPricing');
+const { assertRenewalEligible } = require('./violationPolicy');
+const { calculateContractDueAt, configuredHolidays } = require('./invoiceDueDates');
 const PAYMENT_PERIOD_MONTHS = 5;
 
 const reject = (status, message) => Object.assign(new Error(message), { status });
@@ -16,13 +18,14 @@ const defaultContractTerms = (room, now = new Date()) => {
 };
 
 // Call inside a serializable transaction for both staff approval and automatic approval.
-const approveApplication = async (tx, { maDangKy, maPhong, ngayBatDau, ngayKetThuc, tongTien }) => {
+const approveApplication = async (tx, { maDangKy, maPhong, ngayBatDau, ngayKetThuc, tongTien, autoApproved = false }) => {
     const application = await tx.dangKyKTX.findUnique({
         where: { maDangKy },
         include: { sinhVien: { select: { militaryRoomAssignments: { where: { status: 'ACTIVE', endsAt: { gt: new Date() } }, select: { id: true }, take: 1 } } } }
     });
     if (!application) throw reject(404, 'Không tìm thấy đơn đăng ký KTX.');
     if (application.trangThai !== 'PENDING') throw reject(409, 'Đơn đăng ký không còn ở trạng thái chờ duyệt.');
+    await assertRenewalEligible(tx, application.maSinhVien);
     if (application.sinhVien?.militaryRoomAssignments?.length) throw reject(409, 'Sinh viên đã được phân phòng quân sự và không thể giữ thêm chỗ nội trú.');
 
     const room = await tx.phong.findUnique({ where: { maPhong } });
@@ -46,8 +49,9 @@ const approveApplication = async (tx, { maDangKy, maPhong, ngayBatDau, ngayKetTh
     });
     if (reserved.count !== 1) throw reject(409, 'Phòng đã hết chỗ; đơn đăng ký chưa được duyệt.');
 
+    const approvedAt = new Date();
     return tx.hopDong.create({
-        data: { maSinhVien: application.maSinhVien, maPhong, ngayBatDau, ngayKetThuc, tongTien, trangThai: 'PENDING_PAYMENT' }
+        data: { maSinhVien: application.maSinhVien, maPhong, ngayBatDau, ngayKetThuc, tongTien, ngayTao: approvedAt, paymentDueAt: calculateContractDueAt(approvedAt, autoApproved, configuredHolidays()), paymentPolicy: autoApproved ? 'AUTO_PRIORITY' : 'STANDARD', trangThai: 'PENDING_PAYMENT' }
     });
 };
 

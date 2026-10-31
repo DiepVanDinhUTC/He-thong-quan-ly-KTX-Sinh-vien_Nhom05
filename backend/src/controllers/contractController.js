@@ -31,7 +31,7 @@ exports.createContract = async (req, res) => {
         return res.status(201).json({
             success: true,
             data: contract,
-            message: 'Đã duyệt đơn, tạo hợp đồng nháp ở trạng thái chờ thanh toán và giữ chỗ thành công.'
+            message: 'Đã duyệt đơn và giữ chỗ. Sinh viên cần thanh toán hợp đồng trong 3 ngày làm việc.'
         });
     } catch (error) {
         if (error.status) {

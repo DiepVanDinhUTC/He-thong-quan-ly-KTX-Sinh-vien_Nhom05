@@ -31,6 +31,7 @@ const fixture = (t, options = {}) => {
         contracts: options.contractStatus ? [{ maHopDong: 'OLD', maSinhVien: 'SV1', trangThai: options.contractStatus }] : []
     };
     const tx = {
+        securityViolation: { count: async () => options.violationCount || 0 },
         sinhVien: { findFirst: async ({ where, select }) => {
             assert.equal(where.userId, 'user1');
             assert.equal(select.dienUuTien, true);
@@ -87,6 +88,30 @@ const fixture = (t, options = {}) => {
     return { state, register };
 };
 
+test('three violations block registration before an application or contract is created', async (t) => {
+    const f = fixture(t, { violationCount: 3 });
+    const res = await f.register();
+    assert.equal(res.statusCode, 409);
+    assert.match(res.body.message, /3 biên bản/);
+    assert.equal(f.state.applications.length, 0);
+    assert.equal(f.state.contracts.length, 0);
+});
+
+test('two violations do not prevent registration', async (t) => {
+    const f = fixture(t, { violationCount: 2 });
+    assert.equal((await f.register()).statusCode, 201);
+});
+
+test('a pending application cannot be approved after the student reaches the violation limit', async (t) => {
+    const f = fixture(t, { pending: true, violationCount: 3 });
+    const res = response();
+    await contracts.createContract({ body: { maDangKy: 'OLD', maPhong: 'A101', ngayBatDau: '2026-11-01', ngayKetThuc: '2027-04-01', tongTien: 1500000 } }, res);
+    assert.equal(res.statusCode, 409);
+    assert.equal(f.state.applications[0].trangThai, 'PENDING');
+    assert.equal(f.state.room.soSinhVienHienTai, 2);
+    assert.equal(f.state.contracts.length, 0);
+});
+
 test('only meaningful priority values qualify; Không, zero, empty values, and null do not', () => {
     for (const dienUuTien of [undefined, null, '', '   ', 0, '0', ' 0 ', 'Không', ' KHÔNG ', 'khong', 'null', ' NULL ']) {
         assert.equal(isPriorityStudent({ dienUuTien }), false, String(dienUuTien));
@@ -114,6 +139,8 @@ test('a priority registration is approved immediately, reserves one place, and r
     assert.equal(res.body.contract.maSinhVien, 'SV1');
     assert.equal(res.body.contract.maPhong, 'A101');
     assert.equal(res.body.contract.trangThai, 'PENDING_PAYMENT');
+    assert.equal(res.body.contract.paymentPolicy, 'AUTO_PRIORITY');
+    assert.equal(res.body.contract.paymentDueAt.getTime() - res.body.contract.ngayTao.getTime(), 30 * 60 * 1000);
     assert.equal(res.body.contract.tongTien, 1500000);
     const start = res.body.contract.ngayBatDau;
     const end = res.body.contract.ngayKetThuc;
@@ -222,6 +249,9 @@ test('staff can still approve ordinary pending registrations using their chosen 
     assert.equal(f.state.applications[0].trangThai, 'APPROVED');
     assert.equal(res.body.data.tongTien, 1800000);
     assert.equal(res.body.data.trangThai, 'PENDING_PAYMENT');
+    assert.equal(res.body.data.paymentPolicy, 'STANDARD');
+    const { calculateContractDueAt } = require('../src/services/invoiceDueDates');
+    assert.equal(res.body.data.paymentDueAt.getTime(), calculateContractDueAt(res.body.data.ngayTao).getTime());
     assert.equal(f.state.room.soSinhVienHienTai, 3);
 });
 

@@ -3,6 +3,7 @@ const { ROOM_TYPES, LEGACY_ROOM_TYPE_CODES } = require('../config/roomTypes');
 const { isPriorityStudent, sortByStudentPriority } = require('../services/studentPriority');
 const { approveApplication, defaultContractTerms } = require('../services/applicationApproval');
 const { occupancyRelations, presentRoomOccupancy } = require('../services/roomOccupancy');
+const { assertRenewalEligible } = require('../services/violationPolicy');
 const allowedRoomTypes = [...Object.keys(ROOM_TYPES), ...LEGACY_ROOM_TYPE_CODES];
 
 const getStudentForUser = async (userId) => prisma.sinhVien.findFirst({
@@ -22,6 +23,7 @@ exports.createApplication = async (req, res) => {
                 where: { userId: req.user.id }, select: { maSV: true, dienUuTien: true, militaryRoomAssignments: { where: { status: 'ACTIVE', endsAt: { gt: new Date() } }, select: { id: true }, take: 1 } }
             });
             if (!student) throw Object.assign(new Error('Tài khoản chưa liên kết hồ sơ sinh viên.'), { status: 404 });
+            await assertRenewalEligible(tx, student.maSV);
             if (student.militaryRoomAssignments?.length) throw Object.assign(new Error('Bạn đã được phân phòng quân sự và không thể đăng ký giữ thêm chỗ nội trú.'), { status: 409 });
             const requestedRoom = await tx.phong.findUnique({ where: { maPhong: maPhongYeuCau } });
             if (!requestedRoom) {
@@ -66,7 +68,7 @@ exports.createApplication = async (req, res) => {
             if (!isPriorityStudent(student)) return { application, contract: null };
 
             const contract = await approveApplication(tx, {
-                maDangKy: application.maDangKy, maPhong: maPhongYeuCau,
+                maDangKy: application.maDangKy, maPhong: maPhongYeuCau, autoApproved: true,
                 ...defaultContractTerms(requestedRoom)
             });
             return { application: { ...application, trangThai: 'APPROVED' }, contract };
@@ -75,7 +77,7 @@ exports.createApplication = async (req, res) => {
         return res.status(201).json({
             success: true, data: result.application, contract: result.contract, autoApproved: Boolean(result.contract),
             message: result.contract
-                ? 'Đơn đăng ký diện ưu tiên đã được tự động duyệt. Hệ thống đã giữ chỗ và tạo hợp đồng nháp chờ thanh toán.'
+                ? 'Đơn diện ưu tiên đã được tự động duyệt. Vui lòng thanh toán hợp đồng nháp trong vòng 30 phút.'
                 : 'Đã gửi nguyện vọng nội trú. Đơn đang chờ Ban quản lý xác nhận.'
         });
     } catch (error) {

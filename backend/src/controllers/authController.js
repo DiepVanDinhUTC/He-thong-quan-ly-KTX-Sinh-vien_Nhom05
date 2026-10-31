@@ -34,6 +34,7 @@ const serializePlacement = (placement, now = new Date()) => placement ? {
     loaiPhong: placement.phong?.loaiPhong || null,
     phiNoiTruThang: placement.source === 'MILITARY' ? null : placement.phong?.phiNoiTruThang ?? null,
     ngayBatDau: placement.ngayBatDau, ngayKetThuc: placement.ngayKetThuc,
+        paymentDueAt: placement.paymentDueAt || null, paymentPolicy: placement.paymentPolicy || null,
     tongTien: placement.tongTien ?? null, trangThai: placement.trangThai,
     thanhVien: getRoomOccupancy(placement.phong || {}, now).thanhVien.map((member) => ({
         maHopDong: member.maHopDong, maPhanPhong: member.maPhanPhong || null, source: member.source,

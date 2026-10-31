@@ -12,7 +12,7 @@ const formatDate = (value) => {
 const formatDateTime = (value) => {
   if (!value) return 'Chưa cập nhật';
   const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? 'Chưa cập nhật' : date.toLocaleString('vi-VN');
+  return Number.isNaN(date.getTime()) ? 'Chưa cập nhật' : date.toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
 };
 
 const BillPayment = () => {
@@ -26,6 +26,9 @@ const BillPayment = () => {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
+  const [now, setNow] = useState(Date.now());
+
+  useEffect(() => { const timer = window.setInterval(() => setNow(Date.now()), 1000); return () => window.clearInterval(timer); }, []);
 
   const loadPayments = useCallback(async () => {
     const data = await paymentApi.mine();
@@ -56,6 +59,11 @@ const BillPayment = () => {
         if (transaction?.status === 'PAID') {
           setActiveTab('history');
           setNotice(`Đã ghi nhận thanh toán hóa đơn ${transaction.invoiceId} của sinh viên ${transaction.maSinhVien}.`);
+          window.history.replaceState({}, document.title, window.location.pathname);
+          return true;
+        }
+        if (transaction?.status === 'NEEDS_REVIEW') {
+          setNotice('Giao dịch cần được đối soát do hợp đồng đã hết hạn hoặc không còn hiệu lực. Vui lòng liên hệ bộ phận thu phí.');
           window.history.replaceState({}, document.title, window.location.pathname);
           return true;
         }
@@ -142,10 +150,11 @@ const BillPayment = () => {
       </div>
 
       {loading ? <div className="rounded-2xl border bg-white p-8 text-center text-sm text-slate-500"><Loader2 className="mx-auto mb-2 h-5 w-5 animate-spin text-blue-700" />Đang tải hóa đơn…</div> : activeTab === 'unpaid' ? <section className="space-y-3">
-        {unpaidContracts.length === 0 ? <div className="rounded-2xl border bg-white p-8 text-center"><CheckCircle2 className="mx-auto h-8 w-8 text-emerald-600" /><p className="mt-3 font-semibold">Không có phí hợp đồng chờ thanh toán</p></div> : unpaidContracts.map((contract) => <article key={contract.maHopDong} className={`rounded-2xl border p-5 shadow-sm sm:p-6 ${contract.isOverdue ? 'border-red-300 bg-red-50/40' : 'bg-white'}`}>
-          <div className="flex flex-wrap items-start justify-between gap-3 border-b pb-4"><div><p className="font-bold">Phí hợp đồng lưu trú</p><p className="mt-1 text-xs text-slate-500">Mã hóa đơn {contract.maHopDong} · Phòng {contract.phong?.soPhong || contract.maPhong}</p></div><span className={`rounded-full px-3 py-1 text-xs font-semibold ${contract.isOverdue ? 'bg-red-100 text-red-800' : 'bg-amber-100 text-amber-800'}`}>{contract.isOverdue ? 'Quá hạn thanh toán' : 'Chờ thanh toán'}</span></div>
-          <div className="flex flex-wrap items-end justify-between gap-4 pt-4"><div><p className="text-xs text-slate-500">Thời hạn lưu trú</p><p className="mt-1 text-sm">{formatDate(contract.ngayBatDau)} – {formatDate(contract.ngayKetThuc)}</p><p className="mt-3 text-xs text-slate-500">Tổng phí</p><p className="text-2xl font-bold text-blue-800">{money(contract.tongTien)}</p></div><button type="button" onClick={() => startPayment('CONTRACT', contract.maHopDong)} disabled={busy} className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-blue-700 px-5 py-3 text-sm font-bold text-white transition hover:bg-blue-800 disabled:opacity-50 sm:w-auto"><QrCode className="h-4 w-4" />Thanh toán QR VNPAY</button></div>
-        </article>)}
+        {vnpayPayments.filter((payment) => payment.status === 'NEEDS_REVIEW').map((payment) => <div key={payment.id} role="status" className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">Giao dịch {payment.txnRef} · {money(payment.amount)} đang chờ đối soát do hợp đồng hết hạn hoặc đã đóng. Vui lòng liên hệ bộ phận thu phí.</div>)}
+        {unpaidContracts.length === 0 ? <div className="rounded-2xl border bg-white p-8 text-center"><CheckCircle2 className="mx-auto h-8 w-8 text-emerald-600" /><p className="mt-3 font-semibold">Không có phí hợp đồng chờ thanh toán</p></div> : unpaidContracts.map((contract) => { const expired = contract.paymentDueAt && new Date(contract.paymentDueAt).getTime() <= now; return <article key={contract.maHopDong} className={`rounded-2xl border p-5 shadow-sm sm:p-6 ${contract.isOverdue || expired ? 'border-red-300 bg-red-50/40' : 'bg-white'}`}>
+          <div className="flex flex-wrap items-start justify-between gap-3 border-b pb-4"><div><p className="font-bold">Phí hợp đồng lưu trú</p><p className="mt-1 text-xs text-slate-500">Mã hóa đơn {contract.maHopDong} · Phòng {contract.phong?.soPhong || contract.maPhong}</p></div><span className={`rounded-full px-3 py-1 text-xs font-semibold ${contract.isOverdue || expired ? 'bg-red-100 text-red-800' : 'bg-amber-100 text-amber-800'}`}>{contract.isOverdue || expired ? 'Quá hạn thanh toán' : 'Chờ thanh toán'}</span></div>
+          <div className="flex flex-wrap items-end justify-between gap-4 pt-4"><div><p className="text-xs text-slate-500">Thời hạn lưu trú</p><p className="mt-1 text-sm">{formatDate(contract.ngayBatDau)} – {formatDate(contract.ngayKetThuc)}</p><p className="mt-3 text-sm font-semibold text-amber-800">Hạn thanh toán: {formatDateTime(contract.dueAt)} (giờ Việt Nam)</p>{expired && <p className="mt-1 text-sm text-red-700">Đã hết hạn thanh toán; hợp đồng sẽ được hủy và giải phóng chỗ.</p>}<p className="mt-3 text-xs text-slate-500">Tổng phí</p><p className="text-2xl font-bold text-blue-800">{money(contract.tongTien)}</p></div><button type="button" onClick={() => startPayment('CONTRACT', contract.maHopDong)} disabled={busy || expired} className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-blue-700 px-5 py-3 text-sm font-bold text-white transition hover:bg-blue-800 disabled:opacity-50 sm:w-auto"><QrCode className="h-4 w-4" />Thanh toán QR VNPAY</button></div>
+        </article>; })}
       </section> : activeTab === 'monthly' ? <section className="space-y-3">
         {monthlyInvoices.length === 0 ? <div className="rounded-2xl border bg-white p-8 text-center"><Receipt className="mx-auto h-8 w-8 text-slate-300" /><p className="mt-3 font-semibold">Chưa có hóa đơn tháng</p></div> : monthlyInvoices.map((invoice) => {
           const period = new Date(invoice.periodStart);

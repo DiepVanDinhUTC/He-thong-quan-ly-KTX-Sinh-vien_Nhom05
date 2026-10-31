@@ -24,6 +24,23 @@ const localDateTime = () => {
 const emptyHealthRecord = () => ({ bloodType: '', allergies: '', medicalConditions: '', currentMedications: '', emergencyContactName: '', emergencyContactPhone: '', notes: '' });
 const recordValues = (record) => record ? Object.fromEntries(Object.keys(emptyHealthRecord()).map((key) => [key, record[key] || ''])) : emptyHealthRecord();
 
+const ResidentSearch = ({ residents, value, onChange, className }) => {
+  const [query, setQuery] = useState('');
+  const [open, setOpen] = useState(false);
+  const selected = residents.find((resident) => resident.maSV === value);
+  const normalize = (text) => text.toLocaleLowerCase('vi').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd');
+  const matches = query.trim() ? residents.filter((resident) => normalize(`${resident.hoTen} ${resident.maSV} ${resident.soPhong} ${resident.tenToaNha}`).includes(normalize(query.trim()))).slice(0, 30) : [];
+  return <div className="relative">
+    <input className={className} required value={selected ? `${selected.hoTen} · ${selected.maSV} · Phòng ${selected.soPhong} (${selected.tenToaNha})` : query}
+      onChange={(event) => { onChange(''); setQuery(event.target.value); setOpen(true); }} onFocus={() => setOpen(true)}
+      onKeyDown={(event) => { if (event.key === 'Escape') setOpen(false); }} placeholder="Tìm theo tên, mã SV, phòng hoặc tòa nhà" autoComplete="off" />
+    {open && !selected && query.trim() && <div className="absolute z-20 mt-1 max-h-60 w-full overflow-y-auto rounded-lg border bg-white shadow-lg">
+      {matches.length ? matches.map((resident) => <button type="button" key={resident.maSV} onClick={() => { onChange(resident.maSV); setQuery(''); setOpen(false); }} className="block w-full px-3 py-2 text-left text-sm font-normal hover:bg-blue-50 focus:bg-blue-50">{resident.hoTen} · {resident.maSV} · Phòng {resident.soPhong} ({resident.tenToaNha})</button>) : <p className="p-3 text-sm font-normal text-slate-500">Không tìm thấy sinh viên phù hợp.</p>}
+    </div>}
+    {!selected && query.trim() && <p className="mt-1 text-xs font-normal text-slate-500">Chọn một sinh viên trong kết quả tìm kiếm.</p>}
+  </div>;
+};
+
 const SecurityMedicalManagement = ({ securitySection = null }) => {
   const role = useSelector((state) => state.auth.user?.role);
   const isSecurityWorkspace = ['access', 'violations'].includes(securitySection);
@@ -61,7 +78,7 @@ const SecurityMedicalManagement = ({ securitySection = null }) => {
     setLoading(true);
     setError('');
     try {
-      const requests = [securityMedicalApi.residents()];
+      const requests = [securityMedicalApi.residents(isSecurityWorkspace && securitySection === 'access' ? 'assigned' : undefined)];
       if (loadAccessLogs) requests.push(securityMedicalApi.accessLogs());
       if (loadViolations) requests.push(securityMedicalApi.violations());
       if (canMedical) requests.push(securityMedicalApi.healthRecords(), securityMedicalApi.medicalIncidents());
@@ -83,7 +100,7 @@ const SecurityMedicalManagement = ({ securitySection = null }) => {
     } finally {
       setLoading(false);
     }
-  }, [canMedical, loadAccessLogs, loadViolations]);
+  }, [canMedical, loadAccessLogs, loadViolations, isSecurityWorkspace, securitySection]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -129,6 +146,7 @@ const SecurityMedicalManagement = ({ securitySection = null }) => {
 
   const submitViolation = (event) => {
     event.preventDefault();
+    if (!violationForm.maSinhVien) { setError('Vui lòng chọn sinh viên từ kết quả tìm kiếm.'); return; }
     runAction(() => securityMedicalApi.createViolation({ ...violationForm, occurredAt: new Date(violationForm.occurredAt).toISOString() }), 'Đã ghi nhận vi phạm nội quy.', (response) => {
       setViolations((current) => [response.data, ...current]);
       setViolationForm((current) => ({ ...current, description: '', actionTaken: '', occurredAt: localDateTime() }));
@@ -166,6 +184,7 @@ const SecurityMedicalManagement = ({ securitySection = null }) => {
     ] : []),
   ];
   const selectedResident = residents.find((resident) => resident.maSV === selectedHealthResident);
+  const violationResident = residents.find((resident) => resident.maSV === violationForm.maSinhVien);
   const pageTitle = isSecurityWorkspace
     ? activeTab === 'access' ? 'Quản lý khách' : 'Ghi nhận vi phạm nội quy'
     : isMedicalWorkspace ? activeTab === 'incidents' ? 'Sự cố y tế & thuốc' : 'Hồ sơ sức khỏe' : canMedical ? 'An ninh & y tế' : 'Trật tự - trị an';
@@ -243,9 +262,10 @@ const SecurityMedicalManagement = ({ securitySection = null }) => {
 
             {activeTab === 'violations' && canSecurity && <div className="grid items-start gap-5 xl:grid-cols-[minmax(320px,0.8fr)_minmax(0,1.2fr)]">
               <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-                {renderHeader('Ghi nhận vi phạm nội quy', 'Biên bản gắn với cư dân và phòng hiện đang lưu trú trong tòa nhà của bạn.', ShieldAlert)}
+                {renderHeader('Ghi nhận vi phạm nội quy', 'Biên bản gắn với sinh viên và phòng đang lưu trú trong toàn KTX.', ShieldAlert)}
                 <form onSubmit={submitViolation} className="space-y-4">
-                  <label className={labelClass}>Sinh viên{renderResidentSelect(violationForm.maSinhVien, (maSinhVien) => setViolationForm({ ...violationForm, maSinhVien }))}</label>
+                  <label className={labelClass}>Sinh viên nội trú<ResidentSearch residents={residents} value={violationForm.maSinhVien} onChange={(maSinhVien) => setViolationForm({ ...violationForm, maSinhVien })} className={controlClass} /></label>
+                  {violationResident && <div className="rounded-xl bg-slate-50 p-3 text-sm text-slate-700"><p className="font-semibold">Thông tin sinh viên</p><p className="mt-1">Lớp: {violationResident.lop || '—'} · Khoa: {violationResident.khoa || '—'} · Niên khóa: {violationResident.nienKhoa || '—'}</p><p>Ngày sinh: {violationResident.ngaySinh ? new Date(violationResident.ngaySinh).toLocaleDateString('vi-VN') : '—'} · Giới tính: {violationResident.gioiTinh == null ? '—' : violationResident.gioiTinh ? 'Nam' : 'Nữ'}</p><p>CCCD: {violationResident.cccd || '—'} · SĐT: {violationResident.phone || '—'}</p><p>Email: {violationResident.email || '—'} · Diện ưu tiên: {violationResident.dienUuTien || 'Không'}</p></div>}
                   <div className="grid gap-3 sm:grid-cols-2"><label className={labelClass}>Nhóm vi phạm<select value={violationForm.category} onChange={(event) => setViolationForm({ ...violationForm, category: event.target.value })} className={controlClass}><option value="NOISE">Gây tiếng ồn</option><option value="CURFEW">Vi phạm giờ giấc</option><option value="GUEST_POLICY">Vi phạm quy định khách</option><option value="SMOKING">Hút thuốc / chất cấm</option><option value="DAMAGE">Làm hư hỏng tài sản</option><option value="OTHER">Khác</option></select></label><label className={labelClass}>Mức độ<select value={violationForm.severity} onChange={(event) => setViolationForm({ ...violationForm, severity: event.target.value })} className={controlClass}><option value="LOW">Nhẹ</option><option value="MEDIUM">Trung bình</option><option value="HIGH">Nghiêm trọng</option></select></label></div>
                   <label className={labelClass}>Thời điểm xảy ra<input type="datetime-local" required value={violationForm.occurredAt} onChange={(event) => setViolationForm({ ...violationForm, occurredAt: event.target.value })} className={controlClass} /></label>
                   <label className={labelClass}>Nội dung sự việc<textarea required minLength={5} maxLength={2000} rows={4} value={violationForm.description} onChange={(event) => setViolationForm({ ...violationForm, description: event.target.value })} className={controlClass} placeholder="Ghi nhận sự việc khách quan, thời gian và địa điểm cụ thể." /></label>
@@ -253,7 +273,7 @@ const SecurityMedicalManagement = ({ securitySection = null }) => {
                   <button disabled={busy || !residents.length} className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-blue-700 px-4 py-3 text-sm font-bold text-white hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50"><ShieldAlert className="h-4 w-4" />{busy ? 'Đang lưu…' : 'Lưu biên bản'}</button>
                 </form>
               </section>
-              <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"><div className="flex items-center justify-between border-b p-5"><div><h2 className="font-bold">Biên bản đã ghi nhận</h2><p className="mt-1 text-xs text-slate-500">Lịch sử trong phạm vi tòa nhà được phân công</p></div><span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-bold text-blue-800">{violations.length}</span></div>{violations.length === 0 ? <p className="p-8 text-center text-sm text-slate-500">Chưa có biên bản vi phạm.</p> : <div className="divide-y">{violations.map((record) => <article key={record.id} className="p-4 sm:p-5"><div className="flex flex-wrap items-start justify-between gap-2"><div><p className="font-semibold">{record.sinhVien?.hoTen} · {record.sinhVien?.maSV}</p><p className="mt-1 text-xs text-slate-500">{record.toaNha?.tenToaNha} · Phòng {record.phong?.soPhong || '—'} · {formatDate(record.occurredAt)}</p></div><span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${record.severity === 'HIGH' ? 'bg-rose-100 text-rose-800' : record.severity === 'MEDIUM' ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-700'}`}>{record.severity === 'HIGH' ? 'Nghiêm trọng' : record.severity === 'MEDIUM' ? 'Trung bình' : 'Nhẹ'}</span></div><p className="mt-3 whitespace-pre-wrap text-sm text-slate-700">{record.description}</p>{record.actionTaken && <p className="mt-2 whitespace-pre-wrap text-xs text-slate-500">Biện pháp: {record.actionTaken}</p>}</article>)}</div>}</section>
+              <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"><div className="flex items-center justify-between border-b p-5"><div><h2 className="font-bold">Biên bản đã ghi nhận</h2><p className="mt-1 text-xs text-slate-500">200 biên bản mới nhất trong toàn KTX</p></div><span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-bold text-blue-800">{violations.length}</span></div>{violations.length === 0 ? <p className="p-8 text-center text-sm text-slate-500">Chưa có biên bản vi phạm.</p> : <div className="divide-y">{violations.map((record) => <article key={record.id} className="p-4 sm:p-5"><div className="flex flex-wrap items-start justify-between gap-2"><div><p className="font-semibold">{record.sinhVien?.hoTen} · {record.sinhVien?.maSV}</p><p className="mt-1 text-xs text-slate-500">{record.toaNha?.tenToaNha} · Phòng {record.phong?.soPhong || '—'} · {formatDate(record.occurredAt)}</p></div><span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${record.severity === 'HIGH' ? 'bg-rose-100 text-rose-800' : record.severity === 'MEDIUM' ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-700'}`}>{record.severity === 'HIGH' ? 'Nghiêm trọng' : record.severity === 'MEDIUM' ? 'Trung bình' : 'Nhẹ'}</span></div><p className="mt-3 whitespace-pre-wrap text-sm text-slate-700">{record.description}</p>{record.actionTaken && <p className="mt-2 whitespace-pre-wrap text-xs text-slate-500">Biện pháp: {record.actionTaken}</p>}</article>)}</div>}</section>
             </div>}
 
             {activeTab === 'health' && canMedical && <div className="grid items-start gap-5 xl:grid-cols-[minmax(320px,0.72fr)_minmax(0,1.28fr)]">

@@ -1,4 +1,6 @@
 const prisma = require('../config/prisma');
+const { VIOLATION_LIMIT } = require('../services/violationPolicy');
+const { currentMilitaryStayWhere } = require('../services/militaryStay');
 const VIOLATION_CATEGORIES = new Set(['NOISE', 'CURFEW', 'GUEST_POLICY', 'SMOKING', 'DAMAGE', 'OTHER']);
 const MEDICAL_INCIDENT_TYPES = new Set(['ILLNESS', 'INJURY', 'EMERGENCY', 'MEDICATION', 'OTHER']);
 
@@ -8,6 +10,10 @@ const activePlacementWhere = (buildingScope) => ({
 });
 
 const scopeWhere = (buildingScope) => buildingScope === null ? {} : { maToaNha: { in: buildingScope } };
+const residentWhere = (buildingScope) => ({ OR: [
+    { hopDongs: { some: activePlacementWhere(buildingScope) } },
+    { militaryRoomAssignments: { some: militaryPlacementWhere(buildingScope) } }
+] });
 const text = (value, maxLength) => typeof value === 'string' ? value.trim().slice(0, maxLength) : '';
 const optionalText = (value, maxLength) => text(value, maxLength) || null;
 const eventDate = (value) => {
@@ -16,7 +22,19 @@ const eventDate = (value) => {
     return Number.isNaN(parsed.getTime()) ? null : parsed;
 };
 
-const findPlacement = async (maSinhVien, buildingScope, maToaNha) => prisma.hopDong.findFirst({
+const militaryPlacementWhere = (buildingScope, maToaNha) => ({
+    ...currentMilitaryStayWhere(),
+    ...(maToaNha ? { phong: { is: { maToaNha } } } : buildingScope === null ? {} : { phong: { is: { maToaNha: { in: buildingScope } } } })
+});
+
+const findPlacement = async (maSinhVien, buildingScope, maToaNha) => {
+    const military = await prisma.militaryRoomAssignment.findFirst({
+        where: { maSinhVien, ...militaryPlacementWhere(buildingScope, maToaNha) },
+        orderBy: { startsAt: 'desc' },
+        select: { maPhong: true, phong: { select: { maPhong: true, soPhong: true, maToaNha: true } } }
+    });
+    if (military) return military;
+    return prisma.hopDong.findFirst({
     where: {
         maSinhVien,
         ...activePlacementWhere(buildingScope),
@@ -28,11 +46,21 @@ const findPlacement = async (maSinhVien, buildingScope, maToaNha) => prisma.hopD
         maPhong: true,
         phong: { select: { maPhong: true, soPhong: true, maToaNha: true } }
     }
-});
+    });
+};
 
 const residentSelect = {
     maSV: true,
     hoTen: true,
+    ngaySinh: true,
+    gioiTinh: true,
+    lop: true,
+    nienKhoa: true,
+    khoa: true,
+    cccd: true,
+    phone: true,
+    email: true,
+    dienUuTien: true,
     hopDongs: {
         where: { trangThai: 'ACTIVE' },
         orderBy: { ngayTao: 'desc' },
@@ -68,18 +96,34 @@ exports.getResidents = async (req, res) => {
                 select: { maToaNha: true, tenToaNha: true, maKhu: true }
             }),
             prisma.sinhVien.findMany({
-                where: { hopDongs: { some: activePlacementWhere(req.buildingScope) } },
+                where: residentWhere(req.buildingScope),
                 orderBy: { hoTen: 'asc' },
-                select: residentSelect
+                select: {
+                    ...residentSelect,
+                    hopDongs: { ...residentSelect.hopDongs, where: activePlacementWhere(req.buildingScope) },
+                    militaryRoomAssignments: {
+                        where: militaryPlacementWhere(req.buildingScope), orderBy: { startsAt: 'desc' }, take: 1,
+                        select: { maPhong: true, phong: residentSelect.hopDongs.select.phong }
+                    }
+                }
             })
         ]);
         const residents = students.flatMap((student) => {
-            const placement = student.hopDongs[0];
+            const placement = student.militaryRoomAssignments[0] || student.hopDongs[0];
             if (!placement?.phong?.maToaNha) return [];
             return [{
                 maSV: student.maSV,
                 hoTen: student.hoTen,
-                maHopDong: placement.maHopDong,
+                ngaySinh: student.ngaySinh,
+                gioiTinh: student.gioiTinh,
+                lop: student.lop,
+                nienKhoa: student.nienKhoa,
+                khoa: student.khoa,
+                cccd: student.cccd,
+                phone: student.phone,
+                email: student.email,
+                dienUuTien: student.dienUuTien,
+                maHopDong: placement.maHopDong || null,
                 maPhong: placement.phong.maPhong,
                 soPhong: placement.phong.soPhong,
                 maToaNha: placement.phong.maToaNha,
@@ -188,6 +232,19 @@ exports.listViolations = async (req, res) => {
     }
 };
 
+exports.violationSummary = async (_req, res) => {
+    try {
+        const counts = await prisma.securityViolation.groupBy({ by: ['maSinhVien'], _count: { _all: true } });
+        const students = await prisma.sinhVien.findMany({ where: { maSV: { in: counts.map((item) => item.maSinhVien) } }, select: { maSV: true, hoTen: true } });
+        const names = new Map(students.map((student) => [student.maSV, student.hoTen]));
+        const data = counts.map((item) => ({ maSinhVien: item.maSinhVien, hoTen: names.get(item.maSinhVien), count: item._count._all })).sort((a, b) => b.count - a.count);
+        return res.status(200).json({ success: true, data, threshold: VIOLATION_LIMIT });
+    } catch (error) {
+        console.error(`[securityMedical.violationSummary] ${error.code || 'ERROR'}: ${error.message}`);
+        return res.status(500).json({ success: false, message: 'Không thể tải thống kê vi phạm.' });
+    }
+};
+
 exports.createViolation = async (req, res) => {
     const body = req.body || {};
     const maSinhVien = text(body.maSinhVien, 20);
@@ -230,7 +287,7 @@ exports.createViolation = async (req, res) => {
 exports.listHealthRecords = async (req, res) => {
     try {
         const records = await prisma.medicalRecord.findMany({
-            where: { sinhVien: { is: { hopDongs: { some: activePlacementWhere(req.buildingScope) } } } },
+            where: { sinhVien: { is: residentWhere(req.buildingScope) } },
             include: { sinhVien: { select: { maSV: true, hoTen: true } } },
             orderBy: { updatedAt: 'desc' }
         });
@@ -246,7 +303,7 @@ exports.getHealthRecord = async (req, res) => {
         const record = await prisma.medicalRecord.findFirst({
             where: {
                 maSinhVien: req.params.maSV,
-                sinhVien: { is: { hopDongs: { some: activePlacementWhere(req.buildingScope) } } }
+                sinhVien: { is: residentWhere(req.buildingScope) }
             },
             include: { sinhVien: { select: { maSV: true, hoTen: true } } }
         });
