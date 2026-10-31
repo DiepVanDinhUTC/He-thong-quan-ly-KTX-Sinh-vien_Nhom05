@@ -134,3 +134,4 @@ Chạy `npm install --legacy-peer-deps` tại thư mục gốc và `npm --prefix
 - `npm run build`: build frontend vào `frontend/dist`.
 
 `frontend/dist` và các thư mục cache trong `node_modules` là dữ liệu sinh tự động, có thể xóa và tạo lại. Giữ hai file `package-lock.json` để cố định phiên bản thư viện, cùng các file `.env` cục bộ để chạy ứng dụng.
+Liên hệ trưởng nhóm qua email: vandiep6c@gmail.com 
