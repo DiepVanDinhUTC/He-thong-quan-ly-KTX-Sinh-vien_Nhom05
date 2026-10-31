@@ -273,6 +273,8 @@ model HopDong {
   tongTien    Float
   trangThai   String   @default("PENDING_PAYMENT")
   ngayTao     DateTime @default(now())
+  paymentDueAt DateTime?
+  paymentPolicy String? @db.VarChar(24)
 
   // Đã ngắt Cascade
   sinhVien             SinhVien                     @relation(fields: [maSinhVien], references: [maSV], onDelete: NoAction, onUpdate: NoAction)
@@ -281,6 +283,8 @@ model HopDong {
   monthlyInvoices      MonthlyInvoice[]
   housingRequests      StudentHousingRequest[]
   serviceRegistrations StudentServiceRegistration[]
+
+  @@index([trangThai, paymentDueAt])
 }
 
 model HoaDon {

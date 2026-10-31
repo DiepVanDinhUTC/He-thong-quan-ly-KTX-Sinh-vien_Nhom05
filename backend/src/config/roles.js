@@ -81,7 +81,7 @@ const ROLE_PERMISSIONS = Object.freeze({
         'students:read', 'students:create', 'students:update', 'students:delete', 'students:sync',
         'contracts:read', 'contracts:update', 'applications:decide',
         'archive-rooms:read', 'archive-rooms:assign', 'archive-rooms:move',
-        'residents:read', 'security:violation:read', 'security:violation:create'
+        'residents:read', 'security:violation:read'
     ]),
     [ROLES.ACCOUNTANT]: Object.freeze(['dashboard:read', 'billing:read', 'billing:manage']),
     [ROLES.TREASURER]: Object.freeze(['dashboard:read', 'billing:read', 'billing:manage']),

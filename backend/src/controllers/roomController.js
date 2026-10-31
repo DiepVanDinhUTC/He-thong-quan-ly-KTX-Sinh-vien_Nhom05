@@ -5,6 +5,8 @@ const { roomMemberRelations, getRoomOccupancy } = require('../services/roomOccup
 const { randomUUID } = require('crypto');
 const { ROOM_TYPES, LEGACY_ROOM_TYPE_CODES, A4_ONLY_ROOM_TYPES } = require('../config/roomTypes');
 const { GLOBAL_BUILDING_ROLES } = require('../config/roles');
+const { assertRenewalEligible } = require('../services/violationPolicy');
+const { calculateContractDueAt, configuredHolidays } = require('../services/invoiceDueDates');
 
 const facilityStatuses = ['TOT', 'HU_HONG', 'DANG_BAO_TRI'];
 const liveContractStatuses = ['ACTIVE', 'PENDING_PAYMENT'];
@@ -436,6 +438,7 @@ exports.assignArchiveRoom = async (req, res) => {
             ]);
             if (!student) throw Object.assign(new Error('Không tìm thấy hồ sơ sinh viên.'), { status: 404 });
             if (student.militaryRoomAssignments?.length) throw Object.assign(new Error('Sinh viên đã được phân phòng quân sự. Hãy xử lý trong nghiệp vụ quân sự để tránh giữ chỗ hai lần.'), { status: 409 });
+            await assertRenewalEligible(tx, maSinhVien);
             if (!room) throw Object.assign(new Error('Không tìm thấy phòng được chọn.'), { status: 404 });
             if (existingContract) throw Object.assign(new Error('Sinh viên đã có hợp đồng đang chờ thanh toán hoặc còn hiệu lực.'), { status: 409 });
             if (pendingApplication) throw Object.assign(new Error('Sinh viên đang có đơn lưu trú chờ xét duyệt. Hãy xử lý đơn trước khi xếp phòng thủ công.'), { status: 409 });
@@ -446,6 +449,7 @@ exports.assignArchiveRoom = async (req, res) => {
             });
             if (roomUpdate.count !== 1) throw Object.assign(new Error('Phòng được chọn đã đủ sức chứa.'), { status: 409 });
 
+            const approvedAt = new Date();
             return tx.hopDong.create({
                 data: {
                     maSinhVien,
@@ -453,6 +457,9 @@ exports.assignArchiveRoom = async (req, res) => {
                     ngayBatDau,
                     ngayKetThuc,
                     tongTien,
+                    ngayTao: approvedAt,
+                    paymentDueAt: calculateContractDueAt(approvedAt, false, configuredHolidays()),
+                    paymentPolicy: 'STANDARD',
                     trangThai: 'PENDING_PAYMENT'
                 }
             });

@@ -38,8 +38,8 @@ const SecurityHome = () => {
       </div>
       <div className="rounded-2xl border border-blue-100 bg-blue-50/60 p-6">
         <h2 className="flex items-center gap-2 font-bold text-blue-950"><Building2 className="h-5 w-5 text-blue-700" />Phạm vi phụ trách</h2>
-        <p className="mt-4 text-sm leading-7 text-slate-700">Sổ khách, danh sách sinh viên nội trú và biên bản được hiển thị theo các tòa nhà đã phân công cho tài khoản của bạn.</p>
-        <p className="mt-3 text-sm leading-7 text-slate-600">Nếu chưa thấy tòa nhà hoặc sinh viên cần ghi nhận, hãy liên hệ người quản lý tài khoản để kiểm tra phân công.</p>
+        <p className="mt-4 text-sm leading-7 text-slate-700">Có thể tìm sinh viên nội trú và ghi nhận vi phạm trên toàn KTX. Sổ khách hiển thị theo các tòa nhà được phân công.</p>
+        <p className="mt-3 text-sm leading-7 text-slate-600">Nếu chưa thấy tòa nhà trong sổ khách, hãy liên hệ người quản lý tài khoản để kiểm tra phân công.</p>
       </div>
     </section>
   </SecurityLayout>;

@@ -82,7 +82,7 @@ exports.getMyPayments = async (req, res) => {
                 return {
                     ...contract,
                     dueAt,
-                    isOverdue: contract.trangThai === 'PENDING_PAYMENT' && Boolean(dueAt && dueAt.getTime() < Date.now()),
+                    isOverdue: contract.trangThai === 'PENDING_PAYMENT' && Boolean(dueAt && dueAt.getTime() <= Date.now()),
                     daThanhToan: hoaDons.length > 0,
                     payments: hoaDons
                 };
@@ -557,12 +557,13 @@ exports.createVnpayPayment = async (req, res) => {
         if (invoiceType === 'CONTRACT') {
             const contract = await prisma.hopDong.findFirst({
                 where: { maHopDong: invoiceId, maSinhVien: req.user.maSV },
-                select: { maHopDong: true, maSinhVien: true, tongTien: true, trangThai: true }
+                select: { maHopDong: true, maSinhVien: true, tongTien: true, trangThai: true, paymentDueAt: true }
             });
             if (!contract || contract.trangThai !== 'PENDING_PAYMENT') {
                 return res.status(404).json({ success: false, message: 'Không tìm thấy hóa đơn hợp đồng đang chờ thanh toán của bạn.' });
             }
-            invoice = { id: contract.maHopDong, maSinhVien: contract.maSinhVien, amount: Math.round(contract.tongTien) };
+            if (contract.paymentDueAt && new Date(contract.paymentDueAt).getTime() <= Date.now()) return res.status(409).json({ success: false, message: 'Hợp đồng đã hết hạn thanh toán. Vui lòng đăng ký lại.' });
+            invoice = { id: contract.maHopDong, maSinhVien: contract.maSinhVien, amount: Math.round(contract.tongTien), expiresAt: contract.paymentDueAt };
         } else {
             const monthlyInvoice = await prisma.monthlyInvoice.findFirst({
                 where: { id: invoiceId, maSinhVien: req.user.maSV },
@@ -594,7 +595,8 @@ exports.createVnpayPayment = async (req, res) => {
             amount: invoice.amount,
             orderInfo,
             ipAddr: req.ip,
-            returnUrl
+            returnUrl,
+            expiresAt: invoice.expiresAt
         });
         if (pendingPayment && !reusePending) {
             await prisma.vnpayPayment.update({ where: { id: pendingPayment.id }, data: { status: 'FAILED' } });
@@ -627,24 +629,25 @@ exports.handleVnpayIpn = async (req, res) => {
     try {
         const payment = await prisma.vnpayPayment.findUnique({ where: { txnRef: String(params.vnp_TxnRef || '') } });
         if (!payment) return res.json({ RspCode: '01', Message: 'Order not found' });
-        if (payment.status === 'PAID') return res.json({ RspCode: '02', Message: 'Order already confirmed' });
+        if (['PAID', 'NEEDS_REVIEW'].includes(payment.status)) return res.json({ RspCode: '02', Message: 'Order already confirmed' });
         if (Number(params.vnp_Amount) !== payment.amount * 100) return res.json({ RspCode: '04', Message: 'Invalid amount' });
 
         const successful = params.vnp_ResponseCode === '00' && params.vnp_TransactionStatus === '00';
         if (!successful) {
-            await prisma.vnpayPayment.update({
-                where: { id: payment.id },
+            await prisma.vnpayPayment.updateMany({
+                where: { id: payment.id, status: 'PENDING' },
                 data: { status: 'FAILED', responseCode: String(params.vnp_ResponseCode || '').slice(0, 2) }
             });
             return res.json({ RspCode: '00', Message: 'Confirm Success' });
         }
 
         await prisma.$transaction(async (tx) => {
+            const paidAt = params.vnp_PayDate ? parseVnpayPayDate(params.vnp_PayDate) : new Date();
             const claimed = await tx.vnpayPayment.updateMany({
-                where: { id: payment.id, status: 'PENDING' },
+                where: { id: payment.id, status: { in: ['PENDING', 'FAILED'] } },
                 data: {
                     status: 'PAID',
-                    paidAt: params.vnp_PayDate ? parseVnpayPayDate(params.vnp_PayDate) : new Date(),
+                    paidAt,
                     bankCode: String(params.vnp_BankCode || '').slice(0, 20),
                     bankTranNo: String(params.vnp_BankTranNo || '').slice(0, 255),
                     vnpTransactionNo: String(params.vnp_TransactionNo || '').slice(0, 30),
@@ -655,9 +658,21 @@ exports.handleVnpayIpn = async (req, res) => {
 
             if (payment.invoiceType === 'CONTRACT') {
                 const contract = await tx.hopDong.findFirst({
-                    where: { maHopDong: payment.invoiceId, maSinhVien: payment.maSinhVien, trangThai: 'PENDING_PAYMENT' }
+                    where: { maHopDong: payment.invoiceId, maSinhVien: payment.maSinhVien }
                 });
                 if (!contract || Math.round(contract.tongTien) !== payment.amount) throw new Error('Invoice no longer matches VNPAY payment');
+                if (contract.paymentDueAt && (contract.trangThai !== 'PENDING_PAYMENT' || paidAt.getTime() >= new Date(contract.paymentDueAt).getTime())) {
+                    const room = await tx.phong.findUnique({ where: { maPhong: contract.maPhong }, select: { maToaNha: true } });
+                    await tx.vnpayPayment.update({ where: { id: payment.id }, data: { status: 'NEEDS_REVIEW' } });
+                    await tx.financialTransaction.create({ data: {
+                        transactionType: 'COLLECTION', amount: payment.amount, method: 'VNPAY', status: 'NEEDS_REVIEW',
+                        invoiceType: 'CONTRACT', invoiceId: contract.maHopDong, maSinhVien: contract.maSinhVien,
+                        maToaNha: room?.maToaNha || null, bankReference: String(params.vnp_BankTranNo || payment.txnRef).slice(0, 100),
+                        paymentReference: payment.txnRef, description: 'Thanh toán hợp đồng hết hạn hoặc đã đóng; cần đối soát và xử lý hoàn tiền.'
+                    } });
+                    return;
+                }
+                if (contract.trangThai !== 'PENDING_PAYMENT') throw new Error('Invoice no longer matches VNPAY payment');
                 const activated = await tx.hopDong.updateMany({
                     where: { maHopDong: contract.maHopDong, trangThai: 'PENDING_PAYMENT' },
                     data: { trangThai: 'ACTIVE' }
@@ -721,8 +736,10 @@ exports.processPayment = async (req, res) => {
             if (!contract || contract.trangThai !== 'PENDING_PAYMENT') {
                 return null;
             }
+            const now = new Date();
+            if (contract.paymentDueAt && new Date(contract.paymentDueAt) <= now) throw Object.assign(new Error('Hợp đồng đã hết hạn thanh toán.'), { status: 409 });
             const claimed = await tx.hopDong.updateMany({
-                where: { maHopDong, trangThai: 'PENDING_PAYMENT' }, data: { trangThai: 'ACTIVE' }
+                where: { maHopDong, trangThai: 'PENDING_PAYMENT', OR: [{ paymentDueAt: null }, { paymentDueAt: { gt: now } }] }, data: { trangThai: 'ACTIVE' }
             });
             if (claimed.count !== 1) return null;
             const invoice = await tx.hoaDon.create({
@@ -743,6 +760,7 @@ exports.processPayment = async (req, res) => {
         if (!result) return res.status(409).json({ success: false, message: 'Hợp đồng không còn khoản phí chờ thanh toán.' });
         return res.json({ success: true, message: 'Đã ghi nhận thanh toán và kích hoạt hợp đồng.', data: result });
     } catch (error) {
+        if (error.status) return res.status(error.status).json({ success: false, message: error.message });
         console.error(`[payments.process] ${error.code || 'ERROR'}: ${error.message}`);
         return res.status(500).json({ success: false, message: 'Lỗi hệ thống khi xử lý thanh toán.' });
     }

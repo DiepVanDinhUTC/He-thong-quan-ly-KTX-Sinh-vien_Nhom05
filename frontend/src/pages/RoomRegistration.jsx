@@ -118,6 +118,7 @@ const RoomRegistration = () => {
             {student?.isPriority && <p className="font-semibold text-amber-800 sm:col-span-2">Diện ưu tiên: {student.dienUuTien}</p>}
           </div>
           <p className="mt-4 text-sm font-semibold text-blue-800">Phí nội trú thu theo học kỳ: 5 tháng/lần, tính theo giá tháng của phòng được xếp.</p>
+          <p className="mt-2 text-sm text-amber-800">Đơn ưu tiên được duyệt tự động phải thanh toán trong 30 phút. Đơn được nhân viên duyệt có hạn 3 ngày làm việc, tính từ lúc duyệt; quá hạn hợp đồng nháp sẽ bị hủy.</p>
 
           <form onSubmit={submitRegistration}>
             <fieldset className="mt-6" disabled={loading || !dataReady || submitting || applications.some((item) => item.trangThai === 'PENDING') || Boolean(student?.maPhong)}>
@@ -145,7 +146,7 @@ const RoomRegistration = () => {
             {applications.some((item) => item.trangThai === 'PENDING') && <p className="mt-4 rounded-lg bg-amber-50 p-3 text-sm text-amber-800">Bạn đang có đơn chờ xác nhận.</p>}
             {error && <div role="alert" className="mt-4 rounded-lg bg-red-50 p-3 text-sm text-red-700"><p>{error}</p>{!dataReady && <button type="button" onClick={loadData} className="mt-2 font-semibold underline underline-offset-2">Tải lại hồ sơ</button>}</div>}
             {success && <p role="status" className="mt-4 rounded-lg bg-green-50 p-3 text-sm text-green-700">{success}</p>}
-            {student?.currentContract?.trangThai === 'PENDING_PAYMENT' && <div className="mt-4 rounded-lg bg-blue-50 p-4 text-sm text-blue-900"><p>Hợp đồng nháp đã được tạo cho phòng {student.soPhong || student.maPhong}. Vui lòng kiểm tra và thanh toán phí lưu trú.</p><button type="button" onClick={() => navigate('/bill-payment')} className="mt-2 font-semibold underline underline-offset-2">Xem hợp đồng và thanh toán</button></div>}
+            {student?.currentContract?.trangThai === 'PENDING_PAYMENT' && <div className="mt-4 rounded-lg bg-blue-50 p-4 text-sm text-blue-900"><p>Hợp đồng nháp đã được tạo cho phòng {student.soPhong || student.maPhong}. Vui lòng kiểm tra và thanh toán phí lưu trú.{student.currentContract.paymentDueAt && ` Hạn thanh toán: ${new Date(student.currentContract.paymentDueAt).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })} (giờ Việt Nam).`}</p><button type="button" onClick={() => navigate('/bill-payment')} className="mt-2 font-semibold underline underline-offset-2">Xem hợp đồng và thanh toán</button></div>}
             <button type="submit" disabled={!dataReady || !selectedType || !selectedRoom || loadingRooms || loading || submitting || applications.some((item) => item.trangThai === 'PENDING') || Boolean(student?.maPhong)} className="mt-6 w-full rounded-xl bg-blue-700 px-5 py-3 font-semibold text-white hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto">
               Xem điều khoản & xác nhận đăng ký
             </button>

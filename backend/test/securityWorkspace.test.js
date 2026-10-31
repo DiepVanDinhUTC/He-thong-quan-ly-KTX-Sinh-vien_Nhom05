@@ -31,7 +31,6 @@ test('security signs in to its home and has three independent navigation destina
         }
     }
 });
-
 test('frontend room and repair access agrees with API permissions after separating security', async () => {
     const { roleCanAccess } = await import('../../frontend/src/utils/accessControl.js');
     for (const role of ROLES.KNOWN_ROLES) {
@@ -63,4 +62,18 @@ test('security retains guest check-in, checkout, resident lookup, and violation 
         assert.equal(result.res.statusCode, 403, path);
         assert.equal((await checkGate(gate(securityMedical, path), 'MEDICAL_OFFICER')).allowed, true, path);
     }
+});
+
+test('security has global resident and violation scope; archivists read but cannot create violations', async () => {
+    for (const path of ['/residents', '/violations']) {
+        const route = securityMedical.stack.find((layer) => layer.route?.path === path && layer.route.methods.get).route;
+        const scope = route.stack[2].handle;
+        const req = { user: { role: 'SECURITY' }, query: {} };
+        let nextCalled = false;
+        await scope(req, response(), () => { nextCalled = true; });
+        assert.equal(nextCalled, true);
+        assert.equal(req.buildingScope, null);
+    }
+    assert.equal((await checkGate(gate(securityMedical, '/violations', 'post'), 'ARCHIVIST')).allowed, false);
+    assert.equal((await checkGate(gate(securityMedical, '/violation-summary'), 'ARCHIVIST')).allowed, true);
 });

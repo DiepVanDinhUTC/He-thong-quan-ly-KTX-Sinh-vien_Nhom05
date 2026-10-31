@@ -24,7 +24,7 @@ const sign = (params, secret) => crypto.createHmac('sha512', secret)
     .update(new URLSearchParams(sortParams(params)).toString(), 'utf8')
     .digest('hex');
 
-const buildPaymentUrl = ({ txnRef, amount, orderInfo, ipAddr, returnUrl }) => {
+const buildPaymentUrl = ({ txnRef, amount, orderInfo, ipAddr, returnUrl, expiresAt }) => {
     const tmnCode = process.env.VNPAY_TMN_CODE;
     const hashSecret = process.env.VNPAY_HASH_SECRET;
     const payUrl = process.env.VNPAY_URL || 'https://sandbox.vnpayment.vn/paymentv2/vpcpay.html';
@@ -48,7 +48,7 @@ const buildPaymentUrl = ({ txnRef, amount, orderInfo, ipAddr, returnUrl }) => {
         vnp_ReturnUrl: returnUrl,
         vnp_IpAddr: (ipAddr || '127.0.0.1').replace(/^::ffff:/, '').slice(0, 45),
         vnp_CreateDate: timestamp(now),
-        vnp_ExpireDate: timestamp(new Date(now.getTime() + 15 * 60 * 1000)),
+        vnp_ExpireDate: timestamp(new Date(Math.min(now.getTime() + 15 * 60 * 1000, expiresAt ? new Date(expiresAt).getTime() : Infinity))),
         vnp_BankCode: bankCode
     });
     params.vnp_SecureHash = sign(params, hashSecret);

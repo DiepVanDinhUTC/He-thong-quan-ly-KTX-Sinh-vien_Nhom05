@@ -74,8 +74,9 @@ const ContractManagement = ({ embedded = false }) => {
     setSaving(true);
     setError('');
     try {
-      await housingApi.approveApplication({ maDangKy: selectedApplication.maDangKy, ...approval, tongTien: Number(approval.tongTien) });
-      setNotice(`Đã xác nhận đơn ${selectedApplication.maDangKy} và tạo hợp đồng chờ thanh toán.`);
+      const response = await housingApi.approveApplication({ maDangKy: selectedApplication.maDangKy, ...approval, tongTien: Number(approval.tongTien) });
+      const deadline = response.data?.paymentDueAt ? new Date(response.data.paymentDueAt).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' }) : '';
+      setNotice(`Đã xác nhận đơn ${selectedApplication.maDangKy} và tạo hợp đồng chờ thanh toán.${deadline ? ` Hạn thanh toán: ${deadline} (giờ Việt Nam).` : ''}`);
       setSelectedApplication(null);
       await loadData();
     } catch (requestError) {
