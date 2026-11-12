@@ -16,9 +16,10 @@ const account = (assignment = stay(), contracts = [regular]) => ({
     sinhVien: { maSV: 'SV1', hoTen: 'Student 1', laHocVienQuanSu: true, hopDongs: contracts, militaryRoomAssignments: [{ ...assignment, phong: { maPhong: 'QS101', soPhong: '101', maToaNha: 'A1', phiNoiTruThang: 400000 } }] }
 });
 
-test('GDQP is exactly 14 days in Vietnam, with an exclusive end and validated start date', () => {
+test('GDQP is exactly 10 days in Vietnam, with an exclusive end and validated start date', () => {
     const period = resolveMilitaryStayPeriod({ startsAt: '2026-11-01', batchCode: 'DOT-1' }, new Date('2026-10-29'));
     assert.equal(period.startsAt.toISOString(), start.toISOString());
+    assert.equal(MILITARY_STAY_MS, 10 * 24 * 60 * 60 * 1000);
     assert.equal(period.endsAt.getTime() - period.startsAt.getTime(), MILITARY_STAY_MS);
     assert.equal(militaryStayState(stay(), new Date(start.getTime() - 1)), 'UPCOMING');
     assert.equal(militaryStayState(stay(), start), 'ACTIVE');

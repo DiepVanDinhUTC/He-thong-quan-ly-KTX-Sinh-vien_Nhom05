@@ -34,6 +34,26 @@ const balanceEmptyRoomsByGender = ({ targetRooms, roomById, pendingStudents }) =
         fixedFloorCount.set(room.tang, floor);
     }
 
+    // Exhaustive search is practical for small fixtures, but A1 has 32 rooms.
+    // Allocate larger sets incrementally, prioritizing unmet demand and floor balance.
+    if (openRooms.length > 16) {
+        const capacity = { ...fixedCapacity };
+        const floorCount = new Map([...fixedFloorCount].map(([floor, count]) => [floor, { ...count }]));
+        for (const room of openRooms) {
+            const floor = floorCount.get(room.tang) || { false: 0, true: 0 };
+            const femaleShortfall = Math.max(0, needs.female - capacity.false);
+            const maleShortfall = Math.max(0, needs.male - capacity.true);
+            const gender = femaleShortfall === maleShortfall
+                ? floor.true < floor.false
+                : maleShortfall > femaleShortfall;
+            room.gender = gender;
+            capacity[String(gender)] += room.soSinhVienToiDa;
+            floor[String(gender)] += 1;
+            floorCount.set(room.tang, floor);
+        }
+        return;
+    }
+
     let best = null;
     const combinations = 2 ** openRooms.length;
     for (let mask = 0; mask < combinations; mask += 1) {
@@ -120,7 +140,7 @@ const assignMilitaryStudentsToA1 = async ({ db = prisma, assignedById, startsAt,
             const hasNonMilitaryOccupants = room && room.occupancy - assignments.length > 0;
             const overCapacity = room && assignments.length > room.soSinhVienToiDa;
             if (!roomIsTarget || hasNonMilitaryOccupants || overCapacity || genders.size !== 1) {
-                invalid.push(...assignments);
+                invalid.push(...assignments.filter((assignment) => !studentIds || studentIds.includes(assignment.maSinhVien)));
                 continue;
             }
             room.gender = assignments[0].sinhVien.gioiTinh;
@@ -221,7 +241,7 @@ const assignMilitaryStudentsToA1 = async ({ db = prisma, assignedById, startsAt,
         return {
             studentCount: students.length,
             assigned,
-            alreadyAssigned: validAssignments.length,
+            alreadyAssigned: studentIds ? validAssignments.filter((assignment) => studentIds.includes(assignment.maSinhVien)).length : validAssignments.length,
             unassignedCount: unassignedStudents.length,
             completedCount: students.length - pendingStudents.length - students.filter((student) => alreadyAssigned.has(student.maSV)).length,
             period,

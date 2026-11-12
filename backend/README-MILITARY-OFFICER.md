@@ -1,6 +1,8 @@
+> **Cập nhật:** Luồng học viên hiện dùng QLĐT giả lập và tự xếp phòng. Các hướng dẫn SIS bên dưới là lịch sử; xem [README-QLDT-GDQP.md](README-QLDT-GDQP.md).
+
 # Demo chức năng cán bộ quản lý quân sự
 
-> Cập nhật thời hạn GDQP: học viên dùng chung cổng sinh viên; phòng quân sự tách biệt với hợp đồng nội trú gốc và có thời hạn 14 ngày. Đồng bộ SIS chỉ tiếp nhận hồ sơ. Sau đó cán bộ chọn ngày bắt đầu thực tế trong **Xếp phòng quân sự**. Xem quy tắc hiện hành và cách cập nhật database tại [README-MILITARY-STUDENT.md](README-MILITARY-STUDENT.md).
+> Cập nhật thời hạn GDQP: học viên dùng chung cổng sinh viên; phòng quân sự tách biệt với hợp đồng nội trú gốc và có thời hạn 10 ngày. Đồng bộ SIS chỉ tiếp nhận hồ sơ. Sau đó cán bộ chọn ngày bắt đầu thực tế trong **Xếp phòng quân sự**. Xem quy tắc hiện hành và cách cập nhật database tại [README-MILITARY-STUDENT.md](README-MILITARY-STUDENT.md).
 
 Tài liệu này hướng dẫn chạy demo bốn nghiệp vụ: tiếp nhận học viên GDQP, tự động xếp phòng A1 theo giới tính, quản lý cấp/hoàn trả quân tư trang và quản lý phòng giao ban. Bộ tài khoản học viên demo không cần kết nối SIS.
 
@@ -78,7 +80,7 @@ Học viên demo có tài khoản `QSDEMO001` đến `QSDEMO006`; mật khẩu m
 ### Học viên và SIS
 
 1. Mở **Học viên từ SIS**. Bộ dữ liệu tài khoản seed vẫn có sáu học viên demo; SIS mock trên localhost chính cung cấp 50 hồ sơ đăng ký GDQP để đồng bộ.
-2. Khi endpoint SIS hoạt động và đã cấu hình mã học phần, đợt học, khoa, bấm **Đồng bộ SIS ngay**. Hệ thống tạo tài khoản học viên nếu chưa có hoặc chuyển tài khoản sinh viên hiện có sang học viên quân sự, giữ mật khẩu và hợp đồng nội trú. Mở **Xếp phòng quân sự**, chọn ngày bắt đầu thực tế để bố trí phòng 14 ngày; vai trò sinh viên được khôi phục khi đợt kết thúc.
+2. Khi endpoint SIS hoạt động và đã cấu hình mã học phần, đợt học, khoa, bấm **Đồng bộ SIS ngay**. Hệ thống tạo tài khoản học viên nếu chưa có hoặc chuyển tài khoản sinh viên hiện có sang học viên quân sự, giữ mật khẩu và hợp đồng nội trú. Mở **Xếp phòng quân sự**, chọn ngày bắt đầu thực tế để bố trí phòng 10 ngày; vai trò sinh viên được khôi phục khi đợt kết thúc.
 3. Cấu hình mock trả 50 đăng ký hợp lệ thuộc hai đợt và năm khoa mẫu. Chạy lại cập nhật cùng mã sinh viên, không tạo tài khoản trùng.
 
 Nếu cần khôi phục cấu hình mock trong PowerShell chạy backend, đặt các biến sau trước `npm run dev`:
@@ -96,7 +98,7 @@ Thông báo thiếu `SIS_GDQP_COURSE_CODE`, `SIS_GDQP_BATCHES`, `SIS_GDQP_FACULT
 ### Tự động xếp phòng
 
 1. Mở **Xếp phòng quân sự**. A1 có 68 phòng (101–117, 201–217, 301–317, 401–417); chỉ 32 phòng 103–107, 201–209, 301–309, 401–409 dành cho học viên quân sự. Bổ sung riêng các phòng A1 còn thiếu bằng `npm run seed:a1-rooms`; xem [cấu hình phòng A1](README-A1-ROOMS.md).
-2. Chọn ngày bắt đầu và mã đợt (nếu có), sau đó bấm **Xếp phòng đợt 14 ngày**. Đồng bộ SIS không tự bắt đầu đợt ở phòng quân sự. Chạy xếp lại giữ nguyên thời hạn của các phân phòng đang hiệu lực.
+2. Chọn ngày bắt đầu và mã đợt (nếu có), sau đó bấm **Xếp phòng đợt 10 ngày**. Đồng bộ SIS không tự bắt đầu đợt ở phòng quân sự. Chạy xếp lại giữ nguyên thời hạn của các phân phòng đang hiệu lực.
 3. Học viên nam và nữ được bố trí vào các phòng riêng. Phòng có người ngoài danh sách học viên quân sự sẽ không được chọn. Các phân phòng hợp lệ được giữ lại; phân phòng sai khu vực hoặc lẫn giới tính sẽ được kết thúc và phân lại. Nếu sức chứa các phòng quân sự không đủ, số còn lại được báo chờ phòng thay vì làm rollback toàn bộ lượt xếp.
 4. Lịch sử phân phòng cũ được giữ lại; phân phòng quân sự không phát sinh hợp đồng hoặc hóa đơn.
 

@@ -32,6 +32,10 @@ const getContractInvoiceDueAt = (contract) => {
 
 // Monthly bills are due at the start of the month after their billing period.
 const getMonthlyInvoiceDueAt = (invoice) => {
+    if (invoice?.militaryUtilityPeriodId && invoice.createdAt) {
+        const localCreated = new Date(new Date(invoice.createdAt).getTime() + VIETNAM_TIME_OFFSET_MS);
+        return Number.isNaN(localCreated.getTime()) ? null : new Date(Date.UTC(localCreated.getUTCFullYear(), localCreated.getUTCMonth() + 1, 1) - VIETNAM_TIME_OFFSET_MS);
+    }
     const periodStart = new Date(invoice?.periodStart || invoice);
     if (Number.isNaN(periodStart.getTime())) return null;
     return new Date(Date.UTC(periodStart.getUTCFullYear(), periodStart.getUTCMonth() + 1, 1) - VIETNAM_TIME_OFFSET_MS);

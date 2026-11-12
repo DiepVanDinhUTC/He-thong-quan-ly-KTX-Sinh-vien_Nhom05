@@ -29,13 +29,13 @@ const MilitaryStudentStay = () => {
   const contract = user?.currentContract;
 
   return <div className="mx-auto max-w-5xl space-y-5 p-4 sm:p-8">
-    <header><h1 className="flex items-center gap-2 text-2xl font-bold text-slate-900"><Shield className="h-6 w-6 text-blue-700" />Đợt học GDQP của tôi</h1><p className="mt-2 text-sm text-slate-500">Tra cứu phân phòng 14 ngày và quân tư trang trong cùng cổng sinh viên nội trú.</p></header>
+    <header><h1 className="flex items-center gap-2 text-2xl font-bold text-slate-900"><Shield className="h-6 w-6 text-blue-700" />Đợt học GDQP của tôi</h1><p className="mt-2 text-sm text-slate-500">Tra cứu phân phòng và quân tư trang trong cùng cổng sinh viên nội trú.</p></header>
     {loading ? <p role="status" className="rounded-xl border bg-white p-6 text-sm text-slate-500">Đang tải thông tin đợt học…</p> : error ? <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-5 text-sm text-rose-800">{error}<button type="button" onClick={() => setRevision((value) => value + 1)} className="ml-3 font-semibold underline">Thử lại</button></div> : <>
       <section className="rounded-2xl bg-blue-900 p-6 text-white">
         <p className="text-sm font-semibold text-blue-200">{stay ? militaryStayLabels[stay.state] : 'Chưa có phân phòng GDQP'}</p>
         <h2 className="mt-2 text-xl font-bold">{stay ? `Phòng ${stay.soPhong || stay.maPhong} · ${stay.tenToaNha || 'Khu quân sự'}` : 'Chờ cán bộ quân sự bố trí đợt học'}</h2>
         {stay && <><p className="mt-3 flex items-center gap-2 text-sm text-blue-100"><CalendarDays className="h-4 w-4" />Từ {residenceDate(stay.ngayBatDau)} đến {residenceDate(stay.ngayKetThuc)}</p>{stay.batchCode && <p className="mt-2 text-sm text-blue-100">Mã đợt: {stay.batchCode}</p>}</>}
-        <p className="mt-4 text-sm leading-6 text-blue-100">Phòng GDQP do cán bộ quân sự phân công trong 2 tuần. Việc vào hoặc rời phòng GDQP không chuyển, thanh lý hay tạo hợp đồng nội trú và không tự phát sinh hóa đơn phòng quân sự.</p>
+        <p className="mt-4 text-sm leading-6 text-blue-100">Phòng GDQP do cán bộ quân sự phân công trong 10 ngày. Việc vào hoặc rời phòng GDQP không chuyển, thanh lý hay tạo hợp đồng nội trú và không tự phát sinh hóa đơn phòng quân sự.</p>
       </section>
       <section className="rounded-2xl border bg-white p-6">
         <h2 className="font-bold text-slate-900">Chỗ ở nội trú gốc</h2>

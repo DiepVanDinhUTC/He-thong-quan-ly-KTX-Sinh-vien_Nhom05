@@ -1,11 +1,11 @@
 const prisma = require('../config/prisma');
-const { createMilitaryStudentSyncService } = require('../services/militaryStudentSyncService');
+const { createQldtMilitarySync } = require('../services/qldtMilitarySyncService');
 const { assignMilitaryStudentsToA1, selectA1MilitaryRooms } = require('../services/militaryRoomAssignmentService');
 const { occupancyRelations, presentRoomOccupancy } = require('../services/roomOccupancy');
 const { resolveMilitaryStayPeriod } = require('../services/militaryStay');
 const { endExpiredMilitaryStays, expireMilitaryStays, refreshMilitaryRoomCounts, restoreStudentRole } = require('../services/militaryStayLifecycle');
 
-const syncMilitaryStudents = createMilitaryStudentSyncService({ db: prisma });
+const syncMilitaryStudents = createQldtMilitarySync({ db: prisma });
 const liveMilitaryAssignment = { status: 'ACTIVE' };
 const militaryStudentWhere = { laHocVienQuanSu: true };
 
@@ -57,10 +57,10 @@ exports.getMilitaryStudents = async (req, res) => {
 
 exports.syncMilitaryStudents = async (req, res) => {
     try {
-        const data = await syncMilitaryStudents();
-        return res.json({ success: true, data, message: 'Đã tiếp nhận học viên từ SIS. Chọn ngày bắt đầu đợt học trong Xếp phòng quân sự để bố trí phòng 14 ngày.' });
+        const data = await syncMilitaryStudents({ assignedById: req.user.id });
+        return res.json({ success: true, data, message: 'Đã tiếp nhận học viên từ QLĐT và thực hiện xếp phòng quân sự trong 10 ngày.' });
     } catch (error) {
-        return sendError(res, error, 'Đồng bộ SIS thất bại.');
+        return sendError(res, error, 'Đồng bộ QLĐT thất bại.');
     }
 };
 
@@ -89,7 +89,7 @@ exports.getRooms = async (req, res) => {
 };
 
 exports.autoAssignRooms = async (req, res) => {
-    if (!req.body?.startsAt) return res.status(400).json({ success: false, message: 'Chọn ngày bắt đầu đợt GDQP trước khi xếp phòng 14 ngày.' });
+    if (!req.body?.startsAt) return res.status(400).json({ success: false, message: 'Chọn ngày bắt đầu đợt GDQP trước khi xếp phòng 10 ngày.' });
     try {
         const data = await assignMilitaryStudentsToA1({ db: prisma, assignedById: req.user.id, startsAt: req.body?.startsAt, batchCode: req.body?.batchCode });
         return res.json({

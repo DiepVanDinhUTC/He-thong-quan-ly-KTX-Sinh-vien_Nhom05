@@ -34,6 +34,7 @@ model User {
   medicalIncidents            MedicalIncident[]            @relation("MedicalIncidentRecorder")
   createdMeterReadings        UtilityMeterReading[]        @relation("UtilityMeterReadingCreator")
   updatedMeterReadings        UtilityMeterReading[]        @relation("UtilityMeterReadingUpdater")
+  militaryUtilityPeriods      MilitaryUtilityPeriod[]
   financeTransactionsCreated  FinancialTransaction[]        @relation("FinancialTransactionCreator")
   financeTransactionsReviewed FinancialTransaction[]        @relation("FinancialTransactionReviewer")
   updatedServiceRegistrations StudentServiceRegistration[] @relation("StudentServiceRegistrationUpdater")
@@ -181,6 +182,7 @@ model Phong {
   securityViolations      SecurityViolation[]
   medicalIncidents        MedicalIncident[]
   utilityMeterReadings    UtilityMeterReading[]
+  militaryUtilityPeriods  MilitaryUtilityPeriod[]
   militaryRoomAssignments MilitaryRoomAssignment[]
 
   @@index([maToaNha, tang])
@@ -324,7 +326,8 @@ model VnpayPayment {
 model MonthlyInvoice {
   id          String   @id @default(uuid()) @db.VarChar(36)
   maSinhVien  String   @db.VarChar(20)
-  maHopDong   String
+  maHopDong   String?
+  militaryUtilityPeriodId String? @db.VarChar(36)
   periodStart DateTime @db.Date
   status      String   @default("UNPAID") @db.VarChar(16)
   totalAmount Int      @default(0)
@@ -332,12 +335,34 @@ model MonthlyInvoice {
   updatedAt   DateTime @updatedAt
 
   sinhVien SinhVien             @relation(fields: [maSinhVien], references: [maSV], onDelete: NoAction, onUpdate: NoAction)
-  hopDong  HopDong              @relation(fields: [maHopDong], references: [maHopDong], onDelete: NoAction, onUpdate: NoAction)
+  hopDong  HopDong?             @relation(fields: [maHopDong], references: [maHopDong], onDelete: NoAction, onUpdate: NoAction)
+  militaryUtilityPeriod MilitaryUtilityPeriod? @relation(fields: [militaryUtilityPeriodId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   items    MonthlyInvoiceItem[]
 
   @@unique([maHopDong, periodStart], map: "MONTHLY_INVOICE_contract_period_key")
+  @@unique([militaryUtilityPeriodId, maSinhVien], map: "MONTHLY_INVOICE_military_period_student_key")
   @@index([maSinhVien, periodStart])
   @@map("MONTHLY_INVOICE")
+}
+
+model MilitaryUtilityPeriod {
+  id                 String   @id @default(uuid()) @db.VarChar(36)
+  maPhong            String
+  startsAt           DateTime
+  endsAt             DateTime
+  electricityStart   Int
+  electricityEnd     Int
+  waterStart         Int
+  waterEnd           Int
+  recordedById       String
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  phong              Phong @relation(fields: [maPhong], references: [maPhong], onDelete: NoAction, onUpdate: NoAction)
+  recordedBy         User @relation(fields: [recordedById], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  invoices           MonthlyInvoice[]
+
+  @@unique([maPhong, startsAt, endsAt])
+  @@map("MILITARY_UTILITY_PERIOD")
 }
 
 model StudentBillNotification {
@@ -624,7 +649,7 @@ model MilitaryRoomAssignment {
   status       String    @default("ACTIVE") @db.VarChar(16)
   assignedAt   DateTime  @default(now())
   startsAt     DateTime  @default(now())
-  endsAt       DateTime  @default(dbgenerated("(CURRENT_TIMESTAMP + '14 days'::interval)"))
+  endsAt       DateTime  @default(dbgenerated("(CURRENT_TIMESTAMP + '10 days'::interval)"))
   batchCode    String?   @db.VarChar(50)
   endedAt      DateTime?
 

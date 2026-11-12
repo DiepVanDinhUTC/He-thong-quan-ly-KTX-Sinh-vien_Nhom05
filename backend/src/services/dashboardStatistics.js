@@ -51,7 +51,7 @@ const buildDashboardStatistics = ({ buildings, rooms, contracts, monthlyInvoices
         row.invoiceCount += 1;
     };
     for (const contract of contracts) addDebt(contract.phong?.maToaNha, contract.tongTien, getContractInvoiceDueAt(contract));
-    for (const invoice of monthlyInvoices) addDebt(invoice.hopDong?.phong?.maToaNha, invoice.totalAmount, getMonthlyInvoiceDueAt(invoice));
+    for (const invoice of monthlyInvoices) addDebt(invoice.hopDong?.phong?.maToaNha || invoice.militaryUtilityPeriod?.phong?.maToaNha, invoice.totalAmount, getMonthlyInvoiceDueAt(invoice));
     const debt = [...debtByBuilding.values()].sort((left, right) => right.total - left.total);
 
     const revenue = period.buckets.map((bucket) => ({ ...bucket, contractRevenue: 0, monthlyRevenue: 0, refunds: 0, netRevenue: 0 }));

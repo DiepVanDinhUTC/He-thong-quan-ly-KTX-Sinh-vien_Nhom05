@@ -1,15 +1,15 @@
 require('dotenv').config();
 const prisma = require('../config/prisma');
-const { createMilitaryStudentSyncService } = require('../services/militaryStudentSyncService');
+const { createQldtMilitarySync } = require('../services/qldtMilitarySyncService');
 
-const run = createMilitaryStudentSyncService({ db: prisma });
+const run = createQldtMilitarySync({ db: prisma });
 
-run()
+run({ assignedById: process.env.QLDT_GDQP_ASSIGNED_BY_ID })
     .then((result) => {
-        console.log('[sis.gdqp] Kết quả chạy thủ công:', JSON.stringify(result, null, 2));
+        console.log('[qldt.gdqp] Kết quả chạy thủ công:', JSON.stringify(result, null, 2));
     })
     .catch((error) => {
-        console.error('[sis.gdqp] Chạy đồng bộ thủ công thất bại:', error.message);
+        console.error('[qldt.gdqp] Chạy đồng bộ thủ công thất bại:', error.message);
         process.exitCode = 1;
     })
     .finally(() => prisma.$disconnect());

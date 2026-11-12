@@ -3,6 +3,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSelector } from 'react-redux';
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import FinancialLayout from '../components/FinancialLayout';
+import ListPagination, { useListPagination } from '../components/ListPagination';
 import {
   AlertTriangle, ArrowDownLeft, ArrowUpRight, BadgeCheck, Building2, Check,
   CircleDollarSign, Download, Droplets, FilePlus2, Filter, Loader2,
@@ -65,8 +66,9 @@ const FinancialDashboard = () => {
   const [notice, setNotice] = useState('');
   const [search, setSearch] = useState('');
   const [transactionFilter, setTransactionFilter] = useState('ALL');
+  const [invoiceStatus, setInvoiceStatus] = useState('ALL');
   const [dialog, setDialog] = useState(null);
-  const [rates, setRates] = useState({ electricityRate: '', waterRate: '' });
+  const [rates, setRates] = useState({ electricityRate: '3000', waterRate: '12000' });
 
   const loadData = useCallback(async (quiet = false) => {
     if (!quiet) setLoading(true);
@@ -102,6 +104,9 @@ const FinancialDashboard = () => {
       setDialog(null);
       await loadData(true);
     } catch (requestError) {
+      if (requestError.response?.data?.generated > 0) {
+        try { await loadData(true); } catch { /* Keep the original action error visible. */ }
+      }
       setError(requestError.response?.data?.message || 'Không thể hoàn thành thao tác.');
     } finally {
       setSaving(false);
@@ -124,7 +129,8 @@ const FinancialDashboard = () => {
     return invoices.filter((invoice) => [
       invoice.id, invoice.maSinhVien, invoice.sinhVien?.hoTen,
       invoice.hopDong?.phong?.soPhong, invoice.hopDong?.phong?.maToaNha,
-      invoice.hopDong?.phong?.toaNha?.tenToaNha
+      invoice.hopDong?.phong?.toaNha?.tenToaNha, invoice.militaryUtilityPeriod?.phong?.soPhong,
+      invoice.militaryUtilityPeriod?.phong?.maToaNha
     ].some((value) => String(value || '').toLocaleLowerCase('vi').includes(query)));
   }, [invoices, search]);
 
@@ -138,6 +144,9 @@ const FinancialDashboard = () => {
       return typeMatches && queryMatches;
     });
   }, [transactions, transactionFilter, search]);
+  const matchingInvoices = filteredInvoices.filter((invoice) => invoiceStatus === 'ALL' || invoice.status === invoiceStatus);
+  const invoicePagination = useListPagination(matchingInvoices, JSON.stringify([search, period, invoiceStatus]));
+  const transactionPagination = useListPagination(filteredTransactions, JSON.stringify([search, period, transactionFilter]));
 
   const generateInvoices = (event) => {
     event.preventDefault();
@@ -195,25 +204,25 @@ const FinancialDashboard = () => {
             <SummaryCard label="Cần xác minh" value={String(totals.reviewCount)} detail="Giao dịch chờ đối chiếu" color={totals.reviewCount ? 'rose' : 'slate'} Icon={ShieldAlert} onClick={openReviewTransactions} />
           </section>
 
-          {activeSection !== 'reconciliation' && <div className="flex justify-end"><label className="relative w-full sm:w-80"><span className="sr-only">{activeSection === 'invoices' ? 'Tìm hóa đơn' : 'Tìm giao dịch'}</span><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={activeSection === 'invoices' ? 'Tìm mã hóa đơn, sinh viên, phòng…' : 'Tìm mã giao dịch, hóa đơn…'} className="w-full rounded-lg border border-slate-300 bg-white py-2 pl-9 pr-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" /></label></div>}
+          {activeSection !== 'reconciliation' && <div className="flex flex-wrap justify-end gap-2">{activeSection === 'invoices' && <select aria-label="Lọc trạng thái hóa đơn" value={invoiceStatus} onChange={(event) => setInvoiceStatus(event.target.value)} className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"><option value="ALL">Tất cả trạng thái</option><option value="UNPAID">Chưa thanh toán</option><option value="PAID">Đã thanh toán</option></select>}<label className="relative w-full sm:w-80"><span className="sr-only">{activeSection === 'invoices' ? 'Tìm hóa đơn' : 'Tìm giao dịch'}</span><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={activeSection === 'invoices' ? 'Tìm mã hóa đơn, sinh viên, phòng…' : 'Tìm mã giao dịch, hóa đơn…'} className="w-full rounded-lg border border-slate-300 bg-white py-2 pl-9 pr-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" /></label></div>}
 
           {loading ? <div className="rounded-2xl border border-slate-200 bg-white p-12 text-center text-sm text-slate-500"><Loader2 className="mx-auto mb-3 h-6 w-6 animate-spin text-blue-700" />Đang tải sổ tài chính…</div> : activeSection === 'invoices' ? <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
             <div className="flex flex-col justify-between gap-3 border-b border-slate-100 px-4 py-4 sm:flex-row sm:items-center sm:px-5">
               <div><h3 className="font-bold text-slate-900">Hóa đơn điện, nước và khoản phát sinh</h3><p className="mt-1 text-xs text-slate-500">Chỉ số do nhân viên quản lý CSVC ghi nhận; tiền điện nước được chia theo số người có hợp đồng tại phòng.</p></div>
               {canManage && <button type="button" onClick={() => setDialog({ type: 'generate' })} className="inline-flex items-center justify-center gap-2 rounded-lg bg-blue-700 px-4 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-blue-800"><FilePlus2 className="h-4 w-4" />Lập hóa đơn từ chỉ số</button>}
             </div>
-            {invoices.length === 0 ? <EmptyState title="Chưa có hóa đơn trong kỳ" detail="Lập hóa đơn sau khi nhân viên CSVC/quản lý tòa ghi đủ chỉ số điện và nước cho các phòng." /> : filteredInvoices.length === 0 ? <EmptyState title="Không tìm thấy hóa đơn" detail="Thử từ khóa khác hoặc xóa nội dung tìm kiếm." /> : <div className="overflow-x-auto">
+            {invoices.length === 0 ? <EmptyState title="Chưa có hóa đơn trong kỳ" detail="Lập hóa đơn sau khi nhân viên CSVC/quản lý tòa ghi đủ chỉ số điện và nước cho các phòng." /> : matchingInvoices.length === 0 ? <EmptyState title="Không tìm thấy hóa đơn" detail="Thử thay đổi từ khóa hoặc bộ lọc." /> : <div className="overflow-x-auto">
               <table className="w-full min-w-[980px] text-left text-sm">
                 <thead className="bg-slate-50 text-[11px] uppercase tracking-wide text-slate-500"><tr><th className="px-4 py-3">Sinh viên / phòng</th><th className="px-4 py-3">Chi tiết kỳ này</th><th className="px-4 py-3 text-right">Tổng tiền</th><th className="px-4 py-3 text-right">Đã hoàn</th><th className="px-4 py-3">Trạng thái</th><th className="px-4 py-3 text-right">Thao tác</th></tr></thead>
                 <tbody className="divide-y divide-slate-100">
-                  {filteredInvoices.map((invoice) => {
-                    const room = invoice.hopDong?.phong;
+                  {invoicePagination.items.map((invoice) => {
+                    const room = invoice.hopDong?.phong || invoice.militaryUtilityPeriod?.phong;
                     const electricity = (invoice.items || []).find((item) => item.type === 'ELECTRICITY');
                     const water = (invoice.items || []).find((item) => item.type === 'WATER');
                     const repair = (invoice.items || []).filter((item) => item.type === 'DAMAGE_COMPENSATION').reduce((sum, item) => sum + Number(item.amount || 0), 0);
                     const refundable = Math.max(Number(invoice.collectedAmount || 0) - Number(invoice.refundedAmount || 0) - Number(invoice.pendingRefundAmount || 0), 0);
                     return <tr key={invoice.id} className="align-top hover:bg-slate-50/70">
-                      <td className="px-4 py-4"><p className="font-bold text-slate-900">{invoice.sinhVien?.hoTen || invoice.maSinhVien}</p><p className="mt-0.5 text-xs text-slate-500">{invoice.maSinhVien} · {room?.tenToaNha || room?.maToaNha || 'Tòa nhà'} · Phòng {room?.soPhong || invoice.hopDong?.maPhong}</p><p className="mt-1 font-mono text-[11px] text-slate-400">{invoice.id}</p></td>
+                      <td className="px-4 py-4"><p className="font-bold text-slate-900">{invoice.sinhVien?.hoTen || invoice.maSinhVien}</p><p className="mt-0.5 text-xs text-slate-500">{invoice.maSinhVien} · {room?.tenToaNha || room?.toaNha?.tenToaNha || room?.maToaNha || 'Tòa nhà'} · Phòng {room?.soPhong || invoice.hopDong?.maPhong}{invoice.militaryUtilityPeriod ? ' · GDQP' : ''}</p><p className="mt-1 font-mono text-[11px] text-slate-400">{invoice.id}</p></td>
                       <td className="px-4 py-4"><div className="space-y-1.5 text-xs">
                         <p className="flex items-center justify-between gap-4"><span className="inline-flex items-center gap-1.5 text-slate-600"><Zap className="h-3.5 w-3.5 text-amber-500" />Điện</span><strong className="text-slate-800">{electricity ? money(electricity.amount) : '—'}</strong></p>
                         <p className="flex items-center justify-between gap-4"><span className="inline-flex items-center gap-1.5 text-slate-600"><Droplets className="h-3.5 w-3.5 text-sky-600" />Nước</span><strong className="text-slate-800">{water ? money(water.amount) : '—'}</strong></p>
@@ -231,13 +240,13 @@ const FinancialDashboard = () => {
                   })}
                 </tbody>
               </table>
-              <div className="border-t border-slate-100 px-4 py-3 text-xs text-slate-500">Hiển thị {filteredInvoices.length} / {invoices.length} hóa đơn trong {periodLabel(period)}.</div>
+              <ListPagination pagination={invoicePagination} label="hóa đơn" />
             </div>}
           </section> : activeSection === 'transactions' ? <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
             <div className="flex flex-col justify-between gap-3 border-b border-slate-100 px-4 py-4 sm:flex-row sm:items-center sm:px-5"><div><h3 className="font-bold text-slate-900">Sổ giao dịch</h3><p className="mt-1 text-xs text-slate-500">Các giao dịch trùng mã tham chiếu hoặc thiếu căn cứ chuyển khoản được đưa vào danh sách cần xác minh.</p></div><div className="flex gap-2"><label className="sr-only" htmlFor="transaction-filter">Lọc giao dịch</label><span className="inline-flex items-center rounded-lg border border-slate-200 px-2 text-slate-400"><Filter className="h-4 w-4" /></span><select id="transaction-filter" value={transactionFilter} onChange={(event) => setTransactionFilter(event.target.value)} className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"><option value="ALL">Tất cả giao dịch</option><option value="NEEDS_REVIEW">Cần xác minh</option><option value="COLLECTION">Thu phí</option><option value="REFUND">Hoàn tiền</option><option value="REPAIR_EXPENSE">Chi sửa chữa</option></select></div></div>
             {filteredTransactions.length === 0 ? <EmptyState title="Không có giao dịch phù hợp" detail="Chưa có giao dịch trong kỳ hoặc bộ lọc hiện tại không có kết quả." /> : <div className="overflow-x-auto"><table className="w-full min-w-[950px] text-left text-sm">
               <thead className="bg-slate-50 text-[11px] uppercase tracking-wide text-slate-500"><tr><th className="px-4 py-3">Ngày giờ</th><th className="px-4 py-3">Loại giao dịch</th><th className="px-4 py-3">Hóa đơn / căn cứ</th><th className="px-4 py-3">Phương thức</th><th className="px-4 py-3 text-right">Số tiền</th><th className="px-4 py-3">Kiểm tra</th><th className="px-4 py-3 text-right">Thao tác</th></tr></thead>
-              <tbody className="divide-y divide-slate-100">{filteredTransactions.map((row) => <tr key={row.id} className={`align-top hover:bg-slate-50/70 ${row.status === 'NEEDS_REVIEW' ? 'bg-rose-50/30' : ''}`}>
+              <tbody className="divide-y divide-slate-100">{transactionPagination.items.map((row) => <tr key={row.id} className={`align-top hover:bg-slate-50/70 ${row.status === 'NEEDS_REVIEW' ? 'bg-rose-50/30' : ''}`}>
                 <td className="whitespace-nowrap px-4 py-4 text-xs text-slate-600">{dateTime(row.createdAt)}</td>
                 <td className="px-4 py-4"><p className="font-semibold text-slate-800">{transactionLabel(row.transactionType)}</p><p className="mt-1 text-xs text-slate-500">{row.sinhVien?.hoTen || row.maSinhVien || row.ticket?.title || '—'}</p></td>
                 <td className="max-w-xs px-4 py-4"><p className="font-mono text-xs font-semibold text-slate-700">{row.invoiceId || row.ticket?.id || '—'}</p><p className="mt-1 break-all text-xs text-slate-500">{row.bankReference ? `Tham chiếu: ${row.bankReference}` : row.description || 'Không có mã tham chiếu'}</p>{row.ticket?.title && <p className="mt-1 text-xs text-slate-500">{row.ticket.title}</p>}</td>
@@ -246,7 +255,7 @@ const FinancialDashboard = () => {
                 <td className="px-4 py-4"><StatusPill status={row.status} />{row.reviewNote && <p className="mt-1 max-w-[190px] text-xs text-slate-500">{row.reviewNote}</p>}</td>
                 <td className="px-4 py-4 text-right">{canManage && row.status === 'NEEDS_REVIEW' && <button type="button" onClick={() => setDialog({ type: 'review', transaction: row })} className="inline-flex items-center gap-1.5 rounded-lg bg-rose-700 px-3 py-2 text-xs font-bold text-white hover:bg-rose-800"><Check className="h-3.5 w-3.5" />Xác minh</button>}</td>
               </tr>)}</tbody>
-            </table><div className="border-t border-slate-100 px-4 py-3 text-xs text-slate-500">Hiển thị {filteredTransactions.length} giao dịch.</div></div>}
+            </table><ListPagination pagination={transactionPagination} label="giao dịch" /></div>}
           </section> : <div className="space-y-4">
             <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
               <SummaryCard label="Doanh thu đã thu" value={money(totals.collected)} detail="Tiền vào đã xác minh" color="emerald" Icon={TrendingUp} />
@@ -271,6 +280,8 @@ const FinancialDashboard = () => {
         <label className="block text-sm font-semibold text-slate-700">Kỳ hóa đơn<input type="month" required value={period} onChange={(event) => { if (event.target.value) setPeriod(event.target.value); }} className="mt-1.5 w-full rounded-lg border border-slate-300 px-3 py-2.5 font-normal" /></label>
         <div className="grid gap-3 sm:grid-cols-2"><label className="block text-sm font-semibold text-slate-700">Đơn giá điện (đ/kWh)<input type="number" min="1" max="1000000" required value={rates.electricityRate} onChange={(event) => setRates((current) => ({ ...current, electricityRate: event.target.value }))} className="mt-1.5 w-full rounded-lg border border-slate-300 px-3 py-2.5 font-normal" /></label><label className="block text-sm font-semibold text-slate-700">Đơn giá nước (đ/m³)<input type="number" min="1" max="1000000" required value={rates.waterRate} onChange={(event) => setRates((current) => ({ ...current, waterRate: event.target.value }))} className="mt-1.5 w-full rounded-lg border border-slate-300 px-3 py-2.5 font-normal" /></label></div>
         <p className="rounded-lg bg-amber-50 px-3 py-2.5 text-xs leading-5 text-amber-900">Nhập đơn giá đã được phê duyệt cho kỳ này. Mỗi phòng cần đủ chỉ số điện và nước; chi phí phòng có nhiều sinh viên được chia đều theo hợp đồng đang hoạt động. Hóa đơn đã thu sẽ không bị thay đổi.</p>
+        <button type="button" disabled={saving || !rates.electricityRate || !rates.waterRate} onClick={() => runAction(() => paymentApi.generateMilitaryInvoices({ period, electricityRate: Number(rates.electricityRate), waterRate: Number(rates.waterRate) }))} className="rounded-lg bg-indigo-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">Lập hóa đơn GDQP 10 ngày</button>
+        <p className="text-xs text-slate-600">Hóa đơn GDQP dùng chỉ số riêng của các đợt bắt đầu trong tháng đã chọn; chia đều cho học viên trong phòng. Kiểm tra đơn giá và chỉ số trước khi lập: đợt đã lập sẽ không tính lại.</p>
         <ModalActions saving={saving} submitLabel="Lập hóa đơn" onCancel={() => setDialog(null)} />
       </form>
     </Modal>}

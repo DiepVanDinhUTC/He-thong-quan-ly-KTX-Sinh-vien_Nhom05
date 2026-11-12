@@ -176,7 +176,8 @@ test('building staff and security statistics filter every source to assigned bui
         assert.equal(res.body.data.scope.mode, 'assigned');
         assert.deepEqual(f.calls.rooms.where, { maToaNha: { in: ['A1'] } });
         assert.deepEqual(f.calls.contracts.where.phong, { is: { maToaNha: { in: ['A1'] } } });
-        assert.deepEqual(f.calls.monthlyInvoices.where.hopDong.is.phong, f.calls.contracts.where.phong);
+        assert.deepEqual(f.calls.monthlyInvoices.where.OR[0].hopDong.is.phong, f.calls.contracts.where.phong);
+        assert.deepEqual(f.calls.monthlyInvoices.where.OR[1].militaryUtilityPeriod.is.phong, f.calls.contracts.where.phong);
         assert.deepEqual(f.calls.receipts.where.hopDong.is.phong, f.calls.contracts.where.phong);
         assert.deepEqual(f.calls.tickets.where.phong, f.calls.contracts.where.phong);
         assert.deepEqual(f.calls.transactions.where.OR[0].maToaNha, { in: ['A1'] });

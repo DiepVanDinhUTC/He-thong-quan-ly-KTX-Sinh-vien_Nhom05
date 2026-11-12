@@ -9,7 +9,7 @@ export const archivistSections = [
 ];
 
 export const militarySections = [
-  { id: 'students', to: '/military-management?section=students', label: 'Học viên từ SIS', Icon: Users, description: 'Tiếp nhận danh sách học viên giáo dục quốc phòng từ SIS và kiểm tra hồ sơ.' },
+  { id: 'students', to: '/military-management?section=students', label: 'Học viên từ QLĐT', Icon: Users, description: 'Tiếp nhận danh sách học viên giáo dục quốc phòng từ QLĐT và kiểm tra hồ sơ.' },
   { id: 'rooms', to: '/military-management?section=rooms', label: 'Xếp phòng quân sự', Icon: DoorOpen, description: 'Sắp xếp chỗ ở cho học viên và theo dõi danh sách phòng quân sự.' },
   { id: 'equipment', to: '/military-management?section=equipment', label: 'Kho quân tư trang', Icon: Warehouse, description: 'Quản lý tồn kho, cấp phát và thu hồi quân tư trang theo học viên.' },
   { id: 'meetings', to: '/military-management?section=meetings', label: 'Phòng giao ban', Icon: CalendarDays, description: 'Quản lý phòng giao ban, đặt lịch và tra cứu các cuộc họp sắp tới.' },

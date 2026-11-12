@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useBoardWorkspace } from '../components/BoardLayout';
+import ListPagination, { useListPagination } from '../components/ListPagination';
 import { KeyRound, Loader2, Pencil, RefreshCw, Search, ShieldCheck, UserCog, Users, X } from 'lucide-react';
 import AdminUserProfile from '../components/AdminUserProfile';
 import Sidebar from '../components/Sidebar';
@@ -41,6 +42,7 @@ const StaffAccountManagement = () => {
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [search, setSearch] = useState('');
+  const [accountStatus, setAccountStatus] = useState('ALL');
   const [dialog, setDialog] = useState(null);
   const [profile, setProfile] = useState(null);
   const [password, setPassword] = useState('');
@@ -64,8 +66,8 @@ const StaffAccountManagement = () => {
 
   const filteredAccounts = useMemo(() => {
     const query = search.trim().toLocaleLowerCase('vi');
-    if (!query) return accounts;
     return accounts.filter((account) => {
+      if (accountStatus !== 'ALL' && Boolean(account.isActive) !== (accountStatus === 'ACTIVE')) return false;
       const employee = account.employee || {};
       return [
         account.username,
@@ -77,7 +79,8 @@ const StaffAccountManagement = () => {
         ROLE_LABELS[account.role],
       ].some((value) => String(value || '').toLocaleLowerCase('vi').includes(query));
     });
-  }, [accounts, search]);
+  }, [accounts, search, accountStatus]);
+  const pagination = useListPagination(filteredAccounts, JSON.stringify([search, accountStatus]));
 
   const openProfile = (account) => {
     setDialog({ type: 'profile', account });
@@ -197,6 +200,7 @@ const StaffAccountManagement = () => {
                   <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                   <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Tìm tên, tài khoản, mã NV..." className="w-full rounded-xl border border-slate-300 py-2.5 pl-9 pr-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" />
                 </label>
+                <select aria-label="Lọc trạng thái tài khoản" value={accountStatus} onChange={(event) => setAccountStatus(event.target.value)} className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"><option value="ALL">Tất cả trạng thái</option><option value="ACTIVE">Đang hoạt động</option><option value="LOCKED">Đã khóa</option></select>
                 <button type="button" onClick={loadAccounts} disabled={loading} aria-label="Tải lại danh sách" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-300 text-slate-600 hover:bg-slate-50 disabled:opacity-50"><RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} /></button>
               </div>
             </div>
@@ -207,7 +211,7 @@ const StaffAccountManagement = () => {
               <div className="p-12 text-center"><Users className="mx-auto h-8 w-8 text-slate-300" /><p className="mt-3 font-semibold text-slate-700">{accounts.length ? 'Không tìm thấy tài khoản phù hợp.' : 'Chưa có tài khoản nhân viên.'}</p><p className="mt-1 text-sm text-slate-500">{accounts.length ? 'Thử từ khóa khác.' : 'Tài khoản cần được liên kết với hồ sơ nhân viên.'}</p></div>
             ) : (
               <div className="divide-y divide-slate-100">
-                {filteredAccounts.map((account) => {
+                {pagination.items.map((account) => {
                   const employee = account.employee;
                   return (
                     <article key={employee.maNhanVien} className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
@@ -228,6 +232,7 @@ const StaffAccountManagement = () => {
                 })}
               </div>
             )}
+            {!loading && <ListPagination pagination={pagination} label="tài khoản" />}
           </section>
 
           <p className="flex items-start gap-2 px-1 text-xs leading-5 text-slate-500"><ShieldCheck className="mt-0.5 h-4 w-4 shrink-0" />Chỉ trưởng ban và phó trưởng ban có thể mở chức năng này. Mật khẩu mới không được lưu dưới dạng văn bản thường.</p>

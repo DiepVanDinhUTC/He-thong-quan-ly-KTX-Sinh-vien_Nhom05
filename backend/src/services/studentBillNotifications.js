@@ -37,7 +37,7 @@ const createStudentBillNotificationSync = ({ db = prisma, now = () => new Date()
         }),
         db.monthlyInvoice.findMany({
             where: { maSinhVien: studentId, status: 'UNPAID' },
-            select: { id: true, maSinhVien: true, periodStart: true, totalAmount: true }
+            select: { id: true, maSinhVien: true, periodStart: true, totalAmount: true, militaryUtilityPeriodId: true, createdAt: true }
         })
     ]);
 
@@ -85,7 +85,7 @@ const createStudentBillNotificationSync = ({ db = prisma, now = () => new Date()
         const dueAt = getMonthlyInvoiceDueAt(invoice);
         if (!dueAt) continue;
         const period = new Date(invoice.periodStart);
-        const invoiceName = `hóa đơn tháng ${period.getUTCMonth() + 1}/${period.getUTCFullYear()}`;
+        const invoiceName = invoice.militaryUtilityPeriodId ? 'hóa đơn điện nước GDQP' : `hóa đơn tháng ${period.getUTCMonth() + 1}/${period.getUTCFullYear()}`;
         const details = {
             studentId,
             invoiceType: 'MONTHLY',

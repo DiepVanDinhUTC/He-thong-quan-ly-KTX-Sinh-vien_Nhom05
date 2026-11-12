@@ -56,9 +56,9 @@ const homeContent = {
   },
   MILITARY_OFFICER: {
     title: 'Nhân viên quản lý quân sự', eyebrow: 'Quản lý học viên quân sự', Icon: Shield,
-    introduction: 'Tổ chức lưu trú và bảo đảm điều kiện sinh hoạt cho học viên giáo dục quốc phòng. Tiếp nhận danh sách từ SIS, sắp xếp phòng, quản lý quân tư trang và điều phối lịch phòng giao ban.',
+    introduction: 'Tổ chức lưu trú và bảo đảm điều kiện sinh hoạt cho học viên giáo dục quốc phòng. Tiếp nhận danh sách từ QLĐT, sắp xếp phòng, quản lý quân tư trang và điều phối lịch phòng giao ban.',
     functions: militarySections,
-    steps: ['Tiếp nhận danh sách học viên từ SIS và kiểm tra kết quả đồng bộ.', 'Kiểm tra việc xếp phòng quân sự theo đợt học và chỗ ở hiện có.', 'Cấp phát, thu hồi quân tư trang và sắp xếp lịch sử dụng phòng giao ban.'],
+    steps: ['Tiếp nhận danh sách học viên từ QLĐT và kiểm tra kết quả đồng bộ.', 'Kiểm tra việc xếp phòng quân sự theo đợt học và chỗ ở hiện có.', 'Cấp phát, thu hồi quân tư trang và sắp xếp lịch sử dụng phòng giao ban.'],
     scope: 'Không gian quân sự tập trung danh sách học viên giáo dục quốc phòng, phòng ở quân sự, kho quân tư trang và phòng giao ban. Kiểm tra đúng học viên, đợt học và phòng trước khi cập nhật.',
   },
 };

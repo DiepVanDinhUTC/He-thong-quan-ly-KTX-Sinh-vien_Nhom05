@@ -434,8 +434,13 @@ test('student building guard limits list and detail requests to assigned residen
         const req = request({ role: 'BUILDING_MANAGER', params: { id: 'SV-01' } });
         const result = await invoke(createRestrictStudentBuildingAccess({ db }), req);
         assert.equal(result.calledNext, true);
-        assert.deepEqual(lookup.where.hopDongs.some.trangThai.in, ['ACTIVE', 'PENDING_PAYMENT']);
-        assert.deepEqual(lookup.where.hopDongs.some.phong.is.maToaNha.in, ['A1', 'A2']);
+        const [contract, military] = lookup.where.OR;
+        assert.deepEqual(contract.hopDongs.some.trangThai.in, ['ACTIVE', 'PENDING_PAYMENT']);
+        assert.deepEqual(contract.hopDongs.some.phong.is.maToaNha.in, ['A1', 'A2']);
+        assert.deepEqual(military.militaryRoomAssignments.some.phong.is.maToaNha.in, ['A1', 'A2']);
+        assert.equal(military.militaryRoomAssignments.some.status, 'ACTIVE');
+        assert.ok(military.militaryRoomAssignments.some.startsAt.lte instanceof Date);
+        assert.ok(military.militaryRoomAssignments.some.endsAt.gt instanceof Date);
     });
     await t.test('hides profiles without an active residence in the assigned building', async () => {
         const db = createDb({ sinhVien: { findFirst: async () => null } });

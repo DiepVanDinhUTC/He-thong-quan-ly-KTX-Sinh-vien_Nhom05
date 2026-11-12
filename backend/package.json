@@ -11,6 +11,7 @@
     "seed:military-demo": "node seedMilitaryDemoStudents.js",
     "seed:facilities-accounts": "node seedFacilitiesAccounts.js",
     "seed:test-data": "node seedTestData.js",
+    "seed:utility-readings": "node scripts/seedUtilityReadings.js",
     "seed:locations": "node seedLocations.js",
     "seed:nct-rooms": "node seedNctRooms.js",
     "seed:a1-rooms": "node seedA1Rooms.js",

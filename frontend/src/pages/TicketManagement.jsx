@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useSelector } from 'react-redux';
 import { Check, CheckCircle2, Clock3, ImagePlus, Loader2, RefreshCw, X } from 'lucide-react';
 import FacilitiesLayout from '../components/FacilitiesLayout';
+import ListPagination, { useListPagination } from '../components/ListPagination';
 import { ticketApi } from '../services/ticketApi';
 import { formatSlaDuration, getTicketSla, SLA_PRIORITY_OPTIONS, SLA_STATE_CLASSES, SLA_STATE_LABELS } from '../utils/ticketSla';
 
@@ -40,6 +41,8 @@ const TicketManagement = () => {
   const canOverrideCompletion = role === 'ADMIN';
   const canAssessCompensation = ['FACILITIES_MANAGER', 'BUILDING_MANAGER', 'ADMIN'].includes(role);
   const [tickets, setTickets] = useState([]);
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('ALL');
   const [selectedId, setSelectedId] = useState('');
   const [ticket, setTicket] = useState(null);
   const [priority, setPriority] = useState('MEDIUM');
@@ -141,6 +144,9 @@ const TicketManagement = () => {
   const status = STATUS[ticket?.status] || ['Không rõ', 'bg-gray-100 text-gray-700'];
   const currentSla = getTicketSla(ticket, slaClock);
   const overdueCount = tickets.filter((item) => getTicketSla(item, slaClock)?.state === 'OVERDUE').length;
+  const query = search.trim().toLocaleLowerCase('vi');
+  const filteredTickets = tickets.filter((item) => (statusFilter === 'ALL' || item.status === statusFilter) && [item.id, item.title, item.maPhong, item.phong?.soPhong, item.phong?.toaNha?.tenToaNha, item.sinhVien?.hoTen, item.maSinhVien].some((value) => String(value || '').toLocaleLowerCase('vi').includes(query)));
+  const pagination = useListPagination(filteredTickets, JSON.stringify([search, statusFilter]));
 
   return (
     <FacilitiesLayout title="Yêu cầu sửa chữa" description={['BOARD_CHAIR', 'BOARD_DEPUTY'].includes(role) ? 'Theo dõi tiến độ xử lý các sự cố cơ sở vật chất trên toàn KTX.' : 'Theo dõi và cập nhật tiến độ xử lý các sự cố cơ sở vật chất được phân công.'}>
@@ -148,10 +154,11 @@ const TicketManagement = () => {
         {overdueCount > 0 && <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm font-semibold text-rose-800 lg:col-span-2">Có {overdueCount} yêu cầu đã quá thời hạn SLA. Hãy ưu tiên kiểm tra và cập nhật tiến độ.</div>}
         <section className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
           <div className="flex items-center justify-between border-b p-4"><div><h2 className="font-bold">Yêu cầu sửa chữa</h2><p className="text-xs text-slate-500">{tickets.length} yêu cầu</p></div><button onClick={() => load(true)} title="Tải lại" className="rounded-lg p-2 text-slate-500 hover:bg-slate-100"><RefreshCw className="h-4 w-4" /></button></div>
+          <div className="space-y-2 border-b p-3"><input aria-label="Tìm yêu cầu sửa chữa" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Tìm mã, nội dung, phòng, sinh viên..." className="w-full rounded-lg border px-3 py-2 text-sm" /><select aria-label="Lọc trạng thái yêu cầu" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} className="w-full rounded-lg border bg-white px-3 py-2 text-sm"><option value="ALL">Tất cả trạng thái</option>{Object.entries(STATUS).map(([value, [label]]) => <option key={value} value={value}>{label}</option>)}</select></div>
           <div className="max-h-[75vh] overflow-y-auto p-2">
             {loading && <div className="flex items-center justify-center gap-2 p-8 text-sm text-slate-500"><Loader2 className="h-4 w-4 animate-spin" />Đang tải</div>}
-            {!loading && tickets.length === 0 && <p className="p-8 text-center text-sm text-slate-500">Chưa có yêu cầu nào trong phạm vi được phân công.</p>}
-            {tickets.map((item) => {
+            {!loading && filteredTickets.length === 0 && <p className="p-8 text-center text-sm text-slate-500">Không có yêu cầu phù hợp.</p>}
+            {!loading && pagination.items.map((item) => {
               const itemStatus = STATUS[item.status] || ['Không rõ', 'bg-gray-100 text-gray-700'];
               const itemSla = getTicketSla(item, slaClock);
               return <button key={item.id} onClick={() => selectTicket(item.id)} className={`mb-2 w-full rounded-lg border p-3 text-left hover:border-blue-400 ${selectedId === item.id ? 'border-blue-500 bg-blue-50' : 'border-slate-200'}`}>
@@ -161,6 +168,7 @@ const TicketManagement = () => {
               </button>;
             })}
           </div>
+          {!loading && <ListPagination pagination={pagination} label="yêu cầu" />}
         </section>
 
         <section className="min-h-[70vh] overflow-y-auto rounded-xl border border-gray-200 bg-white shadow-sm">
