@@ -13,7 +13,6 @@ const employeeActors = [
     { username: 'actor.accountant', role: 'ACCOUNTANT', maNhanVien: 'NVTEST004', hoTen: 'Phạm Ngọc Lan', chucVu: 'Kế toán' },
     { username: 'actor.treasurer', role: 'TREASURER', maNhanVien: 'NVTEST005', hoTen: 'Hoàng Đức Long', chucVu: 'Thủ quỹ' },
     { username: 'actor.facilities', role: 'FACILITIES_MANAGER', maNhanVien: 'NVTEST006', hoTen: 'Vũ Thành Nam', chucVu: 'Cơ sở vật chất' },
-    { username: 'actor.building_manager', role: 'BUILDING_MANAGER', maNhanVien: 'NVTEST007', hoTen: 'Đặng Hải Yến', chucVu: 'Quản lý tòa nhà' },
     { username: 'actor.security', role: 'SECURITY', maNhanVien: 'NVTEST008', hoTen: 'Bùi Văn Hùng', chucVu: 'Trật tự - trị an' },
     { username: 'actor.military_officer', role: 'MILITARY_OFFICER', maNhanVien: 'NVTEST009', hoTen: 'Đỗ Quang Minh', chucVu: 'Quản lý quân sự' },
     { username: 'actor.medical_officer', role: 'MEDICAL_OFFICER', maNhanVien: 'NVTEST010', hoTen: 'Ngô Thu Trang', chucVu: 'Cán bộ y tế' },
@@ -36,8 +35,8 @@ const seedDemoAccounts = async () => {
     const result = await prisma.$transaction(async (tx) => {
         const accounts = [];
 
-        for (let index = 0; index < employeeActors.length; index += 1) {
-            const actor = employeeActors[index];
+        for (const actor of employeeActors) {
+            const index = Number(actor.maNhanVien.slice(-3)) - 1;
             const account = await tx.user.upsert({
                 where: { username: actor.username },
                 update: { password: passwordHash, role: actor.role, isActive: true },

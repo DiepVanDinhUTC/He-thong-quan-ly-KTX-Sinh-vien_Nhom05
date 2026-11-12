@@ -1,5 +1,6 @@
 const prismaClient = require('../config/prisma');
 const ROLES = require('../config/roles');
+const { residentInBuildings } = require('../services/studentResidenceScope');
 
 const getPrisma = () => prismaClient;
 
@@ -124,12 +125,7 @@ const createRestrictStudentBuildingAccess = ({ db = getPrisma } = {}) => async (
                 const resident = await database.sinhVien.findFirst({
                     where: {
                         maSV: studentId,
-                        hopDongs: {
-                            some: {
-                                trangThai: { in: ['ACTIVE', 'PENDING_PAYMENT'] },
-                                phong: { is: { maToaNha: { in: allowedIds } } }
-                            }
-                        }
+                        ...residentInBuildings(allowedIds)
                     },
                     select: { maSV: true }
                 });
@@ -155,12 +151,7 @@ const createRestrictStudentBuildingAccess = ({ db = getPrisma } = {}) => async (
             const resident = await database.sinhVien.findFirst({
                 where: {
                     maSV: studentId,
-                    hopDongs: {
-                        some: {
-                            trangThai: { in: ['ACTIVE', 'PENDING_PAYMENT'] },
-                            phong: { is: { maToaNha: { in: allowedIds } } }
-                        }
-                    }
+                    ...residentInBuildings(allowedIds)
                 },
                 select: { maSV: true }
             });

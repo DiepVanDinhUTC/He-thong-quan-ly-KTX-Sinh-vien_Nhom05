@@ -1,6 +1,7 @@
 /* eslint-disable react/prop-types */
 import React, { useEffect, useMemo, useState } from 'react';
 import AdminLayout from '../components/AdminLayout';
+import ListPagination, { useListPagination } from '../components/ListPagination';
 import MedicalLayout from '../components/MedicalLayout';
 import { useBoardWorkspace } from '../components/BoardLayout';
 import { useSelector } from 'react-redux';
@@ -8,7 +9,6 @@ import { studentApi } from '../services/studentApi';
 import { studentRecordPermissions } from '../utils/accessControl';
 import {
   Search,
-  Filter,
   RefreshCw,
   Plus,
   Edit,
@@ -32,6 +32,8 @@ const StudentManagement = ({ embedded = false }) => {
     cccd: '', phone: '', email: '', dienUuTien: '',
   };
   const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState('ALL');
+  const [studentType, setStudentType] = useState('ALL');
   const [isSyncing, setIsSyncing] = useState(false);
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -59,8 +61,9 @@ const StudentManagement = ({ embedded = false }) => {
 
   const filteredStudents = useMemo(() => {
     const query = searchQuery.trim().toLocaleLowerCase('vi');
-    if (!query) return students;
-    return students.filter((student) => [
+    return students.filter((student) => (statusFilter === 'ALL' || student.trangThaiNoiTru === statusFilter)
+      && (studentType === 'ALL' || Boolean(student.laHocVienQuanSu) === (studentType === 'MILITARY'))
+      && (!query || [
       student.maSV,
       student.hoTen,
       student.lop,
@@ -68,9 +71,14 @@ const StudentManagement = ({ embedded = false }) => {
       student.phone,
       student.email,
       student.cccd,
-      student.hopDongs?.[0]?.phong?.soPhong,
-    ].filter(Boolean).join(' ').toLocaleLowerCase('vi').includes(query));
-  }, [students, searchQuery]);
+      student.phongHienTai?.soPhong,
+      student.phongHienTai?.maPhong,
+      student.phongHienTai?.maToaNha,
+      student.phongQuanSuSapToi?.soPhong,
+      student.phongQuanSuSapToi?.maPhong,
+    ].filter(Boolean).join(' ').toLocaleLowerCase('vi').includes(query)));
+  }, [students, searchQuery, statusFilter, studentType]);
+  const pagination = useListPagination(filteredStudents, JSON.stringify([searchQuery, statusFilter, studentType]));
 
   const handleSync = async () => {
     setIsSyncing(true);
@@ -202,7 +210,7 @@ const StudentManagement = ({ embedded = false }) => {
 
           {/* Top Actions */}
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-            <div className="flex flex-1 w-full sm:w-auto gap-4">
+            <div className="flex flex-1 w-full sm:w-auto flex-wrap gap-4">
               <div className="relative flex-1 max-w-md">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                 <input
@@ -213,10 +221,8 @@ const StudentManagement = ({ embedded = false }) => {
                   className="pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-full bg-white shadow-sm"
                 />
               </div>
-              <button className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 shadow-sm transition-colors">
-                <Filter className="w-4 h-4" />
-                <span>Lọc</span>
-              </button>
+              <select aria-label="Lọc theo trạng thái nội trú" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} className="rounded-lg border bg-white px-3 py-2 text-sm"><option value="ALL">Tất cả trạng thái</option><option value="CHUA_DANG_KY">Chưa đăng ký</option><option value="CHO_DUYET">Chờ duyệt</option><option value="CHO_THANH_TOAN">Chờ thanh toán</option><option value="DANG_O">Đang ở</option><option value="TAM_VANG">Tạm vắng</option><option value="DA_ROI">Đã rời KTX</option></select>
+              <select aria-label="Lọc theo diện sinh viên" value={studentType} onChange={(event) => setStudentType(event.target.value)} className="rounded-lg border bg-white px-3 py-2 text-sm"><option value="ALL">Tất cả diện</option><option value="STUDENT">Sinh viên</option><option value="MILITARY">Học viên quân sự</option></select>
             </div>
             <div className="flex items-center gap-3">
               {!hasWorkspaceHeader && refreshAction}
@@ -258,7 +264,7 @@ const StudentManagement = ({ embedded = false }) => {
                   {loading && <tr><td className="px-6 py-8 text-center" colSpan="10">Đang tải...</td></tr>}
                   {!loading && error && <tr><td className="px-6 py-8 text-center text-red-600" colSpan="10">{error}</td></tr>}
                   {!loading && !error && filteredStudents.length === 0 && <tr><td className="px-6 py-8 text-center text-gray-500" colSpan="10">Không có sinh viên phù hợp.</td></tr>}
-                  {!loading && !error && filteredStudents.map((student) => (
+                  {!loading && !error && pagination.items.map((student) => (
                     <tr key={student.maSV} className="hover:bg-gray-50/50 transition-colors">
                       <td className="px-6 py-4 font-medium text-blue-600">{student.maSV}</td>
                       <td className="px-6 py-4 font-semibold text-gray-800">{student.hoTen}{student.isPriority && <span className="mt-1 block text-xs font-medium text-amber-700">Ưu tiên · {student.dienUuTien}</span>}</td>
@@ -268,7 +274,7 @@ const StudentManagement = ({ embedded = false }) => {
                         : <span className="text-gray-500">Sinh viên</span>}</td>
                       <td className="px-6 py-4 text-gray-600">{student.ngaySinh ? new Date(student.ngaySinh).toLocaleDateString('vi-VN') : '—'}</td>
                       <td className="px-6 py-4 text-gray-600">{student.gioiTinh ? 'Nam' : 'Nữ'}</td>
-                      <td className="px-6 py-4 text-gray-800 font-medium">{student.hopDongs?.[0]?.phong?.soPhong || '—'}</td>
+                      <td className="px-6 py-4 text-gray-800 font-medium">{student.phongHienTai?.soPhong || '—'}{student.phongHienTai?.source === 'MILITARY' && <span className="mt-1 block text-xs font-normal text-indigo-700">Phòng GDQP</span>}{student.phongQuanSuSapToi && <span className="mt-1 block text-xs font-normal text-slate-500">Sắp ở GDQP: {student.phongQuanSuSapToi.soPhong} · từ {new Date(student.phongQuanSuSapToi.startsAt).toLocaleDateString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}</span>}</td>
                       <td className="px-6 py-4 text-gray-600">{student.phone || '—'}</td>
                       <td className="px-6 py-4">{getStatusBadge(student.trangThaiNoiTru)}</td>
                       <td className="px-6 py-4 text-right">
@@ -290,9 +296,7 @@ const StudentManagement = ({ embedded = false }) => {
               </table>
             </div>
 
-            <div className="p-4 border-t border-gray-200 text-sm text-gray-500 bg-gray-50 mt-auto">
-              Hiển thị {filteredStudents.length} / {students.length} sinh viên
-            </div>
+            {!loading && !error && <ListPagination pagination={pagination} label="sinh viên" />}
           </div>
       </div>
 

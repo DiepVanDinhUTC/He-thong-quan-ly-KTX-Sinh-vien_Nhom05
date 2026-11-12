@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const paymentController = require('../../../controllers/paymentController');
+const militaryBilling = require('../../../controllers/militaryBillingController');
 const { protect } = require('../../../middleware/authMiddleware');
 const { requirePermission, restrictTo, restrictBuildingAccess } = require('../../../middleware/rbacMiddleware');
 const ROLES = require('../../../config/roles');
@@ -10,6 +11,7 @@ router.get('/monthly-invoices', protect, requirePermission('billing:read'), rest
 router.get('/ledger', protect, requirePermission('billing:read'), restrictBuildingAccess, paymentController.listFinancialTransactions);
 router.get('/repair-tickets', protect, requirePermission('billing:read'), restrictBuildingAccess, paymentController.getRepairTickets);
 router.post('/monthly-invoices/generate', protect, requirePermission('billing:manage'), restrictBuildingAccess, paymentController.generateMonthlyInvoices);
+router.post('/military-invoices/generate', protect, requirePermission('billing:manage'), restrictBuildingAccess, militaryBilling.generate);
 router.post('/monthly-invoices/:invoiceId/collect', protect, requirePermission('billing:manage'), restrictBuildingAccess, paymentController.collectMonthlyInvoice);
 router.post('/monthly-invoices/:invoiceId/refunds', protect, requirePermission('billing:manage'), restrictBuildingAccess, paymentController.refundMonthlyInvoice);
 router.post('/repair-expenses', protect, requirePermission('billing:manage'), restrictBuildingAccess, paymentController.recordRepairExpense);

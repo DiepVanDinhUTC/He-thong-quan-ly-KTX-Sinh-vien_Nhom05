@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import ListPagination, { useListPagination } from '../components/ListPagination';
 import { useSelector } from 'react-redux';
 import {
   AlertTriangle, ArrowRightLeft, Bed, CheckCircle2, DoorOpen, Download,
@@ -101,6 +102,7 @@ const RoomManagement = () => {
     }
   }, [filteredRooms, selectedRoomId]);
 
+  const pagination = useListPagination(filteredRooms, JSON.stringify([searchQuery, typeFilter, statusFilter, khuFilter, buildingFilter, floorFilter]));
   const counts = useMemo(() => ({
     total: filteredRooms.length,
     occupied: filteredRooms.reduce((sum, room) => sum + room.soSinhVienHienTai, 0),
@@ -334,7 +336,7 @@ const RoomManagement = () => {
             {notice && <p role="status" className="mx-4 mt-4 rounded-lg bg-green-50 p-3 text-sm text-green-700">{notice}</p>}
             <div className="min-h-0 flex-1 overflow-y-auto p-4">
               {loading ? <p className="p-8 text-center text-sm text-gray-500">Đang tải sơ đồ phòng từ database...</p> : filteredRooms.length === 0 ? <p className="p-8 text-center text-sm text-gray-500">Không tìm thấy phòng phù hợp.</p> : <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-                {filteredRooms.map((room) => {
+                {pagination.items.map((room) => {
                   const fullness = room.soSinhVienToiDa > 0 ? Math.min(100, (room.soSinhVienHienTai / room.soSinhVienToiDa) * 100) : 0;
                   const full = room.soSinhVienHienTai >= room.soSinhVienToiDa;
                   return <button key={room.maPhong} onClick={() => setSelectedRoomId(room.maPhong)} className={`rounded-xl border-2 p-4 text-left transition hover:shadow-md ${selectedRoomId === room.maPhong ? 'border-blue-600 bg-blue-50/60 ring-2 ring-blue-100' : 'border-gray-200 bg-white hover:border-blue-300'}`}>
@@ -345,6 +347,7 @@ const RoomManagement = () => {
                 })}
               </div>}
             </div>
+            {!loading && <ListPagination pagination={pagination} label="phòng" />}
           </section>
 
           <aside className="flex min-h-[280px] w-full shrink-0 flex-col overflow-visible rounded-xl border bg-white shadow-sm lg:min-h-0 lg:w-[390px] lg:overflow-hidden">

@@ -8,7 +8,7 @@ router.use(protect);
 
 router.get('/overview', requirePermission('military-students:read'), controller.getOverview);
 router.get('/students', requirePermission('military-students:read'), controller.getMilitaryStudents);
-router.post('/sis-sync', requirePermission('military-students:sync'), controller.syncMilitaryStudents);
+router.post('/qldt-sync', requirePermission('military-students:sync'), controller.syncMilitaryStudents);
 
 router.get('/rooms', requirePermission('military-rooms:read'), controller.getRooms);
 router.post('/room-assignments/auto', requirePermission('military-rooms:assign'), controller.autoAssignRooms);

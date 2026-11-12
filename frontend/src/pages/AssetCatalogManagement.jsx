@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Building2, Loader2, Pencil, Plus, RefreshCw, Search, Trash2, Wrench, X } from 'lucide-react';
 import FacilitiesLayout from '../components/FacilitiesLayout';
+import ListPagination, { useListPagination } from '../components/ListPagination';
 import { housingApi } from '../services/housingApi';
 
 const STATUS_OPTIONS = [
@@ -58,6 +59,7 @@ const AssetCatalogManagement = () => {
       return matchesQuery && matchesBuilding && matchesStatus;
     });
   }, [assets, search, buildingFilter, statusFilter]);
+  const pagination = useListPagination(filteredAssets, JSON.stringify([search, buildingFilter, statusFilter]));
   const damagedCount = assets.filter((asset) => asset.trangThai !== 'TOT').length;
   const totalQuantity = assets.reduce((sum, asset) => sum + Number(asset.soLuong || 0), 0);
 
@@ -138,7 +140,7 @@ const AssetCatalogManagement = () => {
         </div>
         {loading ? <div className="flex items-center justify-center gap-2 p-12 text-sm text-slate-500"><Loader2 className="h-4 w-4 animate-spin" />Đang tải danh mục tài sản...</div>
           : filteredAssets.length === 0 ? <div className="p-12 text-center text-sm text-slate-500">{assets.length ? 'Không có tài sản khớp điều kiện lọc.' : 'Chưa có tài sản nào được ghi nhận trong phạm vi này.'}</div>
-            : <div className="overflow-x-auto"><table className="w-full min-w-[760px] text-left text-sm"><thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500"><tr><th className="px-5 py-3">Tài sản</th><th className="px-5 py-3">Vị trí</th><th className="px-5 py-3">Số lượng</th><th className="px-5 py-3">Tình trạng</th><th className="px-5 py-3">Ghi chú</th><th className="px-5 py-3 text-right">Thao tác</th></tr></thead><tbody className="divide-y divide-slate-100">{filteredAssets.map((asset) => <tr key={asset.maThietBi} className="hover:bg-slate-50/70">
+            : <div className="overflow-x-auto"><table className="w-full min-w-[760px] text-left text-sm"><thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500"><tr><th className="px-5 py-3">Tài sản</th><th className="px-5 py-3">Vị trí</th><th className="px-5 py-3">Số lượng</th><th className="px-5 py-3">Tình trạng</th><th className="px-5 py-3">Ghi chú</th><th className="px-5 py-3 text-right">Thao tác</th></tr></thead><tbody className="divide-y divide-slate-100">{pagination.items.map((asset) => <tr key={asset.maThietBi} className="hover:bg-slate-50/70">
               <td className="px-5 py-4"><div className="flex items-center gap-3"><span className="rounded-lg bg-blue-50 p-2 text-blue-700"><Wrench className="h-4 w-4" /></span><div><p className="font-semibold text-slate-900">{asset.tenThietBi}</p><p className="mt-0.5 text-xs text-slate-500">Mã: {asset.maThietBi.slice(0, 8)}</p></div></div></td>
               <td className="px-5 py-4"><p className="font-medium text-slate-800">Phòng {asset.soPhong}</p><p className="mt-0.5 flex items-center gap-1 text-xs text-slate-500"><Building2 className="h-3 w-3" />{asset.tenToaNha || 'Chưa gán tòa nhà'}{asset.tenKhu ? ` · ${asset.tenKhu}` : ''}</p></td>
               <td className="px-5 py-4 font-semibold text-slate-800">{asset.soLuong}</td>
@@ -146,6 +148,7 @@ const AssetCatalogManagement = () => {
               <td className="max-w-56 px-5 py-4 text-xs text-slate-500">{asset.ghiChu || '—'}</td>
               <td className="px-5 py-4"><div className="flex justify-end gap-1"><button type="button" disabled={saving} onClick={() => openEdit(asset)} aria-label={`Sửa ${asset.tenThietBi}`} className="rounded-lg p-2 text-blue-700 hover:bg-blue-50 disabled:opacity-50"><Pencil className="h-4 w-4" /></button><button type="button" disabled={saving} onClick={() => deleteAsset(asset)} aria-label={`Xóa ${asset.tenThietBi}`} className="rounded-lg p-2 text-rose-600 hover:bg-rose-50 disabled:opacity-50"><Trash2 className="h-4 w-4" /></button></div></td>
             </tr>)}</tbody></table></div>}
+        {!loading && <ListPagination pagination={pagination} label="tài sản" />}
       </section>
     </div>
 

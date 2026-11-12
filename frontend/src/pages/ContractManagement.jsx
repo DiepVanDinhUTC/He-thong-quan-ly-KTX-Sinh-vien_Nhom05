@@ -4,6 +4,7 @@ import { useSelector } from 'react-redux';
 import { useSearchParams } from 'react-router-dom';
 import { Search, Pencil, Check, X, ClipboardList } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
+import ListPagination, { useListPagination } from '../components/ListPagination';
 import { useBoardWorkspace } from '../components/BoardLayout';
 import { housingApi } from '../services/housingApi';
 import { roomTypeLabel } from '../utils/roomTypes';
@@ -33,6 +34,7 @@ const ContractManagement = ({ embedded = false }) => {
   const [approval, setApproval] = useState({ maPhong: '', ngayBatDau: currentHousingDate(), ngayKetThuc: housingPeriodEnd(), tongTien: String(defaultHousingAmount()) });
   const [editingContract, setEditingContract] = useState(null);
   const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('ALL');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -125,8 +127,11 @@ const ContractManagement = ({ embedded = false }) => {
     }
   };
 
-  const filteredContracts = contracts.filter((contract) => `${contract.maHopDong} ${contract.sinhVien?.hoTen} ${contract.maSinhVien} ${contract.phong?.soPhong}`.toLowerCase().includes(search.toLowerCase()));
+  const query = search.trim().toLocaleLowerCase('vi');
+  const filteredContracts = contracts.filter((contract) => (statusFilter === 'ALL' || contract.trangThai === statusFilter) && `${contract.maHopDong} ${contract.sinhVien?.hoTen || ''} ${contract.maSinhVien} ${contract.phong?.soPhong || ''}`.toLocaleLowerCase('vi').includes(query));
   const pendingApplications = applications.filter((application) => application.trangThai === 'PENDING');
+  const filteredApplications = pendingApplications.filter((application) => `${application.maDangKy} ${application.maSinhVien} ${application.sinhVien?.hoTen || ''} ${application.phongYeuCau?.soPhong || ''}`.toLocaleLowerCase('vi').includes(query));
+  const pagination = useListPagination(tab === 'applications' ? filteredApplications : filteredContracts, JSON.stringify([tab, search, statusFilter]));
 
   return (
     <div className={showShell ? 'flex h-screen min-h-0 overflow-hidden bg-gray-50 text-gray-800' : 'w-full text-gray-800'}>
@@ -139,7 +144,8 @@ const ContractManagement = ({ embedded = false }) => {
           {notice && <p role="status" className="mb-4 rounded-lg bg-green-50 p-3 text-sm text-green-700">{notice}</p>}
           <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
             <div className="flex gap-2"><button onClick={() => setTab('applications')} className={`rounded-lg px-4 py-2 text-sm font-semibold ${tab === 'applications' ? 'bg-blue-700 text-white' : 'bg-white text-gray-600'}`}>Đơn chờ xác nhận ({pendingApplications.length})</button><button onClick={() => setTab('contracts')} className={`rounded-lg px-4 py-2 text-sm font-semibold ${tab === 'contracts' ? 'bg-blue-700 text-white' : 'bg-white text-gray-600'}`}>Hợp đồng ({contracts.length})</button></div>
-            {tab === 'contracts' && <label className="flex items-center gap-2 rounded-lg border bg-white px-3 py-2"><Search className="h-4 w-4 text-gray-400" /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Tìm hợp đồng, sinh viên..." className="w-64 text-sm outline-none" /></label>}
+            <label className="flex items-center gap-2 rounded-lg border bg-white px-3 py-2"><Search className="h-4 w-4 text-gray-400" /><input aria-label="Tìm kiếm" value={search} onChange={(event) => setSearch(event.target.value)} placeholder={tab === 'contracts' ? 'Tìm hợp đồng, sinh viên...' : 'Tìm đơn, sinh viên, phòng...'} className="w-64 text-sm outline-none" /></label>
+            {tab === 'contracts' && <select aria-label="Lọc trạng thái hợp đồng" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} className="rounded-lg border bg-white px-3 py-2 text-sm"><option value="ALL">Tất cả trạng thái</option>{['PENDING_PAYMENT', 'ACTIVE', 'PAID', 'CANCELLED', 'RETURNED'].map((status) => <option key={status} value={status}>{statusLabel[status]}</option>)}</select>}
           </div>
 
           <section className="overflow-hidden rounded-xl border bg-white shadow-sm">
@@ -147,27 +153,28 @@ const ContractManagement = ({ embedded = false }) => {
               <div className="overflow-x-auto"><table className="w-full min-w-[760px] text-left text-sm">
                 <thead className="bg-gray-50 text-xs uppercase text-gray-500"><tr><th className="px-5 py-4">Sinh viên</th><th className="px-5 py-4">Nguyện vọng</th><th className="px-5 py-4">Ngày gửi</th><th className="px-5 py-4">Trạng thái</th><th className="px-5 py-4 text-right">Thao tác</th></tr></thead>
                 <tbody className="divide-y">
-                  {applications.filter((item) => item.trangThai === 'PENDING').map((application) => <tr key={application.maDangKy}>
+                  {pagination.items.map((application) => <tr key={application.maDangKy}>
                     <td className="px-5 py-4"><p className="font-semibold">{application.sinhVien?.hoTen || '—'}</p><p className="text-xs text-gray-500">{application.maSinhVien} · {application.maDangKy}</p>{application.isPriority && <p className="mt-1 text-xs font-semibold text-amber-700">Ưu tiên · {application.sinhVien.dienUuTien}</p>}</td>
                     <td className="px-5 py-4"><p>Phòng {roomTypeLabel(application.loaiPhongYeuCau)}</p><p className="mt-1 text-xs text-gray-500">Nguyện vọng: {application.phongYeuCau?.soPhong || application.maPhongYeuCau || '—'}</p></td>
                     <td className="px-5 py-4">{new Date(application.ngayDangKy).toLocaleDateString('vi-VN')}</td>
                     <td className="px-5 py-4"><span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800">{statusLabel[application.trangThai]}</span></td>
                     <td className="px-5 py-4 text-right">{canDecideApplications && <div className="flex justify-end gap-2"><button disabled={saving} onClick={() => openApproval(application)} className="rounded-lg bg-blue-700 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-800 disabled:opacity-50">Xác nhận & lập hợp đồng</button><button disabled={saving} onClick={() => rejectApplication(application)} className="rounded-lg border border-red-200 px-3 py-2 text-xs font-semibold text-red-600 hover:bg-red-50 disabled:opacity-50">Từ chối</button></div>}</td>
                   </tr>)}
-                  {pendingApplications.length === 0 && <tr><td colSpan="5" className="px-5 py-12 text-center text-gray-500"><ClipboardList className="mx-auto mb-2 h-8 w-8 text-gray-300" />Không có đơn chờ xác nhận.</td></tr>}
+                  {filteredApplications.length === 0 && <tr><td colSpan="5" className="px-5 py-12 text-center text-gray-500"><ClipboardList className="mx-auto mb-2 h-8 w-8 text-gray-300" />Không có đơn phù hợp.</td></tr>}
                 </tbody>
               </table></div>
             ) : (
               <div className="overflow-x-auto"><table className="w-full min-w-[850px] text-left text-sm">
                 <thead className="bg-gray-50 text-xs uppercase text-gray-500"><tr><th className="px-5 py-4">Mã hợp đồng</th><th className="px-5 py-4">Sinh viên</th><th className="px-5 py-4">Phòng</th><th className="px-5 py-4">Thời hạn</th><th className="px-5 py-4">Tổng tiền</th><th className="px-5 py-4">Trạng thái</th><th className="px-5 py-4"></th></tr></thead>
                 <tbody className="divide-y">
-                  {filteredContracts.map((contract) => <tr key={contract.maHopDong}>
+                  {pagination.items.map((contract) => <tr key={contract.maHopDong}>
                     <td className="px-5 py-4 font-semibold text-blue-700">{contract.maHopDong}</td><td className="px-5 py-4"><p className="font-semibold">{contract.sinhVien?.hoTen || '—'}</p><p className="text-xs text-gray-500">{contract.maSinhVien}</p></td><td className="px-5 py-4">{contract.phong?.soPhong || contract.maPhong} · {roomTypeLabel(contract.phong?.loaiPhong)}</td><td className="px-5 py-4">{new Date(contract.ngayBatDau).toLocaleDateString('vi-VN')} – {new Date(contract.ngayKetThuc).toLocaleDateString('vi-VN')}</td><td className="px-5 py-4">{Number(contract.tongTien).toLocaleString('vi-VN')} đ</td><td className="px-5 py-4"><span className={`rounded-full px-3 py-1 text-xs font-semibold ${contract.trangThai === 'PENDING_PAYMENT' ? 'bg-amber-100 text-amber-800' : contract.trangThai === 'ACTIVE' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'}`}>{statusLabel[contract.trangThai] || contract.trangThai}</span></td><td className="px-5 py-4 text-right">{canEditContracts && contract.trangThai === 'PENDING_PAYMENT' && <button title="Chỉnh sửa hợp đồng nháp" onClick={() => openEdit(contract)} className="rounded-lg p-2 text-blue-700 hover:bg-blue-50"><Pencil className="h-4 w-4" /></button>}</td>
                   </tr>)}
                   {filteredContracts.length === 0 && <tr><td colSpan="7" className="px-5 py-12 text-center text-gray-500">Chưa có hợp đồng phù hợp.</td></tr>}
                 </tbody>
               </table></div>
             )}
+            {!loading && <ListPagination pagination={pagination} label={tab === 'applications' ? 'đơn' : 'hợp đồng'} />}
           </section>
         </ContentTag>
       </div>

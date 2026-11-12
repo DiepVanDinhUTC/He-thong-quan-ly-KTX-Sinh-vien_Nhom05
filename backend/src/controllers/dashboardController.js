@@ -30,11 +30,12 @@ const createDashboardController = ({ db = prisma, now = () => new Date() } = {})
         const roomScope = scoped ? { maToaNha: { in: buildingIds } } : {};
         const contractScope = scoped ? { phong: { is: roomScope } } : {};
         const invoiceScope = scoped ? { hopDong: { is: contractScope } } : {};
+        const monthlyScope = scoped ? { OR: [invoiceScope, { militaryUtilityPeriod: { is: contractScope } }] } : {};
         const dateRange = { gte: period.start, lte: period.end };
         const [rooms, contracts, monthlyInvoices, tickets, receipts] = await Promise.all([
             db.phong.findMany({ where: roomScope, select: { maToaNha: true, soSinhVienToiDa: true, soSinhVienHienTai: true, ...occupancyRelations } }),
             db.hopDong.findMany({ where: { trangThai: 'PENDING_PAYMENT', ...contractScope }, select: { tongTien: true, ngayTao: true, paymentDueAt: true, phong: { select: { maToaNha: true } } } }),
-            db.monthlyInvoice.findMany({ where: { status: 'UNPAID', ...invoiceScope }, select: { totalAmount: true, periodStart: true, hopDong: { select: { phong: { select: { maToaNha: true } } } } } }),
+            db.monthlyInvoice.findMany({ where: { status: 'UNPAID', ...monthlyScope }, select: { totalAmount: true, periodStart: true, createdAt: true, militaryUtilityPeriodId: true, hopDong: { select: { phong: { select: { maToaNha: true } } } }, militaryUtilityPeriod: { select: { phong: { select: { maToaNha: true } } } } } }),
             db.maintenanceTicket.findMany({
                 where: { ...contractScope, status: { not: 'REJECTED' }, OR: [{ createdAt: dateRange }, { resolvedAt: dateRange }, { completedAt: dateRange }] },
                 select: { category: true, status: true, createdAt: true, resolvedAt: true, completedAt: true, phong: { select: { maToaNha: true } } }

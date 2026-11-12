@@ -2,6 +2,8 @@ const syncStudentService = require('../services/syncStudentService');
 const prisma = require('../config/prisma');
 const { deriveStudentHousingStatus } = require('../services/studentHousingStatus');
 const { isPriorityStudent, sortByStudentPriority } = require('../services/studentPriority');
+const { militaryStayState } = require('../services/militaryStay');
+const { buildingRoomFilter, housingContractFilter, residentInBuildings } = require('../services/studentResidenceScope');
 
 const editableFields = [
     'hoTen', 'ngaySinh', 'gioiTinh', 'lop', 'nienKhoa', 'khoa', 'cccd',
@@ -17,16 +19,27 @@ const pickStudentFields = (body) => Object.fromEntries(
 
 const validCohorts = ['K62', 'K63', 'K64', 'K65', 'K66', 'K67'];
 const invalidCohort = (body) => body.nienKhoa !== undefined && !validCohorts.includes(body.nienKhoa);
-const activeHousingStatuses = ['ACTIVE', 'PENDING_PAYMENT'];
-const housingContractFilter = (buildingScope) => ({
-    trangThai: { in: activeHousingStatuses },
-    ...(buildingScope === null ? {} : { phong: { is: { maToaNha: { in: buildingScope } } } })
+const studentRelations = (buildingScope, now) => ({
+    hopDongs: { where: housingContractFilter(buildingScope), include: { phong: true }, orderBy: { ngayTao: 'desc' }, take: 1 },
+    dangKyKTXs: { where: { trangThai: 'PENDING' }, select: { maDangKy: true }, take: 1 },
+    militaryRoomAssignments: {
+        where: { status: 'ACTIVE', endsAt: { gt: now }, ...buildingRoomFilter(buildingScope) },
+        orderBy: { startsAt: 'asc' },
+        select: { id: true, status: true, startsAt: true, endsAt: true, phong: { select: { maPhong: true, soPhong: true, maToaNha: true } } }
+    }
 });
-const presentStudent = (student) => ({
-    ...student,
-    isPriority: isPriorityStudent(student),
-    trangThaiNoiTru: deriveStudentHousingStatus(student.hopDongs || [], Boolean(student.dangKyKTXs?.length))
-});
+const presentStudent = (student, now) => {
+    const { militaryRoomAssignments = [], ...fields } = student;
+    const current = militaryRoomAssignments.find((item) => militaryStayState(item, now) === 'ACTIVE');
+    const upcoming = militaryRoomAssignments.find((item) => militaryStayState(item, now) === 'UPCOMING');
+    return {
+        ...fields,
+        isPriority: isPriorityStudent(student),
+        phongHienTai: current ? { ...current.phong, source: 'MILITARY' } : student.hopDongs?.[0]?.phong ? { ...student.hopDongs[0].phong, source: 'CONTRACT' } : null,
+        phongQuanSuSapToi: upcoming ? { ...upcoming.phong, startsAt: upcoming.startsAt, endsAt: upcoming.endsAt } : null,
+        trangThaiNoiTru: current ? 'DANG_O' : deriveStudentHousingStatus(student.hopDongs || [], Boolean(student.dangKyKTXs?.length))
+    };
+};
 
 exports.syncData = async (req, res) => {
     try {
@@ -43,18 +56,14 @@ exports.syncData = async (req, res) => {
 
 exports.getAllStudents = async (req, res) => {
     try {
-        const where = req.buildingScope === null ? undefined : {
-            hopDongs: { some: housingContractFilter(req.buildingScope) }
-        };
+        const now = new Date();
+        const where = req.buildingScope === null ? undefined : residentInBuildings(req.buildingScope, now);
         const students = await prisma.sinhVien.findMany({
             where,
             orderBy: { maSV: 'desc' },
-            include: {
-                hopDongs: { where: housingContractFilter(req.buildingScope), include: { phong: true }, orderBy: { ngayTao: 'desc' }, take: 1 },
-                dangKyKTXs: { where: { trangThai: 'PENDING' }, select: { maDangKy: true }, take: 1 }
-            }
+            include: studentRelations(req.buildingScope, now)
         });
-        return res.status(200).json({ success: true, data: sortByStudentPriority(students).map(presentStudent) });
+        return res.status(200).json({ success: true, data: sortByStudentPriority(students).map((student) => presentStudent(student, now)) });
     } catch (error) {
         return res.status(500).json({ success: false, message: 'Lỗi khi lấy danh sách sinh viên', error: error.message });
     }
@@ -62,15 +71,13 @@ exports.getAllStudents = async (req, res) => {
 
 exports.getStudentById = async (req, res) => {
     try {
+        const now = new Date();
         const student = await prisma.sinhVien.findUnique({
             where: { maSV: req.params.id },
-            include: {
-                hopDongs: { where: housingContractFilter(req.buildingScope), include: { phong: true }, orderBy: { ngayTao: 'desc' }, take: 1 },
-                dangKyKTXs: { where: { trangThai: 'PENDING' }, select: { maDangKy: true }, take: 1 }
-            }
+            include: studentRelations(req.buildingScope, now)
         });
         if (!student) return res.status(404).json({ success: false, message: 'Không tìm thấy sinh viên.' });
-        return res.status(200).json({ success: true, data: presentStudent(student) });
+        return res.status(200).json({ success: true, data: presentStudent(student, now) });
     } catch (error) {
         return res.status(500).json({ success: false, message: 'Lỗi server', error: error.message });
     }

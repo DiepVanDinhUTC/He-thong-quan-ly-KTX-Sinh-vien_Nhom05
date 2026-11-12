@@ -8,6 +8,7 @@ import {
 import AdminLogoutButton from '../components/AdminLogoutButton';
 import AdminUserProfile from '../components/AdminUserProfile';
 import DashboardNavLink from '../components/DashboardNavLink';
+import ListPagination, { useListPagination } from '../components/ListPagination';
 import StaffHomeContent from '../components/StaffHomeContent';
 import { militarySections } from '../utils/staffNavigation';
 import { militaryManagementApi as api } from '../services/militaryManagementApi';
@@ -43,6 +44,8 @@ const MilitaryManagement = () => {
   const setActiveTab = (section) => setSearchParams(section === 'home' ? {} : { section });
   const [overview, setOverview] = useState(emptyOverview);
   const [students, setStudents] = useState([]);
+  const [studentSearch, setStudentSearch] = useState('');
+  const [assignmentFilter, setAssignmentFilter] = useState('ALL');
   const [rooms, setRooms] = useState([]);
   const [equipment, setEquipment] = useState({ items: [], issues: [] });
   const [meetingRooms, setMeetingRooms] = useState([]);
@@ -82,6 +85,13 @@ const MilitaryManagement = () => {
 
   const activeRooms = useMemo(() => meetingRooms.filter((room) => room.isActive), [meetingRooms]);
   const militaryRooms = useMemo(() => rooms.filter((room) => room.isMilitaryTarget), [rooms]);
+  const studentQuery = studentSearch.trim().toLocaleLowerCase('vi');
+  const filteredStudents = students.filter((student) => {
+    const room = student.militaryRoomAssignments?.[0]?.phong;
+    return (assignmentFilter === 'ALL' || Boolean(room) === (assignmentFilter === 'ASSIGNED')) && [student.maSV, student.hoTen, student.lop, student.khoa, room?.soPhong].some((value) => String(value || '').toLocaleLowerCase('vi').includes(studentQuery));
+  });
+  const studentPagination = useListPagination(filteredStudents, JSON.stringify([studentSearch, assignmentFilter, activeTab]));
+  const studentFilters = <div className="mb-4 flex flex-wrap gap-2"><input aria-label="Tìm học viên" value={studentSearch} onChange={(event) => setStudentSearch(event.target.value)} placeholder="Tìm mã, tên, lớp, khoa, phòng..." className={`${fieldClass} max-w-sm`} /><select aria-label="Lọc tình trạng phân phòng" value={assignmentFilter} onChange={(event) => setAssignmentFilter(event.target.value)} className={`${fieldClass} max-w-52`}><option value="ALL">Tất cả học viên</option><option value="ASSIGNED">Đã xếp phòng</option><option value="UNASSIGNED">Chưa xếp phòng</option></select></div>;
   const act = async (operation, successMessage, reload = true) => {
     setSaving(true);
     setError('');
@@ -110,33 +120,32 @@ const MilitaryManagement = () => {
       const payload = response.data;
       const result = payload?.data;
       if (!payload?.success || !result || !Array.isArray(result.skipped)) {
-        throw new Error(payload?.message || 'SIS không trả về kết quả đồng bộ hợp lệ.');
+        throw new Error(payload?.message || 'QLĐT không trả về kết quả đồng bộ hợp lệ.');
       }
 
-      let message = `SIS trả ${result.received ?? 0} đăng ký; ${result.selected ?? 0} hồ sơ phù hợp; tạo ${result.createdAccounts ?? 0} tài khoản, chuyển ${result.convertedAccounts ?? 0} tài khoản sinh viên sang học viên quân sự, gắn diện quân sự ${result.militaryStudentsMarked ?? 0} hồ sơ, liên kết ${result.linkedProfiles ?? 0}.`;
+      let message = `QLĐT trả ${result.received ?? 0} đăng ký; ${result.selected ?? 0} hồ sơ phù hợp; tạo ${result.createdAccounts ?? 0} tài khoản, chuyển ${result.convertedAccounts ?? 0} tài khoản sinh viên sang học viên quân sự, gắn diện quân sự ${result.militaryStudentsMarked ?? 0} hồ sơ, liên kết ${result.linkedProfiles ?? 0}.`;
       if (result.completedRegistrations) message += ` ${result.completedRegistrations} hồ sơ đã hoàn thành đợt này và giữ vai trò sinh viên.`;
-      if (result.linkedProfiles || result.militaryStudentsMarked) message += ' Mở Xếp phòng quân sự và chọn ngày bắt đầu thực tế để bố trí phòng trong 14 ngày.';
       if (result.roomAssignment) message += ` Tự xếp phòng A1: ${result.roomAssignment.assigned ?? 0} học viên mới; ${result.roomAssignment.alreadyAssigned ?? 0} học viên đã có phòng hợp lệ.`;
       if (result.roomAssignment?.unassignedCount) message += ` Còn ${result.roomAssignment.unassignedCount} học viên chưa có phòng do không đủ chỗ trong các phòng A1 dành cho quân sự.`;
       if (result.roomAssignmentError) message += ` Chưa xếp được phòng tự động: ${result.roomAssignmentError}`;
       if (Number(result.selected) === 0) {
-        message += ' SIS đã kết nối nhưng không có đăng ký nào khớp bộ lọc học phần, đợt học và khoa.';
+        message += ' Không có hồ sơ hợp lệ để tiếp nhận.';
       } else if (result.skipped.length) {
         message += ` Có ${result.skipped.length} hồ sơ bị bỏ qua; xem lý do bên dưới.`;
       }
       setSyncResult({
         ...result,
         message,
-        kind: Number(result.selected) === 0 || Boolean(result.roomAssignmentError) || Number(result.roomAssignment?.unassignedCount) > 0 ? 'warning' : 'success',
+        kind: Number(result.selected) === 0 || result.skipped.length > 0 || Boolean(result.roomAssignmentError) || Number(result.roomAssignment?.unassignedCount) > 0 ? 'warning' : 'success',
       });
       await loadData();
     } catch (requestError) {
       const responseMessage = requestError.response?.data?.message;
       const message = responseMessage
         || (requestError.request
-          ? 'Không nhận được phản hồi khi gọi SIS. Hãy kiểm tra URL SIS, trạng thái máy chủ và kết nối mạng.'
+          ? 'Không nhận được phản hồi đồng bộ. Hãy kiểm tra trạng thái máy chủ và kết nối mạng.'
           : requestError.message)
-        || 'Không thể đồng bộ danh sách SIS.';
+        || 'Không thể đồng bộ danh sách QLĐT.';
       setSyncError(message);
     } finally {
       setSyncing(false);
@@ -144,7 +153,7 @@ const MilitaryManagement = () => {
   };
 
   const runAutoAssignment = async () => {
-    await act(() => api.autoAssignRooms(studyPeriod), 'Đã xếp phòng GDQP trong 14 ngày, giữ nguyên hợp đồng nội trú gốc.');
+    await act(() => api.autoAssignRooms(studyPeriod), 'Đã xếp phòng GDQP trong 10 ngày, giữ nguyên hợp đồng nội trú gốc.');
   };
 
   const submitEquipment = async (event) => {
@@ -238,12 +247,12 @@ const MilitaryManagement = () => {
           <Stat label="Phòng giao ban · lịch sắp tới" value={`${overview.meetingRoomCount} · ${overview.upcomingBookingCount}`} Icon={CalendarDays} color="violet" />
         </div>
 
-        {activeTab === 'students' && <Panel title="Tiếp nhận danh sách học viên từ SIS" description="Dùng chung API nguồn với đồng bộ sinh viên chính quy. SIS mock có 50 hồ sơ với 50 đăng ký GDQP hợp lệ thuộc hai đợt và năm khoa; khi có SIS thật, thay URL cùng mã lọc trong cấu hình.">
+        {activeTab === 'students' && <Panel title="Tiếp nhận danh sách học viên từ QLĐT" description="Mỗi lần đồng bộ tạo 50 hồ sơ QLĐT giả lập mới và tự xếp vào phòng quân sự trong 10 ngày, tùy theo chỗ trống.">
           <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-lg bg-blue-50 p-4">
             <div className="max-w-3xl text-sm text-blue-900">Hồ sơ đủ điều kiện được cấp vai trò học viên quân sự. Tài khoản sinh viên hiện có giữ mật khẩu và hợp đồng nội trú; hết đợt GDQP, vai trò sinh viên được khôi phục. Hệ thống chỉ tạo tài khoản mới khi chưa có.</div>
-            <button type="button" onClick={runSync} disabled={syncing || loading} className={buttonClass}><RefreshCw className={`h-4 w-4 ${syncing ? 'animate-spin' : ''}`} />{syncing ? 'Đang lấy dữ liệu SIS…' : 'Đồng bộ SIS ngay'}</button>
+            <button type="button" onClick={runSync} disabled={syncing || loading} className={buttonClass}><RefreshCw className={`h-4 w-4 ${syncing ? 'animate-spin' : ''}`} />{syncing ? 'Đang lấy dữ liệu QLĐT…' : 'Đồng bộ QLĐT ngay'}</button>
           </div>
-          {syncError && <div role="alert" aria-live="assertive" className="mb-4 flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800"><XCircle className="mt-0.5 h-4 w-4 shrink-0" /><div><p className="font-semibold">Đồng bộ SIS thất bại</p><p className="mt-1">{syncError}</p></div></div>}
+          {syncError && <div role="alert" aria-live="assertive" className="mb-4 flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800"><XCircle className="mt-0.5 h-4 w-4 shrink-0" /><div><p className="font-semibold">Đồng bộ QLĐT thất bại</p><p className="mt-1">{syncError}</p></div></div>}
           {syncResult && <div role={syncResult.kind === 'warning' ? 'alert' : 'status'} aria-live="polite" className={`mb-4 rounded-lg border px-4 py-3 text-sm ${syncResult.kind === 'warning' ? 'border-amber-200 bg-amber-50 text-amber-900' : 'border-emerald-200 bg-emerald-50 text-emerald-900'}`}>
             <p className="font-medium">{syncResult.message}</p>
             {syncResult.skipped.length > 0 && <details className="mt-2">
@@ -255,21 +264,23 @@ const MilitaryManagement = () => {
               </ul>
             </details>}
           </div>}
+          {studentFilters}
           {loading ? <p className="py-8 text-center text-sm text-slate-500">Đang tải danh sách học viên…</p> : <div className={tableWrap}><table className={tableClass}>
             <thead><tr>{['Mã học viên', 'Họ và tên', 'Giới tính', 'Lớp', 'Khoa', 'Tài khoản / phòng hiện tại'].map((label) => <th key={label} className={thClass}>{label}</th>)}</tr></thead>
-            <tbody>{students.map((student) => <tr key={student.maSV}>
+            <tbody>{studentPagination.items.map((student) => <tr key={student.maSV}>
               <td className={`${tdClass} font-semibold`}>{student.maSV}</td><td className={tdClass}>{student.hoTen}</td><td className={tdClass}>{student.gioiTinh ? 'Nam' : 'Nữ'}</td><td className={tdClass}>{student.lop}</td><td className={tdClass}>{student.khoa}</td>
               <td className={tdClass}>{student.militaryRoomAssignments?.[0]?.phong ? `${student.militaryRoomAssignments[0].phong.soPhong} · ${student.militaryRoomAssignments[0].phong.toaNha?.tenToaNha || ''}` : 'Đã có tài khoản · chưa xếp phòng'}</td>
-            </tr>)}{!students.length && <tr><td className={`${tdClass} py-8 text-center text-slate-500`} colSpan="6">Chưa có học viên quân sự. Dùng bộ tài khoản demo hoặc chạy đồng bộ SIS để tiếp nhận danh sách.</td></tr>}</tbody>
+            </tr>)}{!filteredStudents.length && <tr><td className={`${tdClass} py-8 text-center text-slate-500`} colSpan="6">Không có học viên phù hợp.</td></tr>}</tbody>
           </table></div>}
+          {!loading && <ListPagination pagination={studentPagination} label="học viên" />}
         </Panel>}
 
         {activeTab === 'rooms' && <div className="space-y-5">
-          <Panel title="Xếp phòng GDQP trong 2 tuần" description="Phòng quân sự A1: 103–107, 201–209, 301–309, 401–409. Bố trí trong 14 ngày, học viên nam và nữ ở phòng riêng.">
+          <Panel title="Xếp phòng GDQP trong 10 ngày" description="Phòng quân sự A1: 103–107, 201–209, 301–309, 401–409. Bố trí trong 10 ngày, học viên nam và nữ ở phòng riêng.">
             <div className="mb-4 grid gap-3 sm:grid-cols-2"><label className="text-sm font-medium text-slate-700">Ngày bắt đầu đợt học<input required type="date" value={studyPeriod.startsAt} onChange={(event) => setStudyPeriod({ ...studyPeriod, startsAt: event.target.value })} className={`${fieldClass} mt-1`} /></label><label className="text-sm font-medium text-slate-700">Mã đợt GDQP (nếu có)<input maxLength={50} value={studyPeriod.batchCode} onChange={(event) => setStudyPeriod({ ...studyPeriod, batchCode: event.target.value })} className={`${fieldClass} mt-1`} placeholder="VD: GDQP-2026-01" /></label></div>
             <div className="flex flex-wrap items-center justify-between gap-4 rounded-lg bg-blue-50 p-4">
-              <p className="max-w-3xl text-sm leading-6 text-blue-950">Hết 14 ngày, hệ thống kết thúc chỗ ở quân sự và hiển thị lại phòng nội trú gốc nếu hợp đồng còn hiệu lực. Chạy lại không kéo dài đợt đang có. Muốn bố trí đợt tiếp theo, chọn ngày bắt đầu sau khi đợt trước kết thúc.</p>
-              <button type="button" className={buttonClass} disabled={saving || loading || !students.length || !studyPeriod.startsAt} onClick={runAutoAssignment}><DoorOpen className="h-4 w-4" />{saving ? 'Đang xếp phòng…' : 'Xếp phòng đợt 14 ngày'}</button>
+              <p className="max-w-3xl text-sm leading-6 text-blue-950">Hết 10 ngày, hệ thống kết thúc chỗ ở quân sự và hiển thị lại phòng nội trú gốc nếu hợp đồng còn hiệu lực. Chạy lại không kéo dài đợt đang có. Muốn bố trí đợt tiếp theo, chọn ngày bắt đầu sau khi đợt trước kết thúc.</p>
+              <button type="button" className={buttonClass} disabled={saving || loading || !students.length || !studyPeriod.startsAt} onClick={runAutoAssignment}><DoorOpen className="h-4 w-4" />{saving ? 'Đang xếp phòng…' : 'Xếp phòng đợt 10 ngày'}</button>
             </div>
             <div className="mt-5">
               <h3 className="mb-3 text-sm font-semibold text-slate-800">Phòng dành cho quân sự · {militaryRooms.length} phòng</h3>
@@ -282,9 +293,10 @@ const MilitaryManagement = () => {
             </div>
           </Panel>
           <Panel title="Danh sách phân phòng học viên" description="Phòng quân sự chỉ ghép học viên cùng giới tính.">
+            {studentFilters}
             {loading ? <p className="py-8 text-center text-sm text-slate-500">Đang tải danh sách phân phòng…</p> : <div className={tableWrap}><table className={tableClass}>
               <thead><tr>{['Mã học viên', 'Học viên', 'Giới tính', 'Lớp', 'Tòa / tầng / phòng', 'Trạng thái'].map((label) => <th key={label} className={thClass}>{label}</th>)}</tr></thead>
-              <tbody>{students.map((student) => {
+              <tbody>{studentPagination.items.map((student) => {
                 const assignment = student.militaryRoomAssignments?.[0];
                 const room = assignment?.phong;
                 return <tr key={student.maSV}>
@@ -295,8 +307,9 @@ const MilitaryManagement = () => {
                   <td className={tdClass}>{room ? <><p>{room.toaNha?.tenToaNha || room.maToaNha} · tầng {room.tang ?? '—'} · {room.soPhong}</p><p className="mt-1 text-xs text-slate-500">{moneyDate(assignment.startsAt)} – {moneyDate(assignment.endsAt)}</p>{assignment.batchCode && <p className="mt-1 text-xs text-slate-500">{assignment.batchCode}</p>}</> : '—'}</td>
                   <td className={tdClass}>{room ? <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700">Đã xếp</span> : <span className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-700">Chưa xếp</span>}</td>
                 </tr>;
-              })}{!students.length && <tr><td className={`${tdClass} py-8 text-center text-slate-500`} colSpan="6">Chưa có học viên. Hãy tạo bộ tài khoản demo hoặc đồng bộ SIS trước.</td></tr>}</tbody>
+              })}{!filteredStudents.length && <tr><td className={`${tdClass} py-8 text-center text-slate-500`} colSpan="6">Không có học viên phù hợp.</td></tr>}</tbody>
             </table></div>}
+            {!loading && <ListPagination pagination={studentPagination} label="học viên" />}
           </Panel>
         </div>}
 

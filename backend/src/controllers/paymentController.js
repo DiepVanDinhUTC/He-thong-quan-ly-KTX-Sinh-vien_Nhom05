@@ -13,6 +13,16 @@ const parseBillingPeriod = (value) => {
 const isBuildingAllowed = (req, maToaNha) => (
     req.buildingScope === null || req.buildingScope === undefined || req.buildingScope.includes(maToaNha)
 );
+const invoiceRoom = (invoice) => invoice.hopDong?.phong || invoice.militaryUtilityPeriod?.phong;
+const runInvoiceTransaction = async (db, operation) => {
+    for (let attempt = 0; ; attempt += 1) {
+        try {
+            return await db.$transaction(operation, { isolationLevel: 'Serializable', maxWait: 10000, timeout: 30000 });
+        } catch (error) {
+            if (error.code !== 'P2034' || attempt >= 2) throw error;
+        }
+    }
+};
 
 const ledgerStatus = async (db, method, bankReference) => {
     if (method === 'BANK_TRANSFER' && !bankReference) return 'NEEDS_REVIEW';
@@ -112,7 +122,10 @@ exports.getMonthlyInvoices = async (req, res) => {
     if (req.query.period && !period) return res.status(400).json({ success: false, message: 'Kỳ hóa đơn phải có định dạng YYYY-MM.' });
     try {
         const where = {
-            ...(req.buildingScope === null || req.buildingScope === undefined ? {} : { hopDong: { is: { phong: { is: { maToaNha: { in: req.buildingScope } } } } } }),
+            ...(req.buildingScope === null || req.buildingScope === undefined ? {} : { OR: [
+                { hopDong: { is: { phong: { is: { maToaNha: { in: req.buildingScope } } } } } },
+                { militaryUtilityPeriod: { is: { phong: { is: { maToaNha: { in: req.buildingScope } } } } } }
+            ] }),
             ...(period ? { periodStart: period.start } : {})
         };
         const monthlyInvoices = await prisma.monthlyInvoice.findMany({
@@ -120,6 +133,7 @@ exports.getMonthlyInvoices = async (req, res) => {
             include: {
                 sinhVien: { select: { maSV: true, hoTen: true } },
                 hopDong: { select: { maHopDong: true, maPhong: true, phong: { select: { soPhong: true, maToaNha: true, toaNha: { select: { tenToaNha: true } } } } } },
+                militaryUtilityPeriod: { include: { phong: { select: { maPhong: true, soPhong: true, maToaNha: true, toaNha: { select: { tenToaNha: true } } } } } },
                 items: {
                     orderBy: { createdAt: 'asc' },
                     include: { ticket: { select: { id: true, title: true, maPhong: true } } }
@@ -156,7 +170,7 @@ exports.getMonthlyInvoices = async (req, res) => {
     }
 };
 
-exports.generateMonthlyInvoices = async (req, res) => {
+const createGenerateMonthlyInvoices = ({ db = prisma, now = () => new Date() } = {}) => async (req, res) => {
     const period = parseBillingPeriod(req.body?.period);
     const electricityRate = Number(req.body?.electricityRate);
     const waterRate = Number(req.body?.waterRate);
@@ -164,8 +178,7 @@ exports.generateMonthlyInvoices = async (req, res) => {
         || !Number.isSafeInteger(waterRate) || waterRate < 1 || waterRate > 1_000_000) {
         return res.status(400).json({ success: false, message: 'Hãy chọn kỳ hợp lệ và nhập đơn giá điện, nước từ 1 đến 1.000.000 đồng.' });
     }
-    const now = new Date();
-    const vietnamPeriod = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Ho_Chi_Minh', year: 'numeric', month: '2-digit' }).formatToParts(now);
+    const vietnamPeriod = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Ho_Chi_Minh', year: 'numeric', month: '2-digit' }).formatToParts(now());
     const currentStart = new Date(Date.UTC(
         Number(vietnamPeriod.find(({ type }) => type === 'year')?.value),
         Number(vietnamPeriod.find(({ type }) => type === 'month')?.value) - 1,
@@ -173,8 +186,9 @@ exports.generateMonthlyInvoices = async (req, res) => {
     ));
     if (period.start > currentStart) return res.status(400).json({ success: false, message: 'Không thể lập hóa đơn cho kỳ trong tương lai.' });
 
+    let generated = 0;
     try {
-        const contracts = await prisma.hopDong.findMany({
+        const contracts = await db.hopDong.findMany({
             where: {
                 trangThai: 'ACTIVE',
                 ngayBatDau: { lt: period.end },
@@ -204,31 +218,32 @@ exports.generateMonthlyInvoices = async (req, res) => {
             residentsByRoom.set(contract.maPhong, roomResidents);
         }
 
-        let generated = 0;
         let skippedMissingReadings = 0;
         let skippedClosedInvoices = 0;
-        for (const residents of residentsByRoom.values()) {
+        let failure = null;
+        const processRoom = async (residents) => {
             const room = residents[0].phong;
             const readings = new Map(room.utilityMeterReadings.map((reading) => [reading.utilityType, reading]));
             const electricity = readings.get('ELECTRICITY');
             const water = readings.get('WATER');
             if (!electricity || !water) {
                 skippedMissingReadings += residents.length;
-                continue;
+                return;
             }
             const totalElectricity = (electricity.currentReading - electricity.previousReading) * electricityRate;
             const totalWater = (water.currentReading - water.previousReading) * waterRate;
             if (![totalElectricity, totalWater].every((amount) => Number.isSafeInteger(amount) && amount <= 2_147_483_647)) {
                 skippedMissingReadings += residents.length;
-                continue;
+                return;
             }
 
             for (let index = 0; index < residents.length; index += 1) {
+                if (failure) return;
                 const contract = residents[index];
                 const share = (amount) => Math.floor(amount / residents.length) + (index < amount % residents.length ? 1 : 0);
                 const electricityAmount = share(totalElectricity);
                 const waterAmount = share(totalWater);
-                await prisma.$transaction(async (tx) => {
+                const wasGenerated = await runInvoiceTransaction(db, async (tx) => {
                     const invoice = await tx.monthlyInvoice.upsert({
                         where: { maHopDong_periodStart: { maHopDong: contract.maHopDong, periodStart: period.start } },
                         create: { maSinhVien: contract.maSinhVien, maHopDong: contract.maHopDong, periodStart: period.start, totalAmount: 0 },
@@ -236,7 +251,7 @@ exports.generateMonthlyInvoices = async (req, res) => {
                     });
                     if (invoice.status !== 'UNPAID') {
                         skippedClosedInvoices += 1;
-                        return;
+                        return false;
                     }
                     await tx.monthlyInvoiceItem.deleteMany({ where: { invoiceId: invoice.id, type: { in: ['ELECTRICITY', 'WATER'] } } });
                     const existing = await tx.monthlyInvoiceItem.aggregate({ where: { invoiceId: invoice.id }, _sum: { amount: true } });
@@ -249,10 +264,22 @@ exports.generateMonthlyInvoices = async (req, res) => {
                         where: { id: invoice.id },
                         data: { totalAmount: (existing._sum.amount || 0) + electricityAmount + waterAmount }
                     });
-                    generated += 1;
-                }, { isolationLevel: 'Serializable' });
+                    return true;
+                });
+                if (wasGenerated) generated += 1;
             }
-        }
+        };
+        const rooms = [...residentsByRoom.values()];
+        let nextRoom = 0;
+        const worker = async () => {
+            while (!failure && nextRoom < rooms.length) {
+                const residents = rooms[nextRoom++];
+                try { await processRoom(residents); }
+                catch (error) { failure = error; }
+            }
+        };
+        await Promise.all(Array.from({ length: Math.min(3, rooms.length) }, () => worker()));
+        if (failure) throw failure;
         return res.json({
             success: true,
             message: `Đã lập/cập nhật ${generated} hóa đơn; bỏ qua ${skippedMissingReadings} hóa đơn do thiếu chỉ số và giữ nguyên ${skippedClosedInvoices} hóa đơn đã thu.`,
@@ -262,9 +289,12 @@ exports.generateMonthlyInvoices = async (req, res) => {
         });
     } catch (error) {
         console.error(`[payments.invoice.generate] ${error.code || 'ERROR'}: ${error.message}`);
-        return res.status(500).json({ success: false, message: 'Không thể lập hóa đơn điện nước lúc này.' });
+        return res.status(500).json({ success: false, generated, message: `Không thể hoàn tất lập hóa đơn. Đã lập/cập nhật ${generated} hóa đơn trước khi xảy ra lỗi; hãy kiểm tra danh sách và thử lại.` });
     }
 };
+
+exports.createGenerateMonthlyInvoices = createGenerateMonthlyInvoices;
+exports.generateMonthlyInvoices = createGenerateMonthlyInvoices();
 
 exports.collectMonthlyInvoice = async (req, res) => {
     const invoiceId = String(req.params.invoiceId || '').trim();
@@ -273,9 +303,9 @@ exports.collectMonthlyInvoice = async (req, res) => {
     try {
         const invoice = await prisma.monthlyInvoice.findUnique({
             where: { id: invoiceId },
-            include: { hopDong: { include: { phong: { select: { maToaNha: true } } } } }
+            include: { hopDong: { include: { phong: { select: { maToaNha: true } } } }, militaryUtilityPeriod: { include: { phong: { select: { maToaNha: true } } } } }
         });
-        if (!invoice || !isBuildingAllowed(req, invoice.hopDong.phong.maToaNha)) return res.status(404).json({ success: false, message: 'Không tìm thấy hóa đơn trong phạm vi tòa nhà được phân công.' });
+        if (!invoice || !invoiceRoom(invoice) || !isBuildingAllowed(req, invoiceRoom(invoice).maToaNha)) return res.status(404).json({ success: false, message: 'Không tìm thấy hóa đơn trong phạm vi tòa nhà được phân công.' });
         if (invoice.status !== 'UNPAID') return res.status(409).json({ success: false, message: 'Hóa đơn này không còn ở trạng thái chờ thu.' });
         if (invoice.totalAmount <= 0) return res.status(400).json({ success: false, message: 'Hóa đơn không phát sinh khoản cần thu.' });
         const result = await prisma.$transaction(async (tx) => {
@@ -290,7 +320,7 @@ exports.collectMonthlyInvoice = async (req, res) => {
                 data: {
                     transactionType: 'COLLECTION', amount: invoice.totalAmount, method: input.method, status,
                     invoiceType: 'MONTHLY', invoiceId: invoice.id, maSinhVien: invoice.maSinhVien,
-                    maToaNha: invoice.hopDong.phong.maToaNha, bankReference: input.bankReference,
+                    maToaNha: invoiceRoom(invoice).maToaNha, bankReference: input.bankReference,
                     description: input.description || 'Thu hóa đơn điện nước và phí tháng', createdById: req.user.id
                 }
             });
@@ -316,9 +346,9 @@ exports.refundMonthlyInvoice = async (req, res) => {
         const result = await prisma.$transaction(async (tx) => {
             const invoice = await tx.monthlyInvoice.findUnique({
                 where: { id: invoiceId },
-                include: { hopDong: { include: { phong: { select: { maToaNha: true } } } } }
+                include: { hopDong: { include: { phong: { select: { maToaNha: true } } } }, militaryUtilityPeriod: { include: { phong: { select: { maToaNha: true } } } } }
             });
-            if (!invoice || !isBuildingAllowed(req, invoice.hopDong.phong.maToaNha)) return { error: 404, message: 'Không tìm thấy hóa đơn trong phạm vi tòa nhà được phân công.' };
+            if (!invoice || !invoiceRoom(invoice) || !isBuildingAllowed(req, invoiceRoom(invoice).maToaNha)) return { error: 404, message: 'Không tìm thấy hóa đơn trong phạm vi tòa nhà được phân công.' };
             if (!['PAID', 'REFUNDED'].includes(invoice.status)) return { error: 409, message: 'Chỉ hoàn tiền cho hóa đơn đã thu.' };
             const prior = await tx.financialTransaction.aggregate({
                 where: { invoiceType: 'MONTHLY', invoiceId: invoice.id, transactionType: 'REFUND' },
@@ -331,7 +361,7 @@ exports.refundMonthlyInvoice = async (req, res) => {
                 data: {
                     transactionType: 'REFUND', amount, method: input.method, status,
                     invoiceType: 'MONTHLY', invoiceId: invoice.id, maSinhVien: invoice.maSinhVien,
-                    maToaNha: invoice.hopDong.phong.maToaNha, bankReference: input.bankReference,
+                    maToaNha: invoiceRoom(invoice).maToaNha, bankReference: input.bankReference,
                     description: reason, createdById: req.user.id
                 }
             });
@@ -430,7 +460,7 @@ exports.listFinancialTransactions = async (req, res) => {
         if (req.buildingScope !== null && req.buildingScope !== undefined) {
             const buildingFilter = { phong: { is: { maToaNha: { in: req.buildingScope } } } };
             const [monthly, contracts] = await Promise.all([
-                prisma.monthlyInvoice.findMany({ where: { hopDong: { is: buildingFilter } }, select: { id: true } }),
+                prisma.monthlyInvoice.findMany({ where: { OR: [{ hopDong: { is: buildingFilter } }, { militaryUtilityPeriod: { is: buildingFilter } }] }, select: { id: true } }),
                 prisma.hopDong.findMany({ where: buildingFilter, select: { maHopDong: true } })
             ]);
             allowedMonthlyIds = monthly.map(({ id }) => id);
@@ -695,7 +725,7 @@ exports.handleVnpayIpn = async (req, res) => {
             } else {
                 const invoice = await tx.monthlyInvoice.findFirst({
                     where: { id: payment.invoiceId, maSinhVien: payment.maSinhVien, status: 'UNPAID', totalAmount: payment.amount },
-                    include: { hopDong: { include: { phong: { select: { maToaNha: true } } } } }
+                    include: { hopDong: { include: { phong: { select: { maToaNha: true } } } }, militaryUtilityPeriod: { include: { phong: { select: { maToaNha: true } } } } }
                 });
                 if (!invoice) throw new Error('Monthly invoice no longer matches VNPAY payment');
                 await tx.monthlyInvoice.update({ where: { id: invoice.id }, data: { status: 'PAID' } });
@@ -705,7 +735,7 @@ exports.handleVnpayIpn = async (req, res) => {
                         transactionType: 'COLLECTION', amount: payment.amount, method: 'VNPAY',
                         status: await ledgerStatus(tx, 'VNPAY', bankReference),
                         invoiceType: 'MONTHLY', invoiceId: invoice.id, maSinhVien: invoice.maSinhVien,
-                        maToaNha: invoice.hopDong.phong.maToaNha, bankReference, paymentReference: payment.txnRef,
+                        maToaNha: invoiceRoom(invoice)?.maToaNha, bankReference, paymentReference: payment.txnRef,
                         description: `Thanh toán VNPAY${params.vnp_BankCode ? ` · ${params.vnp_BankCode}` : ''}`
                     }
                 });

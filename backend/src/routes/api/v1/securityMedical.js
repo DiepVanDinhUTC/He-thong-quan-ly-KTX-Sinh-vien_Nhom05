@@ -7,14 +7,14 @@ const ROLES = require('../../../config/roles');
 const router = express.Router();
 router.use(protect);
 
-const allowAllMedicalBuildings = (req, res, next) => {
+const allowAllBuildings = (req, res, next) => {
     req.buildingScope = null;
     return next();
 };
 
 const residentDirectoryScope = (req, res, next) => {
     if ([ROLES.MEDICAL_OFFICER, ROLES.ARCHIVIST, ROLES.ADMIN].includes(req.user.role) || (req.user.role === ROLES.SECURITY && req.query.scope !== 'assigned')) {
-        return allowAllMedicalBuildings(req, res, next);
+        return allowAllBuildings(req, res, next);
     }
     return restrictBuildingAccess(req, res, next);
 };
@@ -31,21 +31,21 @@ router.get(
     '/access-logs',
     restrictTo(ROLES.SECURITY, ROLES.ADMIN),
     requirePermission('security:access-log:read'),
-    restrictBuildingAccess,
+    allowAllBuildings,
     controller.listAccessLogs
 );
 router.post(
     '/access-logs',
     restrictTo(ROLES.SECURITY, ROLES.ADMIN),
     requirePermission('security:access-log:create'),
-    restrictBuildingAccess,
+    allowAllBuildings,
     controller.createAccessLog
 );
 router.patch(
     '/access-logs/:accessLogId/checkout',
     restrictTo(ROLES.SECURITY, ROLES.ADMIN),
     requirePermission('security:access-log:checkout'),
-    restrictBuildingAccess,
+    allowAllBuildings,
     controller.checkoutAccessLog
 );
 
@@ -70,21 +70,21 @@ router.get(
     '/health-records',
     restrictTo(ROLES.MEDICAL_OFFICER, ROLES.ADMIN),
     requirePermission('medical:records:read'),
-    allowAllMedicalBuildings,
+    allowAllBuildings,
     controller.listHealthRecords
 );
 router.get(
     '/health-records/:maSV',
     restrictTo(ROLES.MEDICAL_OFFICER, ROLES.ADMIN),
     requirePermission('medical:records:read'),
-    allowAllMedicalBuildings,
+    allowAllBuildings,
     controller.getHealthRecord
 );
 router.put(
     '/health-records/:maSV',
     restrictTo(ROLES.MEDICAL_OFFICER, ROLES.ADMIN),
     requirePermission('medical:records:write'),
-    allowAllMedicalBuildings,
+    allowAllBuildings,
     controller.saveHealthRecord
 );
 
@@ -92,14 +92,14 @@ router.get(
     '/medical-incidents',
     restrictTo(ROLES.MEDICAL_OFFICER, ROLES.ADMIN),
     requirePermission('medical:incidents:read'),
-    allowAllMedicalBuildings,
+    allowAllBuildings,
     controller.listMedicalIncidents
 );
 router.post(
     '/medical-incidents',
     restrictTo(ROLES.MEDICAL_OFFICER, ROLES.ADMIN),
     requirePermission('medical:incidents:create'),
-    allowAllMedicalBuildings,
+    allowAllBuildings,
     controller.createMedicalIncident
 );
 

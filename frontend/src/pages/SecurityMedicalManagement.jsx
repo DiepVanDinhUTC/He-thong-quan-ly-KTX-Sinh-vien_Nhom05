@@ -78,7 +78,7 @@ const SecurityMedicalManagement = ({ securitySection = null }) => {
     setLoading(true);
     setError('');
     try {
-      const requests = [securityMedicalApi.residents(isSecurityWorkspace && securitySection === 'access' ? 'assigned' : undefined)];
+      const requests = [securityMedicalApi.residents()];
       if (loadAccessLogs) requests.push(securityMedicalApi.accessLogs());
       if (loadViolations) requests.push(securityMedicalApi.violations());
       if (canMedical) requests.push(securityMedicalApi.healthRecords(), securityMedicalApi.medicalIncidents());
@@ -100,7 +100,7 @@ const SecurityMedicalManagement = ({ securitySection = null }) => {
     } finally {
       setLoading(false);
     }
-  }, [canMedical, loadAccessLogs, loadViolations, isSecurityWorkspace, securitySection]);
+  }, [canMedical, loadAccessLogs, loadViolations]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -223,11 +223,11 @@ const SecurityMedicalManagement = ({ securitySection = null }) => {
             <MedicalStat label="Sự cố y tế" value={medicalIncidents.length} Icon={Stethoscope} color="violet" />
           </div> : !isSecurityWorkspace && <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
             <div className="flex flex-wrap items-start justify-between gap-4">
-              <div className="flex items-start gap-3"><span className="rounded-xl bg-indigo-50 p-3 text-indigo-700"><ShieldCheck className="h-6 w-6" /></span><div><h2 className="text-lg font-bold">{canMedical ? 'Cư dân trong toàn KTX' : 'Công việc trong phạm vi được phân công'}</h2><p className="mt-1 max-w-2xl text-sm leading-6 text-slate-600">{canSecurity && canMedical ? 'Ghi nhận lượt khách, vi phạm nội quy, hồ sơ sức khỏe và sự cố trên toàn KTX.' : canMedical ? 'Tra cứu hồ sơ sinh viên đang lưu trú tại tất cả tòa nhà; cập nhật sức khỏe, sơ cứu và cấp thuốc.' : 'Kiểm soát khách ra vào và ghi nhận biên bản vi phạm của cư dân trong tòa nhà được phân công.'}</p></div></div>
+              <div className="flex items-start gap-3"><span className="rounded-xl bg-indigo-50 p-3 text-indigo-700"><ShieldCheck className="h-6 w-6" /></span><div><h2 className="text-lg font-bold">Cư dân trong toàn KTX</h2><p className="mt-1 max-w-2xl text-sm leading-6 text-slate-600">{canSecurity && canMedical ? 'Ghi nhận lượt khách, vi phạm nội quy, hồ sơ sức khỏe và sự cố trên toàn KTX.' : canMedical ? 'Tra cứu hồ sơ sinh viên đang lưu trú tại tất cả tòa nhà; cập nhật sức khỏe, sơ cứu và cấp thuốc.' : 'Kiểm soát khách ra vào và ghi nhận biên bản vi phạm trên toàn KTX.'}</p></div></div>
             </div>
             <div className="mt-5 grid gap-3 sm:grid-cols-2">
               <div className="flex items-center gap-3 rounded-xl bg-slate-50 p-3"><Users className="h-5 w-5 text-blue-700" /><div><p className="text-xs text-slate-500">Cư dân đang lưu trú</p><p className="font-bold">{residents.length}</p></div></div>
-              <div className="flex items-center gap-3 rounded-xl bg-slate-50 p-3"><UserRound className="h-5 w-5 text-indigo-700" /><div><p className="text-xs text-slate-500">{canMedical ? 'Tòa nhà trong KTX' : 'Tòa nhà được phân công'}</p><p className="font-bold">{buildings.length}</p></div></div>
+              <div className="flex items-center gap-3 rounded-xl bg-slate-50 p-3"><UserRound className="h-5 w-5 text-indigo-700" /><div><p className="text-xs text-slate-500">Tòa nhà trong KTX</p><p className="font-bold">{buildings.length}</p></div></div>
             </div>
           </section>}
 
@@ -238,11 +238,11 @@ const SecurityMedicalManagement = ({ securitySection = null }) => {
             {tabs.map(({ key, label, Icon }) => <button key={key} type="button" aria-pressed={activeTab === key} onClick={() => setStaffTab(key)} className={`inline-flex items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-center text-xs font-semibold transition sm:text-sm ${activeTab === key ? 'bg-white text-blue-800 shadow-sm' : 'text-slate-600 hover:bg-white/60'}`}><Icon className="h-4 w-4 shrink-0" />{label}</button>)}
           </div>}
 
-          {loading ? <section className="flex items-center justify-center gap-2 rounded-2xl border bg-white p-10 text-sm text-slate-500"><Loader2 className="h-5 w-5 animate-spin text-blue-700" />{canMedical ? 'Đang tải dữ liệu toàn KTX…' : 'Đang tải dữ liệu trong phạm vi được phân công…'}</section> : <>
+          {loading ? <section className="flex items-center justify-center gap-2 rounded-2xl border bg-white p-10 text-sm text-slate-500"><Loader2 className="h-5 w-5 animate-spin text-blue-700" />Đang tải dữ liệu toàn KTX…</section> : <>
             {activeTab === 'access' && canSecurity && <div className="grid items-start gap-5 xl:grid-cols-[minmax(320px,0.8fr)_minmax(0,1.2fr)]">
               <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
                 {renderHeader('Ghi nhận khách vào', 'Ghi thông tin khách, người được thăm và giờ vào. Không lưu số định danh cá nhân của khách.', ClipboardList)}
-                {!buildings.length && <p className="mb-4 rounded-lg bg-amber-50 p-3 text-sm text-amber-800">Tài khoản chưa được gán tòa nhà. Hãy nhờ quản trị viên phân công tòa nhà trước.</p>}
+                {!buildings.length && <p className="mb-4 rounded-lg bg-amber-50 p-3 text-sm text-amber-800">Chưa có tòa nhà trong KTX.</p>}
                 <form onSubmit={submitAccessLog} className="space-y-4">
                   <label className={labelClass}>Họ tên khách<input required maxLength={120} value={accessForm.visitorName} onChange={(event) => setAccessForm({ ...accessForm, visitorName: event.target.value })} className={controlClass} placeholder="Nhập họ tên khách" /></label>
                   <div className="grid gap-3 sm:grid-cols-2"><label className={labelClass}>Loại khách<select value={accessForm.visitorType} onChange={(event) => setAccessForm({ ...accessForm, visitorType: event.target.value })} className={controlClass}><option value="GUEST">Khách thăm</option><option value="DELIVERY">Giao hàng</option><option value="SERVICE">Nhà cung cấp dịch vụ</option><option value="OTHER">Khác</option></select></label><label className={labelClass}>Tòa nhà<select required value={accessForm.maToaNha} onChange={(event) => setAccessForm({ ...accessForm, maToaNha: event.target.value })} className={controlClass}><option value="">Chọn tòa nhà</option>{buildings.map((building) => <option key={building.maToaNha} value={building.maToaNha}>{building.tenToaNha} · {building.maKhu}</option>)}</select></label></div>

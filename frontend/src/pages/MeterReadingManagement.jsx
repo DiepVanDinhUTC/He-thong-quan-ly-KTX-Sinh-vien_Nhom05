@@ -1,7 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Droplets, Loader2, RefreshCw, Search, Zap } from 'lucide-react';
 import FacilitiesLayout from '../components/FacilitiesLayout';
+import ListPagination, { useListPagination } from '../components/ListPagination';
 import { utilityApi } from '../services/utilityApi';
+import MilitaryMeterReadings from '../components/MilitaryMeterReadings';
 
 const UTILITY_TYPES = [
   { code: 'ELECTRICITY', label: 'Điện', unit: 'kWh', Icon: Zap, color: 'amber' },
@@ -19,6 +21,7 @@ const MeterReadingManagement = () => {
   const [rooms, setRooms] = useState([]);
   const [drafts, setDrafts] = useState({});
   const [search, setSearch] = useState('');
+  const [readingStatus, setReadingStatus] = useState('ALL');
   const [loading, setLoading] = useState(true);
   const [busyKey, setBusyKey] = useState('');
   const [error, setError] = useState('');
@@ -52,12 +55,15 @@ const MeterReadingManagement = () => {
 
   const visibleRooms = useMemo(() => {
     const query = search.trim().toLocaleLowerCase('vi');
-    if (!query) return rooms;
-    return rooms.filter((room) => `${room.soPhong} ${room.maPhong} ${room.tenToaNha} ${room.maToaNha}`.toLocaleLowerCase('vi').includes(query));
-  }, [rooms, search]);
+    return rooms.filter((room) => {
+      const completed = UTILITY_TYPES.every(({ code }) => room.utilities?.[code]?.id);
+      return (readingStatus === 'ALL' || completed === (readingStatus === 'COMPLETE')) && `${room.soPhong} ${room.maPhong} ${room.tenToaNha} ${room.maToaNha}`.toLocaleLowerCase('vi').includes(query);
+    });
+  }, [rooms, search, readingStatus]);
 
   const completedCount = rooms.reduce((total, room) => total + UTILITY_TYPES.filter(({ code }) => room.utilities?.[code]?.id).length, 0);
   const requiredCount = rooms.length * UTILITY_TYPES.length;
+  const pagination = useListPagination(visibleRooms, JSON.stringify([search, period, readingStatus]));
 
   const updateDraft = (key, field, value) => setDrafts((current) => ({
     ...current,
@@ -117,6 +123,8 @@ const MeterReadingManagement = () => {
   >
     <div className="space-y-5">
 
+    <MilitaryMeterReadings period={period} />
+
     <section className="grid gap-4 sm:grid-cols-3">
       <div className="rounded-2xl border bg-white p-5 shadow-sm"><p className="text-sm text-slate-500">Phòng trong phạm vi</p><p className="mt-1 text-2xl font-bold text-slate-900">{rooms.length}</p></div>
       <div className="rounded-2xl border bg-white p-5 shadow-sm"><p className="text-sm text-slate-500">Đã ghi chỉ số</p><p className="mt-1 text-2xl font-bold text-emerald-700">{completedCount} <span className="text-sm font-medium text-slate-400">/ {requiredCount}</span></p></div>
@@ -129,11 +137,11 @@ const MeterReadingManagement = () => {
     <section className="overflow-hidden rounded-2xl border bg-white shadow-sm">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b p-4 sm:p-5">
         <div><h2 className="font-bold text-slate-900">Sổ ghi theo phòng</h2><p className="mt-1 text-xs text-slate-500">Chỉ phòng thuộc tòa nhà được phân công mới hiển thị.</p></div>
-        <label className="relative block w-full sm:w-72"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Tìm phòng hoặc tòa nhà" className="w-full rounded-lg border py-2 pl-9 pr-3 text-sm" /></label>
+        <div className="flex flex-wrap gap-2"><label className="relative block w-full sm:w-72"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /><input aria-label="Tìm phòng hoặc tòa nhà" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Tìm phòng hoặc tòa nhà" className="w-full rounded-lg border py-2 pl-9 pr-3 text-sm" /></label><select aria-label="Lọc tình trạng ghi chỉ số" value={readingStatus} onChange={(event) => setReadingStatus(event.target.value)} className="rounded-lg border bg-white px-3 py-2 text-sm"><option value="ALL">Tất cả phòng</option><option value="COMPLETE">Đã ghi đủ</option><option value="INCOMPLETE">Chưa ghi đủ</option></select></div>
       </div>
       {loading ? <div className="flex items-center justify-center gap-2 p-12 text-sm text-slate-500"><Loader2 className="h-4 w-4 animate-spin" />Đang tải chỉ số...</div>
         : visibleRooms.length === 0 ? <div className="p-12 text-center text-sm text-slate-500">{rooms.length ? 'Không có phòng khớp với nội dung tìm kiếm.' : 'Chưa có phòng trong tòa nhà được phân công.'}</div>
-          : <div className="divide-y">{visibleRooms.map((room) => <article key={room.maPhong} className="p-4 sm:p-5">
+          : <div className="divide-y">{pagination.items.map((room) => <article key={room.maPhong} className="p-4 sm:p-5">
             <div className="mb-4 flex flex-wrap items-center justify-between gap-2"><div><h3 className="font-bold text-slate-900">Phòng {room.soPhong}</h3><p className="text-xs text-slate-500">{room.tenToaNha} · {room.maToaNha}</p></div><span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">{UTILITY_TYPES.filter(({ code }) => room.utilities?.[code]?.id).length}/2 chỉ số đã ghi</span></div>
             <div className="grid gap-3 xl:grid-cols-2">{UTILITY_TYPES.map(({ code, label, unit, Icon, color }) => {
               const reading = room.utilities?.[code] || {};
@@ -151,6 +159,7 @@ const MeterReadingManagement = () => {
               </div>;
             })}</div>
           </article>)}</div>}
+      {!loading && <ListPagination pagination={pagination} label="phòng" />}
     </section>
     </div>
   </FacilitiesLayout>;

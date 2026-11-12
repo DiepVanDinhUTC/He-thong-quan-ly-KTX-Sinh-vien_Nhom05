@@ -11,7 +11,7 @@ const StudentPortal = () => {
   const hasMilitaryStudy = isMilitaryLearner(student);
   const studentName = student?.hoTen || student?.username || 'bạn';
   const features = [
-    ...(hasMilitaryStudy ? [{ path: '/military-stay', title: 'Đợt học GDQP', description: 'Xem phòng 14 ngày, thời gian học, chỗ nội trú gốc và quân tư trang đã nhận.', Icon: Shield, color: 'indigo', action: 'Xem đợt học' }] : []),
+    ...(hasMilitaryStudy ? [{ path: '/military-stay', title: 'Đợt học GDQP', description: 'Xem phòng, thời gian học, chỗ nội trú gốc và quân tư trang đã nhận.', Icon: Shield, color: 'indigo', action: 'Xem đợt học' }] : []),
     ...(!isMilitaryStudent ? [{ path: '/room-registration', title: 'Đăng ký nội trú', description: 'Gửi nguyện vọng phòng và theo dõi kết quả xét duyệt.', Icon: DoorOpen, color: 'blue', action: 'Tạo đăng ký' }] : []),
     { path: '/my-room', title: 'Phòng ở & lưu trú', description: student?.currentContract ? 'Xem phòng hiện tại, hợp đồng nội trú gốc và yêu cầu chuyển hoặc trả phòng.' : 'Xem thông tin phòng và thời gian lưu trú đã được bố trí.', Icon: BedDouble, color: 'indigo', action: 'Xem thông tin' },
     { path: '/service-registration', title: 'Đăng ký dịch vụ', description: hasMilitaryStudy ? 'Dịch vụ Wi-Fi, giặt sấy, gửi xe dành cho hợp đồng nội trú gốc đang hiệu lực.' : 'Đăng ký Wi-Fi, giặt sấy, gửi xe và theo dõi xác nhận.', Icon: PackageCheck, color: 'emerald', action: 'Xem dịch vụ' },
@@ -33,7 +33,7 @@ const StudentPortal = () => {
           <div className="max-w-2xl">
             <p className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1.5 text-xs font-semibold text-blue-100"><Building className="h-4 w-4" />CỔNG TỰ PHỤC VỤ KÝ TÚC XÁ</p>
             <h1 className="mt-4 text-2xl font-bold tracking-tight sm:text-3xl">Xin chào, {studentName}!</h1>
-            <p className="mt-2 max-w-xl text-sm leading-6 text-blue-100 sm:text-base">{hasMilitaryStudy ? 'Dùng chung cổng sinh viên để theo dõi đợt GDQP 2 tuần, phòng được phân, quân tư trang, khoản phí và yêu cầu hỗ trợ. Nếu đang nội trú, hợp đồng và chỗ ở gốc vẫn được giữ theo hiệu lực.' : 'Quản lý cuộc sống nội trú của bạn tại một nơi: đăng ký phòng, sử dụng dịch vụ và theo dõi các yêu cầu.'}</p>
+            <p className="mt-2 max-w-xl text-sm leading-6 text-blue-100 sm:text-base">{hasMilitaryStudy ? 'Dùng chung cổng sinh viên để theo dõi đợt GDQP, phòng được phân, quân tư trang, khoản phí và yêu cầu hỗ trợ. Nếu đang nội trú, hợp đồng và chỗ ở gốc vẫn được giữ theo hiệu lực.' : 'Quản lý cuộc sống nội trú của bạn tại một nơi: đăng ký phòng, sử dụng dịch vụ và theo dõi các yêu cầu.'}</p>
           </div>
           <button type="button" onClick={() => navigate(hasMilitaryStudy ? '/military-stay' : '/room-registration')} className="inline-flex w-full shrink-0 items-center justify-center gap-2 rounded-xl bg-white px-4 py-3 text-sm font-bold text-blue-900 shadow-sm transition hover:bg-blue-50 sm:w-auto">
             {hasMilitaryStudy ? <Shield className="h-4 w-4" /> : <DoorOpen className="h-4 w-4" />}

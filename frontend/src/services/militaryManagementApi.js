@@ -3,7 +3,7 @@ import api from './api';
 export const militaryManagementApi = {
   overview: () => api.get('/military-management/overview'),
   students: () => api.get('/military-management/students'),
-  syncStudents: () => api.post('/military-management/sis-sync'),
+  syncStudents: () => api.post('/military-management/qldt-sync'),
   rooms: () => api.get('/military-management/rooms'),
   autoAssignRooms: (period) => api.post('/military-management/room-assignments/auto', period),
   assignRoom: (payload) => api.post('/military-management/room-assignments', payload),

@@ -1,4 +1,4 @@
-const MILITARY_STAY_MS = 14 * 24 * 60 * 60 * 1000;
+const MILITARY_STAY_MS = 10 * 24 * 60 * 60 * 1000;
 
 const date = (value) => value == null ? null : new Date(value);
 const getMilitaryStayPeriod = (assignment) => {
@@ -26,7 +26,7 @@ const resolveMilitaryStayPeriod = ({ startsAt, batchCode } = {}, now = new Date(
         throw Object.assign(new Error('Ngày bắt đầu đợt học hoặc mã đợt GDQP không hợp lệ.'), { status: 400 });
     }
     const endsAt = new Date(start.getTime() + MILITARY_STAY_MS);
-    if (endsAt <= now) throw Object.assign(new Error('Đợt GDQP 14 ngày này đã kết thúc. Hãy chọn ngày bắt đầu phù hợp.'), { status: 400 });
+    if (endsAt <= now) throw Object.assign(new Error('Đợt GDQP 10 ngày này đã kết thúc. Hãy chọn ngày bắt đầu phù hợp.'), { status: 400 });
     return { startsAt: start, endsAt, batchCode: code || null };
 };
 
