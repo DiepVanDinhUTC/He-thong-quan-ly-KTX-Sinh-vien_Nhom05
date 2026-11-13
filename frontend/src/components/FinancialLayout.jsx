@@ -3,7 +3,6 @@ import React, { useEffect, useRef } from 'react';
 import { NavLink } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { Home, WalletCards } from 'lucide-react';
-import AdminLogoutButton from './AdminLogoutButton';
 import AdminUserProfile from './AdminUserProfile';
 import Sidebar from './Sidebar';
 import { roleCanAccess } from '../utils/accessControl';
@@ -14,8 +13,8 @@ import DashboardNavLink from './DashboardNavLink';
 const roleHeadings = {
   ACCOUNTANT: 'Nhân viên kế toán',
   TREASURER: 'Nhân viên thủ quỹ',
-  BOARD_CHAIR: 'Trưởng ban quản lý KTX',
-  BOARD_DEPUTY: 'Phó trưởng ban quản lý KTX',
+  BOARD_CHAIR: 'Trưởng Phòng Chăm sóc người học',
+  BOARD_DEPUTY: 'Phó Phòng Chăm sóc người học',
   ADMIN: 'Quản trị viên',
 };
 
@@ -45,7 +44,7 @@ const FinancialLayout = ({ section, reviewCount, actions, children }) => {
         </NavLink>)}
       </nav>
       <div className="shrink-0 border-t border-blue-900 p-4"><AdminUserProfile /></div>
-      <AdminLogoutButton />
+      
     </aside> : <Sidebar />}
 
     <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">

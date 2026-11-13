@@ -6,6 +6,7 @@ import { authApi } from '../services/authApi';
 import { housingApi } from '../services/housingApi';
 import { roomTypes, roomTypeLabel } from '../utils/roomTypes';
 import { userUpdated } from '../store/authSlice';
+import DormitoryRules from '../components/DormitoryRules';
 
 const formatDate = (value) => {
   if (!value) return 'Chưa cập nhật';
@@ -109,7 +110,7 @@ const RoomRegistration = () => {
       <main className="mx-auto max-w-4xl space-y-6 px-4 py-8 sm:px-6">
         <section className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
           <h2 className="text-xl font-bold">Gửi nguyện vọng loại phòng</h2>
-          <p className="mt-1 text-sm text-gray-500">Thông tin sinh viên được lấy từ hồ sơ đã đăng nhập. Sinh viên diện ưu tiên được tự động duyệt và tạo hợp đồng nháp khi phòng đã chọn còn chỗ; các đơn khác chờ Ban quản lý xác nhận.</p>
+          <p className="mt-1 text-sm text-gray-500">Thông tin sinh viên được lấy từ hồ sơ đã đăng nhập. Sinh viên diện ưu tiên được tự động duyệt và tạo hợp đồng nháp khi phòng đã chọn còn chỗ; các đơn khác chờ Phòng Chăm sóc người học xác nhận.</p>
           <div className="mt-5 grid grid-cols-1 gap-3 rounded-xl bg-blue-50 p-4 text-sm sm:grid-cols-2">
             <p><span className="text-gray-500">Sinh viên:</span> <strong>{student?.hoTen || student?.username || 'Đang tải...'}</strong></p>
             <p><span className="text-gray-500">Mã sinh viên:</span> <strong>{student?.maSV || '—'}</strong></p>
@@ -170,21 +171,22 @@ const RoomRegistration = () => {
         <section role="dialog" aria-modal="true" aria-labelledby="registration-terms-title" className="w-full max-w-2xl overflow-hidden rounded-2xl bg-white shadow-2xl">
           <div className="border-b px-6 py-5">
             <h2 id="registration-terms-title" className="text-xl font-bold text-slate-900">Điều khoản và quy định nội trú</h2>
-            <p className="mt-1 text-sm text-slate-500">Vui lòng đọc kỹ trước khi xác nhận gửi đơn đăng ký.</p>
+            <p className="mt-1 text-sm text-slate-500">Vui lòng đọc điều khoản và nội quy ký túc xá, sau đó xác nhận trước khi gửi đơn đăng ký.</p>
           </div>
           <div className="max-h-[55vh] space-y-4 overflow-y-auto px-6 py-5 text-sm leading-6 text-slate-700">
-            <p><strong>1. Thông tin đăng ký:</strong> Sinh viên cam kết thông tin hồ sơ và nguyện vọng phòng cung cấp là chính xác. Đơn của sinh viên diện ưu tiên được hệ thống tự động duyệt và tạo hợp đồng nháp khi phòng còn chỗ; các đơn khác được Ban quản lý kiểm tra và xác nhận.</p>
+            <p><strong>1. Thông tin đăng ký:</strong> Sinh viên cam kết thông tin hồ sơ và nguyện vọng phòng cung cấp là chính xác. Đơn của sinh viên diện ưu tiên được hệ thống tự động duyệt và tạo hợp đồng nháp khi phòng còn chỗ; các đơn khác được Phòng Chăm sóc người học kiểm tra và xác nhận.</p>
             <p><strong>2. Sử dụng phòng:</strong> Sinh viên ở đúng phòng được bố trí, không tự ý chuyển nhượng, cho thuê, cho mượn chỗ ở hoặc đưa người khác vào ở dài ngày khi chưa được phép.</p>
-            <p><strong>3. An ninh và trật tự:</strong> Chấp hành giờ giấc, nội quy sinh hoạt, hướng dẫn của Ban quản lý; không gây mất trật tự, sử dụng chất cấm, tàng trữ vật nguy hiểm hoặc thực hiện hành vi vi phạm pháp luật.</p>
+            <p><strong>3. An ninh và trật tự:</strong> Chấp hành giờ giấc, nội quy sinh hoạt, hướng dẫn của Phòng Chăm sóc người học; không gây mất trật tự, sử dụng chất cấm, tàng trữ vật nguy hiểm hoặc thực hiện hành vi vi phạm pháp luật.</p>
             <p><strong>4. Phòng cháy và an toàn:</strong> Không tự ý câu mắc điện, đun nấu hoặc sử dụng thiết bị có nguy cơ cháy nổ trái quy định. Giữ thông thoáng lối thoát hiểm và báo ngay sự cố cho cán bộ quản lý.</p>
             <p><strong>5. Bảo quản tài sản:</strong> Giữ gìn phòng ở, trang thiết bị và cơ sở vật chất chung; thông báo hư hỏng kịp thời. Sinh viên có trách nhiệm bồi thường thiệt hại do mình gây ra theo quy định của KTX.</p>
             <p><strong>6. Phí và thời hạn lưu trú:</strong> Thực hiện các khoản phí đúng thông báo, hoàn tất thủ tục hợp đồng và tuân thủ thời hạn lưu trú được xác nhận.</p>
             <p><strong>7. Xử lý vi phạm:</strong> Vi phạm nội quy có thể bị nhắc nhở, xử lý kỷ luật hoặc chấm dứt lưu trú theo mức độ và quy định hiện hành của nhà trường, KTX.</p>
+            <div className="border-t border-slate-200 pt-5"><h3 className="mb-4 text-lg font-bold text-slate-900">Nội quy ký túc xá</h3><DormitoryRules /></div>
           </div>
           <div className="border-t bg-slate-50 px-6 py-4">
             <label className="flex cursor-pointer items-start gap-3 text-sm text-slate-800">
               <input type="checkbox" checked={termsAccepted} onChange={(event) => setTermsAccepted(event.target.checked)} disabled={submitting} className="mt-1 h-4 w-4 rounded border-slate-300 text-blue-700 focus:ring-blue-600" />
-              <span>Tôi xác nhận đã đọc, hiểu và đồng ý thực hiện các điều khoản, quy định nội trú của Ban quản lý KTX.</span>
+              <span>Tôi xác nhận đã đọc, hiểu và đồng ý thực hiện nội quy ký túc xá và các điều khoản đăng ký nội trú.</span>
             </label>
             <div className="mt-4 flex justify-end gap-3">
               <button type="button" disabled={submitting} onClick={() => setShowTerms(false)} className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-white disabled:opacity-50">Quay lại</button>

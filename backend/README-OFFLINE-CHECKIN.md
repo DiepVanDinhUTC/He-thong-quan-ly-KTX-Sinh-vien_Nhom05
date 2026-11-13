@@ -1,4 +1,4 @@
-# Check-in và hủy hợp đồng trong 7 ngày
+﻿# Check-in và hủy hợp đồng trong 7 ngày
 
 Sau khi hợp đồng được thanh toán và có hiệu lực, nhân viên quản lý tòa mở danh sách hợp đồng, xác nhận sinh viên đã trực tiếp nhận chìa khóa. Hệ thống lưu thời điểm máy chủ và tài khoản xác nhận; nhân viên chỉ thao tác trong tòa được phân công.
 

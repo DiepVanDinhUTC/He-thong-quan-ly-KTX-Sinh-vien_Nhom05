@@ -30,6 +30,7 @@ export const rolePermissions = {
   '/bill-payment': ['STUDENT', 'MILITARY_STUDENT'],
   '/self-service': ['BOARD_CHAIR', 'BOARD_DEPUTY', 'BUILDING_MANAGER', 'SERVICE_PROVIDER', 'ADMIN'],
   '/security-medical': ['SECURITY', 'MEDICAL_OFFICER', 'ADMIN'],
+  '/medical': ['MEDICAL_OFFICER', 'ADMIN'],
   '/security': ['SECURITY', 'ADMIN'],
   '/security/visitors': ['SECURITY', 'ADMIN'],
   '/security/violations': ['SECURITY', 'ADMIN'],
@@ -48,7 +49,7 @@ export const studentRecordPermissions = {
 export const housingRequestReadRoles = ['BOARD_CHAIR', 'BOARD_DEPUTY', 'ARCHIVIST', 'BUILDING_MANAGER', 'ADMIN'];
 export const housingRequestDecisionRoles = {
   TRANSFER: ['ARCHIVIST', 'ADMIN'],
-  RETURN: ['BUILDING_MANAGER', 'ADMIN'],
+  RETURN: ['ARCHIVIST', 'BUILDING_MANAGER', 'ADMIN'],
 };
 
 export const canDecideHousingRequest = (role, requestType) => housingRequestDecisionRoles[requestType]?.includes(role) || false;
@@ -65,7 +66,7 @@ export const homeForRole = (role) => ({
   BUILDING_MANAGER: '/facilities',
   SECURITY: '/security',
   MILITARY_OFFICER: '/military-management',
-  MEDICAL_OFFICER: '/security-medical',
+  MEDICAL_OFFICER: '/medical',
   SERVICE_PROVIDER: '/self-service',
   ADMIN: '/',
 }[role] || '/login');

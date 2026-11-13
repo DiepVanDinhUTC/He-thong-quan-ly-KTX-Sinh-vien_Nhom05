@@ -7,6 +7,8 @@ import Sidebar from '../components/Sidebar';
 import { staffAccountApi } from '../services/staffAccountApi';
 
 const ROLE_LABELS = {
+  BOARD_CHAIR: 'Trưởng phòng',
+  BOARD_DEPUTY: 'Phó phòng',
   ARCHIVIST: 'Hồ sơ lưu trữ',
   ACCOUNTANT: 'Kế toán',
   TREASURER: 'Thủ quỹ',
@@ -17,6 +19,8 @@ const ROLE_LABELS = {
   MEDICAL_OFFICER: 'Cán bộ y tế',
   SERVICE_PROVIDER: 'Nhà cung cấp dịch vụ',
 };
+
+const SCOPED_ROLES = ['FACILITIES_MANAGER', 'BUILDING_MANAGER', 'SECURITY'];
 
 const inputClass = 'mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:bg-slate-100';
 
@@ -37,6 +41,8 @@ const StaffAccountManagement = () => {
   const isBoardWorkspace = useBoardWorkspace();
   const ContentTag = isBoardWorkspace ? 'div' : 'main';
   const [accounts, setAccounts] = useState([]);
+  const [buildings, setBuildings] = useState([]);
+  const [selectedBuildings, setSelectedBuildings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -53,8 +59,9 @@ const StaffAccountManagement = () => {
     setLoading(true);
     setError('');
     try {
-      const response = await staffAccountApi.list();
+      const [response, buildingResponse] = await Promise.all([staffAccountApi.list(), staffAccountApi.listBuildings()]);
       setAccounts(response.data || []);
+      setBuildings(buildingResponse.data || []);
     } catch (requestError) {
       setError(requestError.response?.data?.message || 'Không thể tải danh sách tài khoản nhân viên.');
     } finally {
@@ -85,6 +92,13 @@ const StaffAccountManagement = () => {
   const openProfile = (account) => {
     setDialog({ type: 'profile', account });
     setProfile(profileFromAccount(account));
+    setDialogError('');
+    setNotice('');
+  };
+
+  const openAccess = (account) => {
+    setDialog({ type: 'access', account });
+    setSelectedBuildings(account.buildingIds || []);
     setDialogError('');
     setNotice('');
   };
@@ -129,6 +143,23 @@ const StaffAccountManagement = () => {
     }
   };
 
+  const saveAccess = async (event) => {
+    event.preventDefault();
+    setSaving(true);
+    setDialogError('');
+    try {
+      const response = await staffAccountApi.updateBuildingAccess(dialog.account.employee.maNhanVien, selectedBuildings);
+      setAccounts((current) => current.map((account) => account.employee.maNhanVien === dialog.account.employee.maNhanVien
+        ? { ...account, buildingIds: response.data.buildingIds } : account));
+      setDialog(null);
+      setNotice(response.message);
+    } catch (requestError) {
+      setDialogError(requestError.response?.data?.message || 'Không thể cập nhật phạm vi tòa nhà.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const savePassword = async (event) => {
     event.preventDefault();
     if (!dialog) return;
@@ -162,7 +193,7 @@ const StaffAccountManagement = () => {
       <ContentTag className={isBoardWorkspace ? '' : 'min-h-0 min-w-0 flex-1 overflow-y-auto'}>
         {!isBoardWorkspace && <header className="sticky top-0 z-10 flex min-h-16 items-center justify-between gap-4 border-b border-slate-200 bg-white px-5 py-3 sm:px-8">
           <div>
-            <p className="text-xs font-bold uppercase tracking-wider text-blue-700">Ban quản lý KTX</p>
+            <p className="text-xs font-bold uppercase tracking-wider text-blue-700">Phòng Chăm sóc người học</p>
             <h1 className="mt-0.5 text-lg font-bold sm:text-xl">Quản lý tài khoản nhân viên</h1>
           </div>
           <AdminUserProfile variant="header" />
@@ -223,7 +254,8 @@ const StaffAccountManagement = () => {
                           <p className="mt-1 truncate text-xs text-slate-500">{employee.chucVu} · {employee.email} · {employee.phone}</p>
                         </div>
                       </div>
-                      <div className="flex shrink-0 gap-2 pl-14 sm:pl-0">
+                      <div className="flex shrink-0 flex-wrap gap-2 pl-14 sm:pl-0">
+                        {SCOPED_ROLES.includes(account.role) && <button type="button" onClick={() => openAccess(account)} className="inline-flex items-center gap-2 rounded-xl border border-blue-300 px-3 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-50"><ShieldCheck className="h-4 w-4" />Phân quyền tòa ({account.buildingIds?.length || 0})</button>}
                         <button type="button" onClick={() => openProfile(account)} className="inline-flex items-center gap-2 rounded-xl border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 hover:border-blue-300 hover:bg-blue-50 hover:text-blue-800"><Pencil className="h-4 w-4" /><span>Sửa thông tin</span></button>
                         <button type="button" onClick={() => openPassword(account)} className="inline-flex items-center gap-2 rounded-xl bg-blue-700 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-800"><KeyRound className="h-4 w-4" /><span>Đổi mật khẩu</span></button>
                       </div>
@@ -235,7 +267,7 @@ const StaffAccountManagement = () => {
             {!loading && <ListPagination pagination={pagination} label="tài khoản" />}
           </section>
 
-          <p className="flex items-start gap-2 px-1 text-xs leading-5 text-slate-500"><ShieldCheck className="mt-0.5 h-4 w-4 shrink-0" />Chỉ trưởng ban và phó trưởng ban có thể mở chức năng này. Mật khẩu mới không được lưu dưới dạng văn bản thường.</p>
+          <p className="flex items-start gap-2 px-1 text-xs leading-5 text-slate-500"><ShieldCheck className="mt-0.5 h-4 w-4 shrink-0" />Chỉ trưởng phòng và phó phòng có thể mở chức năng này. Mật khẩu mới không được lưu dưới dạng văn bản thường.</p>
         </div>
       </ContentTag>
 
@@ -270,6 +302,16 @@ const StaffAccountManagement = () => {
                   <button type="button" disabled={saving} onClick={closeDialog} className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-white">Hủy</button>
                   <button type="submit" disabled={saving} className="inline-flex items-center gap-2 rounded-xl bg-blue-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-800 disabled:opacity-60">{saving && <Loader2 className="h-4 w-4 animate-spin" />}Lưu thông tin</button>
                 </div>
+              </form>
+            ) : dialog.type === 'access' ? (
+              <form onSubmit={saveAccess}>
+                <div className="max-h-[65vh] space-y-3 overflow-y-auto p-5 sm:p-6">
+                  <p className="text-sm text-slate-600">Chọn các tòa được phân công. Để trống để thu hồi toàn bộ phân công. {dialog.account.role === 'SECURITY' && 'Với nhân viên an ninh, phạm vi này áp dụng cho sổ khách; nghiệp vụ vi phạm vẫn theo quyền hiện hành.'}</p>
+                  {buildings.length === 0 && <p className="text-sm text-slate-500">Chưa có tòa nhà nào.</p>}
+                  {buildings.map((building) => <label key={building.maToaNha} className="flex items-center gap-3 rounded-xl border border-slate-200 p-3 text-sm"><input type="checkbox" checked={selectedBuildings.includes(building.maToaNha)} onChange={(event) => setSelectedBuildings((current) => event.target.checked ? [...current, building.maToaNha] : current.filter((id) => id !== building.maToaNha))} /><span>{building.tenToaNha} ({building.maToaNha} · {building.maKhu})</span></label>)}
+                  {dialogError && <p role="alert" className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">{dialogError}</p>}
+                </div>
+                <div className="flex justify-end gap-2 border-t border-slate-100 bg-slate-50 px-5 py-4 sm:px-6"><button type="button" disabled={saving} onClick={closeDialog} className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-semibold">Hủy</button><button type="submit" disabled={saving} className="rounded-xl bg-blue-700 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-60">{saving ? 'Đang lưu...' : 'Lưu phân quyền'}</button></div>
               </form>
             ) : (
               <form onSubmit={savePassword}>

@@ -7,7 +7,7 @@ const ASSIGNED_DASHBOARD_ROLES = new Set([ROLES.FACILITIES_MANAGER, ROLES.BUILDI
 const fail = (status, message) => Object.assign(new Error(message), { status });
 
 const createDashboardController = ({ db = prisma, now = () => new Date() } = {}) => async (req, res) => {
-    if (!ROLES.hasPermission(req.user?.role, 'dashboard:read')) return res.status(403).json({ success: false, message: 'Tài khoản không có quyền xem thống kê BQL.' });
+    if (!ROLES.hasPermission(req.user?.role, 'dashboard:read')) return res.status(403).json({ success: false, message: 'Tài khoản không có quyền xem thống kê Phòng Chăm sóc người học.' });
     const months = req.query.months ?? '6';
     const selectedBuilding = req.query.maToaNha;
     if (!['3', '6', '12'].includes(months) || (selectedBuilding !== undefined && (typeof selectedBuilding !== 'string' || !selectedBuilding.trim() || selectedBuilding.length > 20))) {

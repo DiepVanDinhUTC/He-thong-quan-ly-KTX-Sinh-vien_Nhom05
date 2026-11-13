@@ -7,8 +7,8 @@ const prisma = new PrismaClient();
 const password = process.env.DEMO_ACCOUNTS_PASSWORD || 'Test@123456';
 
 const employeeActors = [
-    { username: 'actor.board_chair', role: 'BOARD_CHAIR', maNhanVien: 'NVTEST001', hoTen: 'Nguyễn Minh An', chucVu: 'Trưởng ban' },
-    { username: 'actor.board_deputy', role: 'BOARD_DEPUTY', maNhanVien: 'NVTEST002', hoTen: 'Trần Thu Hà', chucVu: 'Phó trưởng ban' },
+    { username: 'actor.board_chair', role: 'BOARD_CHAIR', maNhanVien: 'NVTEST001', hoTen: 'Nguyễn Minh An', chucVu: 'Trưởng phòng' },
+    { username: 'actor.board_deputy', role: 'BOARD_DEPUTY', maNhanVien: 'NVTEST002', hoTen: 'Trần Thu Hà', chucVu: 'Phó phòng' },
     { username: 'actor.archivist', role: 'ARCHIVIST', maNhanVien: 'NVTEST003', hoTen: 'Lê Quốc Bảo', chucVu: 'Hồ sơ lưu trữ' },
     { username: 'actor.accountant', role: 'ACCOUNTANT', maNhanVien: 'NVTEST004', hoTen: 'Phạm Ngọc Lan', chucVu: 'Kế toán' },
     { username: 'actor.treasurer', role: 'TREASURER', maNhanVien: 'NVTEST005', hoTen: 'Hoàng Đức Long', chucVu: 'Thủ quỹ' },

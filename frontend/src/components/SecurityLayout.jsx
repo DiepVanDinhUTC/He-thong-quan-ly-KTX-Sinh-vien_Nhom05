@@ -2,7 +2,6 @@
 import React, { useEffect, useRef } from 'react';
 import { Link, NavLink, useLocation } from 'react-router-dom';
 import { ShieldCheck } from 'lucide-react';
-import AdminLogoutButton from './AdminLogoutButton';
 import AdminUserProfile from './AdminUserProfile';
 import { securitySections } from '../utils/securityNavigation';
 import DashboardNavLink from './DashboardNavLink';
@@ -27,8 +26,8 @@ const SecurityLayout = ({ title, description, actions, children }) => {
           <Icon className="h-5 w-5 shrink-0" /><span className="hidden md:block">{label}</span>
         </NavLink>)}
       </nav>
-      <div className="hidden shrink-0 border-t border-blue-900 p-4 md:block"><AdminUserProfile /></div>
-      <AdminLogoutButton compactOnMobile />
+      <div className="shrink-0 border-t border-blue-900 p-4"><div className="md:hidden"><AdminUserProfile compact /></div><div className="hidden md:block"><AdminUserProfile /></div></div>
+      
     </aside>
     <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
       <header className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-white px-5 py-4 shadow-sm sm:px-8">

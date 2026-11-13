@@ -162,9 +162,9 @@ exports.checkIn = async (req, res) => {
                 ...(req.buildingScope === null ? {} : { phong: { is: { maToaNha: { in: req.buildingScope } } } }) },
             data: { checkedInAt: new Date(), checkedInById: req.user.id }
         });
-        if (result.count !== 1) return res.status(409).json({ success: false, message: 'H?p ??ng kh?ng h?p l?, ?? check-in ho?c kh?ng thu?c t?a ???c ph?n c?ng.' });
-        return res.json({ success: true, message: '?? x?c nh?n sinh vi?n nh?n ch?a kh?a v? check-in.' });
+        if (result.count !== 1) return res.status(409).json({ success: false, message: 'Hợp đồng không hợp lệ, đã check-in hoặc không thuộc tòa được phân công.' });
+        return res.json({ success: true, message: 'Đã xác nhận sinh viên nhận chìa khóa và check-in.' });
     } catch (error) {
-        return res.status(500).json({ success: false, message: 'Kh?ng th? ghi nh?n check-in.' });
+        return res.status(500).json({ success: false, message: 'Không thể ghi nhận check-in.' });
     }
 };

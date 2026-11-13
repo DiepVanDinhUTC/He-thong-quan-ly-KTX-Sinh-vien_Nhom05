@@ -1,12 +1,12 @@
 # Thống kê hoạt động KTX
 
-Trang `/` dùng Recharts và dữ liệu tổng hợp từ `GET /api/v1/dashboard`. Các sidebar của nhân viên nội bộ đều có mục **Thống kê BQL**. Trang chủ nghiệp vụ của từng vai trò vẫn là điểm đến sau đăng nhập.
+Trang `/` dùng Recharts và dữ liệu tổng hợp từ `GET /api/v1/dashboard`. Các sidebar của nhân viên nội bộ đều có mục **Thống kê Phòng Chăm sóc người học**. Trang chủ nghiệp vụ của từng vai trò vẫn là điểm đến sau đăng nhập.
 
 ## Quyền và phạm vi
 
 - Trưởng/phó ban, hồ sơ, kế toán, thủ quỹ, quân sự, y tế và ADMIN xem thống kê toàn KTX hoặc lọc một tòa.
 - Nhân viên CSVC, quản lý tòa và trật tự trị an chỉ xem các tòa được phân công trong `UserBuildingAccess`. Chưa phân công thì nhận thống kê rỗng, không tự mở phạm vi toàn KTX.
-- Sinh viên, học viên quân sự và nhà cung cấp dịch vụ không có quyền xem dashboard BQL.
+- Sinh viên, học viên quân sự và nhà cung cấp dịch vụ không có quyền xem dashboard Phòng Chăm sóc người học.
 - Quyền mới `dashboard:read` chỉ cấp số liệu tổng hợp. Các quyền xem/sửa chi tiết phòng, hóa đơn, sửa chữa và hồ sơ y tế tiếp tục được kiểm tra riêng.
 - Đổi tài khoản kiểm thử sẽ tạo lại trang thống kê, xóa bộ lọc và dữ liệu của tài khoản trước.
 

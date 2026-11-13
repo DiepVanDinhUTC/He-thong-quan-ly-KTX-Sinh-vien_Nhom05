@@ -16,8 +16,8 @@ const ROLES = Object.freeze({
 });
 
 const ROLE_LABELS = Object.freeze({
-    [ROLES.BOARD_CHAIR]: 'Trưởng ban',
-    [ROLES.BOARD_DEPUTY]: 'Phó trưởng ban',
+    [ROLES.BOARD_CHAIR]: 'Trưởng phòng',
+    [ROLES.BOARD_DEPUTY]: 'Phó phòng',
     [ROLES.ARCHIVIST]: 'Hồ sơ lưu trữ',
     [ROLES.ACCOUNTANT]: 'Kế toán',
     [ROLES.TREASURER]: 'Thủ quỹ',
@@ -69,7 +69,7 @@ const HOUSING_REQUEST_READ_ROLES = Object.freeze([
 ]);
 const HOUSING_REQUEST_DECISION_ROLES = Object.freeze({
     TRANSFER: Object.freeze([ROLES.ARCHIVIST, ROLES.ADMIN]),
-    RETURN: Object.freeze([ROLES.BUILDING_MANAGER, ROLES.ADMIN])
+    RETURN: Object.freeze([ROLES.ARCHIVIST, ROLES.BUILDING_MANAGER, ROLES.ADMIN])
 });
 
 // Named permissions checked by JWT-authenticated API middleware.

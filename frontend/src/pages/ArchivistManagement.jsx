@@ -5,9 +5,9 @@ import {
   ArrowLeftRight, CheckCircle2, DoorOpen, RefreshCw,
   Home, Shield, XCircle
 } from 'lucide-react';
-import AdminLogoutButton from '../components/AdminLogoutButton';
 import AdminUserProfile from '../components/AdminUserProfile';
 import DashboardNavLink from '../components/DashboardNavLink';
+import ListPagination, { useListPagination } from '../components/ListPagination';
 import StaffHomeContent from '../components/StaffHomeContent';
 import { archivistSections } from '../utils/staffNavigation';
 import StudentManagement from './StudentManagement';
@@ -39,6 +39,8 @@ const RoomAssignments = () => {
   const [rooms, setRooms] = useState([]);
   const [candidates, setCandidates] = useState([]);
   const [search, setSearch] = useState('');
+  const [building, setBuilding] = useState('ALL');
+  const [contractStatus, setContractStatus] = useState('ALL');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -68,9 +70,10 @@ const RoomAssignments = () => {
   const allMembers = useMemo(() => rooms.flatMap((room) => (room.thanhVien || []).filter((member) => member.source !== 'MILITARY' && member.maHopDong).map((member) => ({ member, room }))), [rooms]);
   const filteredMembers = useMemo(() => {
     const query = search.trim().toLowerCase();
-    if (!query) return allMembers;
-    return allMembers.filter(({ member, room }) => `${member.maSinhVien} ${member.hoTen} ${member.lop || ''} ${room.soPhong} ${room.tenToaNha || ''}`.toLowerCase().includes(query));
-  }, [allMembers, search]);
+    return allMembers.filter(({ member, room }) => (building === 'ALL' || room.maToaNha === building) && (contractStatus === 'ALL' || member.trangThaiHopDong === contractStatus) && `${member.maSinhVien} ${member.hoTen} ${member.lop || ''} ${room.soPhong} ${room.tenToaNha || ''}`.toLocaleLowerCase('vi').includes(query));
+  }, [allMembers, search, building, contractStatus]);
+  const buildings = useMemo(() => [...new Map(rooms.filter((room) => room.maToaNha).map((room) => [room.maToaNha, room.tenToaNha || room.maToaNha])).entries()].sort((a, b) => a[1].localeCompare(b[1], 'vi')), [rooms]);
+  const pagination = useListPagination(filteredMembers, JSON.stringify([search, building, contractStatus]));
   const availableRooms = useMemo(() => rooms.filter((room) => Number(room.soSinhVienHienTai) < Number(room.soSinhVienToiDa)), [rooms]);
 
   const openAssign = () => {
@@ -153,11 +156,12 @@ const RoomAssignments = () => {
       <div className="rounded-xl border bg-white p-4"><p className="text-sm text-slate-500">Chưa có hợp đồng lưu trú</p><p className="mt-1 text-2xl font-bold">{candidates.length}</p></div>
     </div>
     <section className="overflow-hidden rounded-xl border bg-white shadow-sm">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b p-4"><div><h3 className="font-semibold text-slate-900">Danh sách sinh viên đang ở</h3><p className="mt-1 text-xs text-slate-500">Chuyển phòng sẽ giữ nguyên hợp đồng và lịch sử lưu trú.</p></div><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Tìm sinh viên, mã SV, phòng..." className="w-full rounded-lg border px-3 py-2 text-sm sm:w-72" /></div>
+      <div className="space-y-3 border-b p-4"><div><h3 className="font-semibold text-slate-900">Danh sách sinh viên đang ở</h3><p className="mt-1 text-xs text-slate-500">Chuyển phòng sẽ giữ nguyên hợp đồng và lịch sử lưu trú.</p></div><div className="flex flex-wrap gap-2"><input aria-label="Tìm sinh viên đang ở" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Tìm sinh viên, mã SV, phòng..." className="w-full rounded-lg border px-3 py-2 text-sm sm:w-72" /><select aria-label="Lọc theo tòa nhà" value={building} onChange={(event) => setBuilding(event.target.value)} className="rounded-lg border bg-white px-3 py-2 text-sm"><option value="ALL">Tất cả tòa nhà</option>{buildings.map(([id, name]) => <option key={id} value={id}>{name}</option>)}</select><select aria-label="Lọc theo trạng thái hợp đồng" value={contractStatus} onChange={(event) => setContractStatus(event.target.value)} className="rounded-lg border bg-white px-3 py-2 text-sm"><option value="ALL">Tất cả hợp đồng</option><option value="ACTIVE">Đang hiệu lực</option><option value="PENDING_PAYMENT">Chờ thanh toán</option></select></div></div>
       {loading ? <p className="p-8 text-center text-sm text-slate-500">Đang tải danh sách phòng…</p> : <div className="overflow-x-auto"><table className="w-full min-w-[760px] text-left text-sm"><thead className="bg-slate-50 text-xs uppercase text-slate-500"><tr><th className="px-4 py-3">Sinh viên</th><th className="px-4 py-3">Phòng hiện tại</th><th className="px-4 py-3">Hợp đồng</th><th className="px-4 py-3 text-right">Thao tác</th></tr></thead><tbody className="divide-y">
-        {filteredMembers.map(({ member, room }) => <tr key={member.maHopDong}><td className="px-4 py-3"><p className="font-semibold">{member.hoTen}</p><p className="text-xs text-slate-500">{member.maSinhVien}{member.lop ? ` · ${member.lop}` : ''}</p></td><td className="px-4 py-3">{room.soPhong} · {room.tenToaNha || room.maToaNha}</td><td className="px-4 py-3"><span className={`rounded-full px-2.5 py-1 text-xs font-medium ${member.trangThaiHopDong === 'ACTIVE' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>{member.trangThaiHopDong === 'ACTIVE' ? 'Đang hiệu lực' : 'Chờ thanh toán'}</span></td><td className="px-4 py-3 text-right"><button type="button" disabled={saving} onClick={() => openMove(room, member)} className="inline-flex items-center gap-1 rounded-lg border border-blue-200 px-3 py-2 text-xs font-semibold text-blue-700 hover:bg-blue-50 disabled:opacity-50"><ArrowLeftRight className="h-3.5 w-3.5" />Chuyển phòng</button></td></tr>)}
+        {pagination.items.map(({ member, room }) => <tr key={member.maHopDong}><td className="px-4 py-3"><p className="font-semibold">{member.hoTen}</p><p className="text-xs text-slate-500">{member.maSinhVien}{member.lop ? ` · ${member.lop}` : ''}</p></td><td className="px-4 py-3">{room.soPhong} · {room.tenToaNha || room.maToaNha}</td><td className="px-4 py-3"><span className={`rounded-full px-2.5 py-1 text-xs font-medium ${member.trangThaiHopDong === 'ACTIVE' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>{member.trangThaiHopDong === 'ACTIVE' ? 'Đang hiệu lực' : 'Chờ thanh toán'}</span></td><td className="px-4 py-3 text-right"><button type="button" disabled={saving} onClick={() => openMove(room, member)} className="inline-flex items-center gap-1 rounded-lg border border-blue-200 px-3 py-2 text-xs font-semibold text-blue-700 hover:bg-blue-50 disabled:opacity-50"><ArrowLeftRight className="h-3.5 w-3.5" />Chuyển phòng</button></td></tr>)}
         {!filteredMembers.length && <tr><td colSpan="4" className="px-4 py-10 text-center text-slate-500">{allMembers.length ? 'Không có kết quả phù hợp.' : 'Chưa có sinh viên được xếp phòng.'}</td></tr>}
       </tbody></table></div>}
+      {!loading && <ListPagination pagination={pagination} label="sinh viên" />}
     </section>
 
     {dialog?.type === 'assign' && <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-950/45 p-4" onMouseDown={(event) => { if (event.target === event.currentTarget && !saving) setDialog(null); }}><form onSubmit={submitAssignment} className="w-full max-w-xl space-y-4 rounded-2xl bg-white p-6 shadow-xl">
@@ -218,10 +222,13 @@ const DisciplineManagement = () => {
 const ArchivistWorkspace = () => {
   const contentScrollRef = useRef(null);
   const [searchParams, setSearchParams] = useSearchParams();
-  const active = tabs.find((tab) => tab.id === searchParams.get('section')) || tabs[0];
+  const requestedSection = searchParams.get('section') === 'transfers' ? 'rooms' : searchParams.get('section');
+  const active = tabs.find((tab) => tab.id === requestedSection) || tabs[0];
   const activeTab = active.id;
   const setActiveTab = (section) => setSearchParams(section === 'home' ? {} : { section });
   const [panelKey, setPanelKey] = useState(0);
+  const [roomKey, setRoomKey] = useState(0);
+  const [roomView, setRoomView] = useState(searchParams.get('section') === 'transfers' ? 'requests' : 'assignments');
   const refreshPanel = () => setPanelKey((key) => key + 1);
   useEffect(() => { contentScrollRef.current?.scrollTo({ top: 0 }); }, [activeTab]);
 
@@ -232,7 +239,7 @@ const ArchivistWorkspace = () => {
         <DashboardNavLink />
         {tabs.map(({ id, label, Icon }) => <button key={id} type="button" onClick={() => setActiveTab(id)} className={`flex w-full items-center gap-3 rounded-lg px-4 py-3 text-left text-sm transition ${activeTab === id ? 'bg-blue-800 font-semibold text-white' : 'text-blue-200 hover:bg-blue-900 hover:text-white'}`}><Icon className="h-5 w-5" />{label}</button>)}
       </nav>
-      <div className="border-t border-blue-900 p-4"><AdminUserProfile /></div><AdminLogoutButton />
+      <div className="border-t border-blue-900 p-4"><AdminUserProfile /></div>
     </aside>
     <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
       <header className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-white px-6 py-4 shadow-sm sm:px-8"><div><p className="text-xs font-semibold uppercase tracking-[0.16em] text-blue-700">Cán bộ quản lý hồ sơ</p><h1 className="mt-1 text-xl font-bold text-slate-900">{active.label}</h1></div>{activeTab !== 'home' && <button type="button" onClick={refreshPanel} className={secondaryButton}><RefreshCw className="h-4 w-4" />Tải lại mục này</button>}</header>
@@ -240,8 +247,7 @@ const ArchivistWorkspace = () => {
         {activeTab === 'home' && <StaffHomeContent role="ARCHIVIST" />}
         {activeTab === 'students' && <StudentManagement key={panelKey} embedded />}
         {activeTab === 'applications' && <ContractManagement key={panelKey} embedded />}
-        {activeTab === 'rooms' && <RoomAssignments key={panelKey} />}
-        {activeTab === 'transfers' && <SelfServiceManagement key={panelKey} embedded housingRequestType="TRANSFER" />}
+        {activeTab === 'rooms' && <div className="space-y-5"><div role="group" aria-label="Chọn chức năng quản lý phòng" className="grid gap-2 rounded-xl border border-slate-200 bg-white p-2 shadow-sm sm:grid-cols-2"><button type="button" aria-pressed={roomView === 'assignments'} onClick={() => setRoomView('assignments')} className={`rounded-lg px-4 py-3 text-left text-sm font-semibold ${roomView === 'assignments' ? 'bg-blue-700 text-white' : 'text-slate-600 hover:bg-slate-50'}`}>Xếp và chuyển phòng</button><button type="button" aria-pressed={roomView === 'requests'} onClick={() => setRoomView('requests')} className={`rounded-lg px-4 py-3 text-left text-sm font-semibold ${roomView === 'requests' ? 'bg-blue-700 text-white' : 'text-slate-600 hover:bg-slate-50'}`}>Yêu cầu chuyển / trả phòng</button></div>{roomView === 'assignments' ? <RoomAssignments key={`${panelKey}-${roomKey}`} /> : <SelfServiceManagement key={panelKey} embedded housingOnly onHousingDecision={() => setRoomKey((key) => key + 1)} />}</div>}
         {activeTab === 'discipline' && <DisciplineManagement key={panelKey} />}
       </main>
     </div>
