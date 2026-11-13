@@ -62,7 +62,7 @@ exports.myHousingRequests = async (req, res) => {
     } catch (error) { return sendError(res, error, 'Không thể tải yêu cầu lưu trú.'); }
 };
 
-exports.createHousingRequest = async (req, res) => {
+const createStudentHousingRequestController = ({ db = prisma, now = () => new Date() } = {}) => async (req, res) => {
     const requestType = String(req.body.requestType || '').trim().toUpperCase();
     const reason = typeof req.body.reason === 'string' ? req.body.reason.trim() : '';
     const maPhongMoi = typeof req.body.maPhongMoi === 'string' ? req.body.maPhongMoi.trim() : '';
@@ -75,11 +75,11 @@ exports.createHousingRequest = async (req, res) => {
     }
 
     try {
-        const student = await prisma.sinhVien.findFirst({ where: { userId: req.user.id }, select: { maSV: true } });
+        const student = await db.sinhVien.findFirst({ where: { userId: req.user.id }, select: { maSV: true } });
         if (!student) throw fail(404, 'Tài khoản chưa liên kết hồ sơ sinh viên.');
-        const request = await prisma.$transaction(async (tx) => {
+        const request = await db.$transaction(async (tx) => {
             const contract = await tx.hopDong.findFirst({
-                where: { maSinhVien: student.maSV, trangThai: 'ACTIVE' }, orderBy: { ngayTao: 'desc' }
+                where: { maSinhVien: student.maSV, trangThai: 'ACTIVE' }, include: { phong: true }, orderBy: { ngayTao: 'desc' }
             });
             if (!contract) throw fail(409, 'Chỉ có thể gửi yêu cầu khi hợp đồng lưu trú đang có hiệu lực.');
             const existing = await tx.studentHousingRequest.findFirst({
@@ -94,8 +94,31 @@ exports.createHousingRequest = async (req, res) => {
                 if (target.soSinhVienHienTai >= target.soSinhVienToiDa) throw fail(409, 'Phòng đã hết chỗ.');
             }
 
+            const requestedAt = now();
+            const elapsed = contract.checkedInAt ? requestedAt.getTime() - new Date(contract.checkedInAt).getTime() : -1;
+            const automaticCancellation = requestType === 'RETURN' && elapsed >= 0 && elapsed <= 7 * 24 * 60 * 60 * 1000;
+            if (automaticCancellation) {
+                // HoaDon is the receipt for contract payments, including legacy receipts.
+                const receipts = await tx.hoaDon.aggregate({ where: { maHopDong: contract.maHopDong }, _sum: { soTien: true } });
+                const refunds = await tx.financialTransaction.aggregate({
+                    where: { invoiceType: 'CONTRACT', invoiceId: contract.maHopDong, transactionType: 'REFUND' }, _sum: { amount: true }
+                });
+                const amount = Math.max(0, Math.round((receipts._sum.soTien || 0) - (refunds._sum.amount || 0)));
+                const changed = await tx.hopDong.updateMany({ where: { maHopDong: contract.maHopDong, trangThai: 'ACTIVE' }, data: { trangThai: 'CANCELLED' } });
+                if (changed.count !== 1) throw fail(409, 'Hợp đồng đã được xử lý.');
+                await tx.phong.updateMany({ where: { maPhong: contract.maPhong, soSinhVienHienTai: { gt: 0 } }, data: { soSinhVienHienTai: { decrement: 1 } } });
+                await tx.studentServiceRegistration.updateMany({ where: { maHopDong: contract.maHopDong, status: 'PENDING' }, data: { status: 'CANCELLED', cancelledAt: requestedAt } });
+                if (amount > 0) await tx.financialTransaction.create({ data: {
+                    transactionType: 'REFUND', amount, method: 'TRANSFER', status: 'NEEDS_REVIEW',
+                    invoiceType: 'CONTRACT', invoiceId: contract.maHopDong, maSinhVien: student.maSV,
+                    maToaNha: contract.phong.maToaNha, paymentReference: `CANCEL-${contract.maHopDong}`,
+                    description: 'Hoàn 100% tiền hợp đồng sau yêu cầu hủy trong 7 ngày check-in; chờ tài chính thực hiện và xác nhận.'
+                } });
+            }
             return tx.studentHousingRequest.create({
                 data: {
+                    createdAt: requestedAt,
+                    ...(automaticCancellation ? { status: 'APPROVED', decidedAt: requestedAt, staffNote: 'Tự động hủy hợp đồng; khoản hoàn đang chờ tài chính thực hiện.' } : {}),
                     maSinhVien: student.maSV,
                     maHopDong: contract.maHopDong,
                     requestType,
@@ -105,12 +128,15 @@ exports.createHousingRequest = async (req, res) => {
                 include: { hopDong: { include: { phong: true } } }
             });
         }, { isolationLevel: 'Serializable' });
-        return res.status(201).json({ success: true, request, message: requestType === 'TRANSFER' ? 'Đã gửi yêu cầu chuyển phòng để nhân viên quản lý hồ sơ xem xét.' : 'Đã gửi yêu cầu để Ban quản lý xem xét.' });
+        return res.status(201).json({ success: true, request, message: request.status === 'APPROVED' ? 'Đã tự động hủy hợp đồng; khoản hoàn 100% đang chờ tài chính thực hiện.' : requestType === 'TRANSFER' ? 'Đã gửi yêu cầu chuyển phòng để nhân viên quản lý hồ sơ xem xét.' : 'Đã gửi yêu cầu để Phòng Chăm sóc người học xem xét.' });
     } catch (error) { return sendError(res, error, 'Không thể gửi yêu cầu lưu trú.'); }
 };
 
+exports.createStudentHousingRequestController = createStudentHousingRequestController;
+exports.createHousingRequest = createStudentHousingRequestController();
+
 const createHousingRequestController = ({ db = prisma } = {}) => {
-    // Records staff handle transfers across the KTX, as with archive room assignments.
+    // Records staff handle housing requests across the KTX, as with archive room assignments.
     const getHousingScope = (req) => req.user.role === ROLES.ARCHIVIST ? null : getBuildingScope(req, db);
 
     const listHousingRequests = async (req, res) => {
@@ -118,7 +144,6 @@ const createHousingRequestController = ({ db = prisma } = {}) => {
             const scope = await getHousingScope(req);
             const requests = await db.studentHousingRequest.findMany({
                 where: {
-                    ...(req.user.role === ROLES.ARCHIVIST ? { requestType: 'TRANSFER' } : {}),
                     ...(scope === null ? {} : { hopDong: { phong: { maToaNha: { in: scope } } } })
                 },
                 include: {

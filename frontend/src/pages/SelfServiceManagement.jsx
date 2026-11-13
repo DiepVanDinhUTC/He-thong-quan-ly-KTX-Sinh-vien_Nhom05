@@ -21,18 +21,19 @@ const SERVICE_ACTIONS = {
   IN_PROGRESS: [{ status: 'COMPLETED', label: 'Đánh dấu hoàn tất' }],
 };
 
-const SelfServiceManagement = ({ embedded = false, housingRequestType } = {}) => {
+const SelfServiceManagement = ({ embedded = false, housingRequestType, housingOnly = false, onHousingDecision } = {}) => {
   const isBoardWorkspace = useBoardWorkspace();
   const isTransferReview = housingRequestType === 'TRANSFER';
   const PageHeading = embedded || isBoardWorkspace ? 'h2' : 'h1';
   const PageIntro = isBoardWorkspace ? 'section' : 'header';
   const role = useSelector((state) => state.auth.user?.role);
   const canSeeHousing = housingRequestReadRoles.includes(role);
-  const canSeeServices = !isTransferReview && ['SERVICE_PROVIDER', 'BUILDING_MANAGER', 'ADMIN'].includes(role);
+  const canSeeServices = !housingOnly && !isTransferReview && ['SERVICE_PROVIDER', 'BUILDING_MANAGER', 'ADMIN'].includes(role);
   const canDecideServices = canSeeServices;
   const [tab, setTab] = useState(canSeeHousing ? 'housing' : 'services');
   const [housingRequests, setHousingRequests] = useState([]);
   const [housingStatus, setHousingStatus] = useState(isTransferReview ? 'PENDING' : 'ALL');
+  const [requestType, setRequestType] = useState('ALL');
   const [search, setSearch] = useState('');
   const [serviceStatus, setServiceStatus] = useState('ALL');
   const [serviceRequests, setServiceRequests] = useState([]);
@@ -68,6 +69,7 @@ const SelfServiceManagement = ({ embedded = false, housingRequestType } = {}) =>
     setBusyId(decision.id); setError(''); setNotice('');
     try {
       await housingApi.decideHousingRequest(decision.id, { status: decision.status, staffNote: note });
+      if (onHousingDecision) onHousingDecision();
       setDecision(null); setNote(''); setNotice('Đã cập nhật yêu cầu lưu trú.'); await loadData('housing');
     } catch (requestError) { setError(requestError.response?.data?.message || 'Không thể xử lý yêu cầu.'); }
     finally { setBusyId(''); }
@@ -90,16 +92,17 @@ const SelfServiceManagement = ({ embedded = false, housingRequestType } = {}) =>
 
   const query = search.trim().toLocaleLowerCase('vi');
   const matchesSearch = (item) => [item.id, item.sinhVien?.hoTen, item.sinhVien?.maSV, item.maSinhVien, item.maPhongMoi, item.hopDong?.maPhong, item.hopDong?.phong?.soPhong, item.serviceName, catalog[item.serviceCode]].some((value) => String(value || '').toLocaleLowerCase('vi').includes(query));
-  const visibleHousingRequests = housingRequests.filter((item) => (housingStatus === 'ALL' || item.status === housingStatus) && matchesSearch(item));
+  const visibleHousingRequests = housingRequests.filter((item) => (housingStatus === 'ALL' || item.status === housingStatus) && (requestType === 'ALL' || item.requestType === requestType) && matchesSearch(item));
   const visibleServiceRequests = serviceRequests.filter((item) => (serviceStatus === 'ALL' || item.status === serviceStatus) && matchesSearch(item));
-  const pagination = useListPagination(tab === 'housing' ? visibleHousingRequests : visibleServiceRequests, JSON.stringify([tab, search, housingStatus, serviceStatus]));
+  const pagination = useListPagination(tab === 'housing' ? visibleHousingRequests : visibleServiceRequests, JSON.stringify([tab, search, housingStatus, requestType, serviceStatus]));
 
   return <AdminLayout showShell={!embedded}><div className="space-y-5">
-    <PageIntro className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-sm font-semibold text-blue-700">CỔNG TỰ PHỤC VỤ</p><PageHeading className={isBoardWorkspace ? 'mt-1 font-semibold text-slate-900' : 'mt-1 text-2xl font-bold text-slate-900'}>{isTransferReview ? 'Duyệt yêu cầu chuyển phòng' : role === 'SERVICE_PROVIDER' ? 'Quản lý đăng ký dịch vụ' : 'Yêu cầu của sinh viên'}</PageHeading><p className="mt-1 text-sm text-slate-500">{isTransferReview ? 'Nhân viên quản lý hồ sơ xác nhận hoặc từ chối đơn chuyển phòng của sinh viên trên toàn KTX.' : isBoardWorkspace ? 'Theo dõi yêu cầu chuyển phòng và trả phòng trên toàn KTX.' : role === 'SERVICE_PROVIDER' ? 'Xem đăng ký theo tòa nhà được phân công và cập nhật tiến độ cung cấp dịch vụ.' : 'Xem và xử lý yêu cầu chuyển phòng, trả phòng và đăng ký dịch vụ.'}</p></div><span className="rounded-xl bg-blue-50 p-3 text-blue-700"><ClipboardList className="h-5 w-5" /></span></PageIntro>
-    {!isTransferReview && <div className="flex gap-2 border-b">{canSeeHousing && <button onClick={() => setTab('housing')} className={`border-b-2 px-4 py-3 text-sm font-semibold ${tab === 'housing' ? 'border-blue-700 text-blue-800' : 'border-transparent text-slate-500'}`}>Chuyển / trả phòng</button>}{canSeeServices && <button onClick={() => setTab('services')} className={`border-b-2 px-4 py-3 text-sm font-semibold ${tab === 'services' ? 'border-blue-700 text-blue-800' : 'border-transparent text-slate-500'}`}>Đăng ký dịch vụ</button>}</div>}
+    <PageIntro className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-sm font-semibold text-blue-700">CỔNG TỰ PHỤC VỤ</p><PageHeading className={isBoardWorkspace ? 'mt-1 font-semibold text-slate-900' : 'mt-1 text-2xl font-bold text-slate-900'}>{housingOnly ? 'Yêu cầu chuyển / trả phòng' : isTransferReview ? 'Duyệt yêu cầu chuyển phòng' : role === 'SERVICE_PROVIDER' ? 'Quản lý đăng ký dịch vụ' : 'Yêu cầu của sinh viên'}</PageHeading><p className="mt-1 text-sm text-slate-500">{housingOnly ? 'Xem và xử lý yêu cầu chuyển hoặc trả phòng của sinh viên.' : isTransferReview ? 'Nhân viên quản lý hồ sơ xác nhận hoặc từ chối đơn chuyển phòng của sinh viên trên toàn KTX.' : isBoardWorkspace ? 'Theo dõi yêu cầu chuyển phòng và trả phòng trên toàn KTX.' : role === 'SERVICE_PROVIDER' ? 'Xem đăng ký theo tòa nhà được phân công và cập nhật tiến độ cung cấp dịch vụ.' : 'Xem và xử lý yêu cầu chuyển phòng, trả phòng và đăng ký dịch vụ.'}</p></div><span className="rounded-xl bg-blue-50 p-3 text-blue-700"><ClipboardList className="h-5 w-5" /></span></PageIntro>
+    {!isTransferReview && !housingOnly && <div className="flex gap-2 border-b">{canSeeHousing && <button onClick={() => setTab('housing')} className={`border-b-2 px-4 py-3 text-sm font-semibold ${tab === 'housing' ? 'border-blue-700 text-blue-800' : 'border-transparent text-slate-500'}`}>Chuyển / trả phòng</button>}{canSeeServices && <button onClick={() => setTab('services')} className={`border-b-2 px-4 py-3 text-sm font-semibold ${tab === 'services' ? 'border-blue-700 text-blue-800' : 'border-transparent text-slate-500'}`}>Đăng ký dịch vụ</button>}</div>}
     {tab === 'housing' && <div className="flex flex-wrap items-center justify-between gap-3">
       <p className="text-sm text-slate-600">{housingRequests.filter((item) => item.status === 'PENDING').length} đơn chờ xử lý</p>
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
+        {!housingRequestType && <label className="text-sm font-medium text-slate-700">Loại <select value={requestType} onChange={(event) => setRequestType(event.target.value)} className="ml-2 rounded-lg border bg-white px-3 py-2"><option value="ALL">Tất cả</option><option value="TRANSFER">Chuyển phòng</option><option value="RETURN">Trả phòng</option></select></label>}
         <label className="text-sm font-medium text-slate-700">Trạng thái <select value={housingStatus} onChange={(event) => setHousingStatus(event.target.value)} className="ml-2 rounded-lg border bg-white px-3 py-2"><option value="ALL">Tất cả</option>{Object.entries(HOUSING_STATUS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
         <button type="button" onClick={() => loadData('housing')} disabled={loading || Boolean(busyId)} className="inline-flex items-center gap-2 rounded-lg border bg-white px-3 py-2 text-sm font-medium disabled:opacity-50"><RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />Làm mới</button>
       </div>

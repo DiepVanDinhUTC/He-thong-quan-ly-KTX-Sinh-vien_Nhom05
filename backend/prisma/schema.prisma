@@ -88,6 +88,7 @@ model SinhVien {
   medicalRecord           MedicalRecord?
   medicalIncidents        MedicalIncident[]
   billNotifications       StudentBillNotification[]
+  militaryNotifications    MilitaryNotification[]
   militaryRoomAssignments MilitaryRoomAssignment[]
   militaryEquipmentIssues MilitaryEquipmentIssue[]
 
@@ -277,6 +278,8 @@ model HopDong {
   ngayTao     DateTime @default(now())
   paymentDueAt DateTime?
   paymentPolicy String? @db.VarChar(24)
+  checkedInAt DateTime?
+  checkedInById String?
 
   // Đã ngắt Cascade
   sinhVien             SinhVien                     @relation(fields: [maSinhVien], references: [maSV], onDelete: NoAction, onUpdate: NoAction)
@@ -384,6 +387,21 @@ model StudentBillNotification {
   @@index([maSinhVien, resolvedAt, createdAt])
   @@index([invoiceType, invoiceId])
   @@map("STUDENT_BILL_NOTIFICATION")
+}
+
+model MilitaryNotification {
+  id         String    @id @default(uuid()) @db.VarChar(36)
+  maSinhVien String    @db.VarChar(20)
+  bookingId  String    @db.VarChar(36)
+  title      String    @db.VarChar(160)
+  message    String    @db.VarChar(500)
+  createdAt  DateTime  @default(now())
+  readAt     DateTime?
+  sinhVien   SinhVien  @relation(fields: [maSinhVien], references: [maSV], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([maSinhVien, createdAt])
+  @@index([bookingId])
+  @@map("MILITARY_NOTIFICATION")
 }
 
 model FinancialTransaction {

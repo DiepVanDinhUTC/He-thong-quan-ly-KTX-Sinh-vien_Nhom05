@@ -153,3 +153,18 @@ exports.updateContract = async (req, res) => {
         return res.status(error.status || 500).json({ success: false, message: error.status ? error.message : 'Không thể cập nhật hợp đồng.', error: error.status ? undefined : error.message });
     }
 };
+
+// The building manager records the actual handover, using server time.
+exports.checkIn = async (req, res) => {
+    try {
+        const result = await prisma.hopDong.updateMany({
+            where: { maHopDong: req.params.id, trangThai: 'ACTIVE', checkedInAt: null,
+                ...(req.buildingScope === null ? {} : { phong: { is: { maToaNha: { in: req.buildingScope } } } }) },
+            data: { checkedInAt: new Date(), checkedInById: req.user.id }
+        });
+        if (result.count !== 1) return res.status(409).json({ success: false, message: 'Hợp đồng không hợp lệ, đã check-in hoặc không thuộc tòa được phân công.' });
+        return res.json({ success: true, message: 'Đã xác nhận sinh viên nhận chìa khóa và check-in.' });
+    } catch (error) {
+        return res.status(500).json({ success: false, message: 'Không thể ghi nhận check-in.' });
+    }
+};

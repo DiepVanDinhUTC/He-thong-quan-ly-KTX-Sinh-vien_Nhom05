@@ -70,14 +70,15 @@ exports.listMeterReadings = async (req, res) => {
             readingsByKey.set(`${reading.maPhong}:${reading.utilityType}:${formatPeriod(reading.periodStart)}`, reading);
         }
 
+        const previousByRoomAndType = new Map(previousReadings.map((reading) => [
+            `${reading.maPhong}:${reading.utilityType}`, reading
+        ]));
+
         const data = rooms.map((room) => {
             const utilities = {};
             for (const utilityType of UTILITY_TYPES) {
                 const current = readingsByKey.get(`${room.maPhong}:${utilityType}:${formatPeriod(periodStart)}`);
-                const previous = previousKeys
-                    .filter((item) => item.maPhong === room.maPhong && item.utilityType === utilityType)
-                    .map((item) => readingsByKey.get(`${room.maPhong}:${utilityType}:${formatPeriod(item.periodStart)}`))
-                    .find(Boolean);
+                const previous = previousByRoomAndType.get(`${room.maPhong}:${utilityType}`);
                 utilities[utilityType] = current ? {
                     id: current.id,
                     previousReading: current.previousReading,

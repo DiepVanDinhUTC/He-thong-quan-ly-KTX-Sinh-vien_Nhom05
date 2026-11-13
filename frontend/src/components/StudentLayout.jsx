@@ -21,6 +21,7 @@ const StudentLayout = () => {
   const authenticatedUser = useSelector((state) => state.auth.user);
   const [student, setStudent] = useState(authenticatedUser);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+  const [profileMenuAnchor, setProfileMenuAnchor] = useState('header');
   const [profileModal, setProfileModal] = useState('');
   const [contact, setContact] = useState({ email: authenticatedUser?.email || '', phone: authenticatedUser?.phone || '' });
   const [passwords, setPasswords] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
@@ -54,6 +55,20 @@ const StudentLayout = () => {
   useEffect(() => {
     setProfileMenuOpen(false);
   }, [location.pathname]);
+
+  useEffect(() => {
+    if (!profileMenuOpen) return undefined;
+    const closeOnEscape = (event) => { if (event.key === 'Escape') setProfileMenuOpen(false); };
+    const closeOnResize = () => setProfileMenuOpen(false);
+    window.addEventListener('keydown', closeOnEscape);
+    window.addEventListener('resize', closeOnResize);
+    return () => { window.removeEventListener('keydown', closeOnEscape); window.removeEventListener('resize', closeOnResize); };
+  }, [profileMenuOpen]);
+
+  const toggleProfileMenu = (anchor) => {
+    setProfileMenuOpen((open) => !open || profileMenuAnchor !== anchor);
+    setProfileMenuAnchor(anchor);
+  };
 
   const startProfileAction = (action) => {
     setMessage({ type: '', text: '' });
@@ -125,7 +140,7 @@ const StudentLayout = () => {
           <NavLink to="/ticket-report" className={navLinkClass}><Wrench className="h-5 w-5 shrink-0" />Báo hỏng CSVC</NavLink>
         </nav>
         <div className="shrink-0 border-t pt-3">
-          <button type="button" onClick={() => setProfileMenuOpen((open) => !open)} aria-expanded={profileMenuOpen} className="flex w-full items-center gap-3 rounded-xl p-2 text-left hover:bg-gray-50">
+          <button type="button" onClick={() => toggleProfileMenu('sidebar')} aria-expanded={profileMenuOpen && profileMenuAnchor === 'sidebar'} aria-controls="student-profile-menu" className="flex w-full items-center gap-3 rounded-xl p-2 text-left hover:bg-gray-50">
             <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-100 text-sm font-bold text-blue-800">{initials || <UserRound className="h-5 w-5" />}</span>
             <span className="min-w-0 flex-1"><span className="block truncate text-sm font-semibold">{studentName}</span><span className="block truncate text-xs text-gray-500">{student?.maSV || student?.username || ''}</span></span>
             <ChevronDown className="h-4 w-4 text-gray-400" />
@@ -135,13 +150,13 @@ const StudentLayout = () => {
 
       <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden pb-20 md:pb-0">
         <header className="z-30 flex h-16 shrink-0 items-center justify-between border-b bg-white px-4 py-3 shadow-sm sm:px-6">
-          <Link to="/student-portal" className="flex min-w-0 items-center gap-2" aria-label="Về trang chủ sinh viên">
+          <Link to="/student-portal" className="flex min-w-0 items-center gap-2 md:hidden" aria-label="Về trang chủ sinh viên">
             <span className="rounded-lg bg-blue-900 p-2 text-white"><Building className="h-4 w-4" /></span>
             <span className="min-w-0"><span className="block truncate text-sm font-bold text-blue-950">Cổng sinh viên KTX</span><span className="block text-xs text-slate-500">{roleLabel}</span></span>
           </Link>
-          <div className="flex shrink-0 items-center gap-2 sm:gap-3">
+          <div className="ml-auto flex shrink-0 items-center gap-2 sm:gap-3">
             <StudentNotificationBell />
-            <button type="button" onClick={() => setProfileMenuOpen((open) => !open)} aria-label="Mở tài khoản" aria-expanded={profileMenuOpen} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-100 text-sm font-bold text-blue-800 ring-2 ring-white">
+            <button type="button" onClick={() => toggleProfileMenu('header')} aria-label="Mở tài khoản" aria-expanded={profileMenuOpen && profileMenuAnchor === 'header'} aria-controls="student-profile-menu" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-100 text-sm font-bold text-blue-800 ring-2 ring-white md:hidden">
               {initials || <UserRound className="h-5 w-5" />}
             </button>
           </div>
@@ -153,8 +168,8 @@ const StudentLayout = () => {
       </div>
 
       {profileMenuOpen && <>
-        <button type="button" aria-label="Đóng menu tài khoản" className="fixed inset-0 z-40 cursor-default" onClick={() => setProfileMenuOpen(false)} />
-        <div className="fixed right-3 top-16 z-50 w-64 rounded-xl border bg-white p-2 shadow-xl">
+        <button type="button" aria-label="Đóng menu tài khoản" className="fixed inset-0 z-40 cursor-default bg-slate-950/30 md:bg-transparent" onClick={() => setProfileMenuOpen(false)} />
+        <div id="student-profile-menu" className={`fixed inset-x-0 bottom-0 z-50 rounded-t-2xl border bg-white p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-xl md:inset-x-auto md:w-64 md:rounded-xl md:p-2 ${profileMenuAnchor === 'sidebar' ? 'md:bottom-20 md:left-4' : 'md:bottom-auto md:right-3 md:top-16'}`}>
           <p className="truncate px-3 py-2 text-xs text-gray-500">{studentName} · {student?.maSV || student?.username}</p>
           <button type="button" onClick={() => startProfileAction('contact')} className="flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-left text-sm hover:bg-gray-50"><Mail className="h-4 w-4" />Thông tin liên lạc</button>
           <button type="button" onClick={() => startProfileAction('password')} className="flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-left text-sm hover:bg-gray-50"><LockKeyhole className="h-4 w-4" />Đổi mật khẩu</button>
@@ -169,7 +184,7 @@ const StudentLayout = () => {
       </nav>
 
       {profileModal && <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4" onMouseDown={(event) => { if (event.target === event.currentTarget && !saving) setProfileModal(''); }}>
-        <form onSubmit={profileModal === 'contact' ? saveContact : savePassword} className="w-full max-w-md space-y-4 rounded-2xl bg-white p-6 shadow-2xl">
+        <form onSubmit={profileModal === 'contact' ? saveContact : savePassword} role="dialog" aria-modal="true" aria-label={profileModal === 'contact' ? 'Thông tin liên lạc' : 'Đổi mật khẩu'} className="max-h-[90dvh] w-full max-w-md space-y-4 overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl">
           <div className="flex items-start justify-between"><div><h2 className="text-lg font-bold">{profileModal === 'contact' ? 'Thông tin liên lạc' : 'Đổi mật khẩu'}</h2><p className="mt-1 text-sm text-gray-500">Tài khoản {student?.maSV || student?.username}</p></div><button type="button" onClick={() => setProfileModal('')} className="rounded-lg p-1 text-gray-500 hover:bg-gray-100" aria-label="Đóng"><X className="h-5 w-5" /></button></div>
           {profileModal === 'contact' ? <>
             <label className="block text-sm font-medium">Email<input type="email" required maxLength={100} value={contact.email} onChange={(event) => setContact({ ...contact, email: event.target.value })} className="mt-1 w-full rounded-lg border px-3 py-2.5" /></label>

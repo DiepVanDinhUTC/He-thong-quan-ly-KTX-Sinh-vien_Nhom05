@@ -1,8 +1,7 @@
 /* eslint-disable react/prop-types */
 import React, { useState } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
+import { useSelector } from 'react-redux';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { logout } from '../store/authSlice';
 import { 
   Building2, 
   ClipboardList,
@@ -16,7 +15,6 @@ import {
   Settings, 
   ShieldCheck,
   Zap,
-  LogOut, 
   ChevronLeft, 
   ChevronRight
 } from 'lucide-react';
@@ -29,7 +27,6 @@ const Sidebar = ({ additionalMenuItems = [] }) => {
   // Trạng thái thu gọn/mở rộng thanh điều hướng
   const [isCollapsed, setIsCollapsed] = useState(false);
   const navigate = useNavigate();
-  const dispatch = useDispatch();
   const location = useLocation();
   const role = useSelector((state) => state.auth.user?.role);
   
@@ -37,7 +34,7 @@ const Sidebar = ({ additionalMenuItems = [] }) => {
   // Danh sách các mục menu chính
   const mainMenuItems = [
     { id: 'home', path: homeForRole(role), label: 'Trang chủ', icon: Home, roles: ['ACCOUNTANT', 'TREASURER', 'ARCHIVIST', 'FACILITIES_MANAGER', 'BUILDING_MANAGER', 'MILITARY_OFFICER'] },
-    { id: 'dashboard', path: '/', label: 'Thống kê BQL', icon: LayoutDashboard, roles: rolePermissions['/'] },
+    { id: 'dashboard', path: '/', label: 'Thống kê Phòng Chăm sóc người học', icon: LayoutDashboard, roles: rolePermissions['/'] },
     { id: 'students', path: '/students', label: 'Quản lý Sinh viên', icon: Users, roles: ['BOARD_CHAIR', 'BOARD_DEPUTY', 'ARCHIVIST', 'BUILDING_MANAGER', 'MEDICAL_OFFICER', 'ADMIN'] },
     { id: 'staff-accounts', path: '/staff-accounts', label: 'Quản lý tài khoản nhân viên', icon: UserCog, roles: ['BOARD_CHAIR', 'BOARD_DEPUTY'] },
     { id: 'rooms', path: '/rooms', label: 'Quản lý Phòng & CSVC', icon: DoorOpen, roles: rolePermissions['/rooms'] },
@@ -151,17 +148,7 @@ const Sidebar = ({ additionalMenuItems = [] }) => {
           {!isCollapsed && <span className="text-sm font-medium whitespace-nowrap">Cài đặt hệ thống</span>}
         </button>}
 
-        <button
-          title={isCollapsed ? 'Đăng xuất' : ''}
-          onClick={() => { dispatch(logout()); navigate('/login', { replace: true }); }}
-          className={`
-            w-full flex items-center gap-3 px-3 py-3 rounded-xl text-slate-500 hover:bg-red-50 hover:text-red-600 transition-all duration-200 group
-            ${isCollapsed ? 'justify-center' : 'justify-start'}
-          `}
-        >
-          <LogOut className="w-5 h-5 shrink-0" />
-          {!isCollapsed && <span className="text-sm font-medium whitespace-nowrap">Đăng xuất</span>}
-        </button>
+
 
         {/* Nút Thu gọn / Mở rộng */}
         <div className="pt-2 mt-2 border-t border-gray-200/60">

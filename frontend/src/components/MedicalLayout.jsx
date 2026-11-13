@@ -1,12 +1,12 @@
 /* eslint-disable react/prop-types */
 import React, { useEffect, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { HeartPulse, Stethoscope, Users } from 'lucide-react';
-import AdminLogoutButton from './AdminLogoutButton';
+import { HeartPulse, Stethoscope, Users, Home } from 'lucide-react';
 import AdminUserProfile from './AdminUserProfile';
 import DashboardNavLink from './DashboardNavLink';
 
 const menuItems = [
+  { id: 'home', to: '/medical', label: 'Trang chủ', Icon: Home },
   { id: 'students', to: '/students', label: 'Hồ sơ sinh viên', Icon: Users },
   { id: 'health', to: '/security-medical?section=health', label: 'Hồ sơ sức khỏe', Icon: HeartPulse },
   { id: 'incidents', to: '/security-medical?section=incidents', label: 'Sự cố y tế & thuốc', Icon: Stethoscope },
@@ -15,7 +15,7 @@ const menuItems = [
 const MedicalLayout = ({ title, actions, children }) => {
   const location = useLocation();
   const contentScrollRef = useRef(null);
-  const activeSection = location.pathname === '/students'
+  const activeSection = location.pathname === '/medical' ? 'home' : location.pathname === '/students'
     ? 'students'
     : new URLSearchParams(location.search).get('section') === 'incidents' ? 'incidents' : 'health';
 
@@ -25,7 +25,7 @@ const MedicalLayout = ({ title, actions, children }) => {
 
   return <div className="flex h-screen min-h-0 overflow-hidden bg-slate-50 font-sans text-slate-800">
     <aside className="flex h-full min-h-0 w-64 shrink-0 flex-col bg-blue-950 text-white">
-      <Link to="/security-medical?section=health" className="flex items-center gap-3 border-b border-blue-900 px-6 py-5">
+      <Link to="/medical" className="flex items-center gap-3 border-b border-blue-900 px-6 py-5">
         <HeartPulse className="h-8 w-8 shrink-0 text-blue-200" /><span className="text-lg font-bold tracking-wide">KTX · Y TẾ</span>
       </Link>
       <nav aria-label="Nghiệp vụ y tế" className="min-h-0 flex-1 space-y-1 overflow-y-auto px-3 py-5">
@@ -35,7 +35,7 @@ const MedicalLayout = ({ title, actions, children }) => {
         </Link>)}
       </nav>
       <div className="shrink-0 border-t border-blue-900 p-4"><AdminUserProfile /></div>
-      <AdminLogoutButton />
+      
     </aside>
 
     <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">

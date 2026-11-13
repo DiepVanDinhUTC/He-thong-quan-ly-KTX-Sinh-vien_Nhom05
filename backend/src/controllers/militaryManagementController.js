@@ -264,6 +264,7 @@ const meetingRoomInput = (body) => ({
     location: String(body.location || '').trim(),
     capacity: Number(body.capacity)
 });
+
 const validMeetingRoom = (room) => room.code && room.name && room.location && Number.isInteger(room.capacity) && room.capacity > 0;
 
 exports.getMeetingRooms = async (req, res) => {
@@ -317,7 +318,17 @@ exports.createMeetingBooking = async (req, res) => {
                 where: { meetingRoomId, status: 'BOOKED', startsAt: { lt: endsAt }, endsAt: { gt: startsAt } }
             });
             if (conflict) throw Object.assign(new Error('Phòng đã có lịch giao ban trùng thời gian.'), { status: 409 });
-            return tx.meetingRoomBooking.create({ data: { meetingRoomId, title, purpose, startsAt, endsAt, createdById: req.user.id } });
+            const booking = await tx.meetingRoomBooking.create({ data: { meetingRoomId, title, purpose, startsAt, endsAt, createdById: req.user.id } });
+            if (startsAt > new Date()) {
+                const students = await tx.sinhVien.findMany({
+                    where: { OR: [{ laHocVienQuanSu: true }, { user: { is: { role: 'MILITARY_STUDENT' } } }], user: { is: { isActive: true, role: { in: ['STUDENT', 'MILITARY_STUDENT'] } } } },
+                    select: { maSV: true }
+                });
+                const time = (date) => date.toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
+                const message = `${title}\n${time(startsAt)} – ${time(endsAt)}\n${room.name} · ${room.location}\n${purpose}`.slice(0, 500);
+                if (students.length) await tx.militaryNotification.createMany({ data: students.map(({ maSV }) => ({ maSinhVien: maSV, bookingId: booking.id, title: 'Lịch giao ban sắp tới', message })) });
+            }
+            return booking;
         }, { isolationLevel: 'Serializable' });
         return res.status(201).json({ success: true, data, message: 'Đã đặt lịch phòng giao ban.' });
     } catch (error) {
@@ -329,7 +340,10 @@ exports.cancelMeetingBooking = async (req, res) => {
     try {
         const booking = await prisma.meetingRoomBooking.findFirst({ where: { id: req.params.id, status: 'BOOKED' } });
         if (!booking) return res.status(404).json({ success: false, message: 'Không tìm thấy lịch giao ban đang hiệu lực.' });
-        await prisma.meetingRoomBooking.update({ where: { id: booking.id }, data: { status: 'CANCELLED' } });
+        await prisma.$transaction([
+            prisma.meetingRoomBooking.update({ where: { id: booking.id }, data: { status: 'CANCELLED' } }),
+            prisma.militaryNotification.updateMany({ where: { bookingId: booking.id }, data: { title: 'Lịch giao ban đã hủy', readAt: null } })
+        ]);
         return res.json({ success: true, message: 'Đã hủy lịch giao ban.' });
     } catch (error) {
         return sendError(res, error, 'Không thể hủy lịch giao ban.');

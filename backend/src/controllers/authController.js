@@ -221,7 +221,9 @@ exports.listAdminTestAccounts = async (req, res) => {
 };
 
 exports.updateMyContact = async (req, res) => {
-    if (![ROLES.STUDENT, ROLES.MILITARY_STUDENT].includes(req.user.role)) return res.status(403).json({ success: false, message: 'Chức năng này chỉ dành cho sinh viên và học viên quân sự.' });
+    const isStudent = [ROLES.STUDENT, ROLES.MILITARY_STUDENT].includes(req.user.role);
+    const hoTen = typeof req.body.hoTen === 'string' ? req.body.hoTen.trim() : '';
+    if (!isStudent && (!hoTen || hoTen.length > 100)) return res.status(400).json({ success: false, message: 'H\u1ecd t\u00ean kh\u00f4ng h\u1ee3p l\u1ec7.' });
     const email = String(req.body.email || '').trim();
     const phone = String(req.body.phone || '').trim();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 100) {
@@ -231,7 +233,8 @@ exports.updateMyContact = async (req, res) => {
         return res.status(400).json({ success: false, message: 'Số điện thoại không hợp lệ.' });
     }
     try {
-        await prisma.sinhVien.update({ where: { userId: req.user.id }, data: { email, phone } });
+        const profile = [ROLES.STUDENT, ROLES.MILITARY_STUDENT].includes(req.user.role) ? prisma.sinhVien : prisma.nhanVien;
+        await profile.update({ where: { userId: req.user.id }, data: isStudent ? { email, phone } : { hoTen, email, phone } });
         const account = await prisma.user.findUnique({
             where: { id: req.user.id },
             include: { sinhVien: { include: studentProfileInclude }, nhanVien: true }
@@ -244,7 +247,6 @@ exports.updateMyContact = async (req, res) => {
 };
 
 exports.changeMyPassword = async (req, res) => {
-    if (![ROLES.STUDENT, ROLES.MILITARY_STUDENT].includes(req.user.role)) return res.status(403).json({ success: false, message: 'Chức năng này chỉ dành cho sinh viên và học viên quân sự.' });
     const { currentPassword, newPassword } = req.body;
     if (typeof currentPassword !== 'string' || !currentPassword || typeof newPassword !== 'string' || newPassword.length < 8 || newPassword.length > 128) {
         return res.status(400).json({ success: false, message: 'Mật khẩu mới cần có từ 8 đến 128 ký tự.' });

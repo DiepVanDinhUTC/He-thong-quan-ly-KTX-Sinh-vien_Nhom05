@@ -1,5 +1,5 @@
 /* eslint-disable react/prop-types */
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { User } from 'lucide-react';
@@ -7,8 +7,8 @@ import { authApi } from '../services/authApi';
 import { logout, userUpdated } from '../store/authSlice';
 
 const roleLabels = {
-  BOARD_CHAIR: 'Trưởng ban',
-  BOARD_DEPUTY: 'Phó trưởng ban',
+  BOARD_CHAIR: 'Trưởng phòng',
+  BOARD_DEPUTY: 'Phó phòng',
   ARCHIVIST: 'Hồ sơ lưu trữ',
   ACCOUNTANT: 'Kế toán',
   TREASURER: 'Thủ quỹ',
@@ -23,7 +23,7 @@ const roleLabels = {
   ADMIN: 'Quản trị viên kiểm thử',
 };
 
-const AdminUserProfile = ({ variant = 'sidebar', compact = false, light = false }) => {
+const ProfileDisplay = ({ variant = 'sidebar', compact = false, light = false }) => {
   const user = useSelector((state) => state.auth.user);
   const dispatch = useDispatch();
   const navigate = useNavigate();
@@ -47,7 +47,7 @@ const AdminUserProfile = ({ variant = 'sidebar', compact = false, light = false 
   }, [dispatch, navigate, user]);
 
   const name = user?.hoTen || user?.username || 'Cán bộ quản lý';
-  const role = user?.chucVu || roleLabels[user?.role] || 'Ban quản lý KTX';
+  const role = user?.chucVu || roleLabels[user?.role] || 'Phòng Chăm sóc người học';
   const staffId = user?.maNhanVien || null;
 
   if (variant === 'header') {
@@ -85,6 +85,64 @@ const AdminUserProfile = ({ variant = 'sidebar', compact = false, light = false 
       </div>
     </div>
   );
+};
+
+const AdminUserProfile = (props) => {
+  const user = useSelector((state) => state.auth.user);
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
+  const [menu, setMenu] = useState(false);
+  const [modal, setModal] = useState('');
+  const [contact, setContact] = useState({ hoTen: '', email: '', phone: '' });
+  const [passwords, setPasswords] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
+  const [message, setMessage] = useState('');
+  const [saving, setSaving] = useState(false);
+  const open = (action) => {
+    setMenu(false); setMessage(''); setModal(action);
+    setContact({ hoTen: user?.hoTen || '', email: user?.email || '', phone: user?.phone || '' });
+    setPasswords({ currentPassword: '', newPassword: '', confirmPassword: '' });
+  };
+  const save = async (event) => {
+    event.preventDefault();
+    if (modal === 'password' && passwords.newPassword !== passwords.confirmPassword) {
+      setMessage('Mật khẩu xác nhận không khớp.'); return;
+    }
+    setSaving(true); setMessage('');
+    try {
+      if (modal === 'contact') {
+        const response = await authApi.updateMyContact(contact);
+        dispatch(userUpdated(response.user));
+      } else {
+        await authApi.changeMyPassword({ currentPassword: passwords.currentPassword, newPassword: passwords.newPassword });
+      }
+      setModal(''); setMessage('Đã lưu thay đổi.');
+    } catch (error) { setMessage(error.response?.data?.message || 'Không thể lưu thay đổi.'); }
+    finally { setSaving(false); }
+  };
+  return <div className="relative">
+    <button type="button" className="w-full text-left" aria-label="Mở menu tài khoản" aria-expanded={menu} onClick={() => setMenu(!menu)}><ProfileDisplay {...props} /></button>
+    {menu && <div className={`absolute z-50 w-64 rounded-xl border bg-white p-2 text-slate-800 shadow-xl ${props.variant === 'header' ? 'right-0 top-full mt-2' : 'bottom-full left-0 mb-2'}`}>
+      <p className="truncate px-3 py-2 text-sm text-slate-500">{user?.hoTen || user?.username} · {user?.maNhanVien || user?.username}</p>
+      {message && <p role="status" className="px-3 text-sm text-green-700">{message}</p>}
+      {user?.maNhanVien && <button type="button" onClick={() => open('contact')} className="block w-full rounded-lg px-3 py-3 text-left hover:bg-slate-100">Thông tin cá nhân</button>}
+      <button type="button" onClick={() => open('password')} className="block w-full rounded-lg px-3 py-3 text-left hover:bg-slate-100">Đổi mật khẩu</button>
+      <button type="button" onClick={() => { dispatch(logout()); navigate('/login', { replace: true }); }} className="block w-full rounded-lg px-3 py-3 text-left text-red-600 hover:bg-red-50">Đăng xuất</button>
+    </div>}
+    {modal && <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/40 p-4" onMouseDown={(event) => { if (event.target === event.currentTarget && !saving) setModal(''); }}>
+      <form onSubmit={save} role="dialog" aria-modal="true" aria-label={modal === 'contact' ? 'Thông tin cá nhân' : 'Đổi mật khẩu'} className="w-full max-w-md space-y-4 rounded-2xl bg-white p-6 text-slate-900 shadow-2xl">
+        <h2 className="text-lg font-bold">{modal === 'contact' ? 'Thông tin cá nhân' : 'Đổi mật khẩu'}</h2>
+        {modal === 'contact' ? <>
+          <label className="block text-sm">Họ và tên<input required maxLength={100} value={contact.hoTen} onChange={(e) => setContact({ ...contact, hoTen: e.target.value })} className="mt-1 w-full rounded-lg border px-3 py-2" /></label>
+          <label className="block text-sm">Email<input type="email" required maxLength={100} value={contact.email} onChange={(e) => setContact({ ...contact, email: e.target.value })} className="mt-1 w-full rounded-lg border px-3 py-2" /></label>
+          <label className="block text-sm">Số điện thoại<input type="tel" required maxLength={15} value={contact.phone} onChange={(e) => setContact({ ...contact, phone: e.target.value })} className="mt-1 w-full rounded-lg border px-3 py-2" /></label>
+        </> : <>
+          {[[ 'currentPassword', 'Mật khẩu hiện tại', 'current-password' ], [ 'newPassword', 'Mật khẩu mới', 'new-password' ], [ 'confirmPassword', 'Xác nhận mật khẩu mới', 'new-password' ]].map(([key, label, autoComplete]) => <label key={key} className="block text-sm">{label}<input type="password" required minLength={key === 'currentPassword' ? undefined : 8} maxLength={128} autoComplete={autoComplete} value={passwords[key]} onChange={(e) => setPasswords({ ...passwords, [key]: e.target.value })} className="mt-1 w-full rounded-lg border px-3 py-2" /></label>)}
+        </>}
+        {message && <p role="alert" className="text-sm text-red-700">{message}</p>}
+        <div className="flex justify-end gap-2"><button type="button" disabled={saving} onClick={() => setModal('')} className="rounded-lg border px-4 py-2">Hủy</button><button disabled={saving} className="rounded-lg bg-blue-700 px-4 py-2 text-white disabled:opacity-50">{saving ? 'Đang lưu...' : 'Lưu thay đổi'}</button></div>
+      </form>
+    </div>}
+  </div>;
 };
 
 export default AdminUserProfile;

@@ -1,34 +1,37 @@
-import React from 'react';
+import React, { lazy, Suspense } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 
-import LoginPortal from './pages/LoginPortal';
-import ForgotPassword from './pages/ForgotPassword';
-import DashboardOverview from './pages/DashboardOverview';
-import StudentManagement from './pages/StudentManagement';
-import RoomManagement from './pages/RoomManagement';
-import BuildingManagement from './pages/BuildingManagement';
-import AssetCatalogManagement from './pages/AssetCatalogManagement';
-import ContractManagement from './pages/ContractManagement';
-import TicketManagement from './pages/TicketManagement';
-import StudentPortal from './pages/StudentPortal';
-import RoomRegistration from './pages/RoomRegistration';
-import TicketReport from './pages/TicketReport';
-import BillPayment from './pages/BillPayment';
-import FinancialDashboard from './pages/FinancialDashboard';
-import { FacilitiesHome, FinancialHome } from './pages/StaffHome';
-import SystemSettings from './pages/SystemSettings';
+const LoginPortal = lazy(() => import('./pages/LoginPortal'));
+const ForgotPassword = lazy(() => import('./pages/ForgotPassword'));
+const DashboardOverview = lazy(() => import('./pages/DashboardOverview'));
+const StudentManagement = lazy(() => import('./pages/StudentManagement'));
+const RoomManagement = lazy(() => import('./pages/RoomManagement'));
+const BuildingManagement = lazy(() => import('./pages/BuildingManagement'));
+const AssetCatalogManagement = lazy(() => import('./pages/AssetCatalogManagement'));
+const ContractManagement = lazy(() => import('./pages/ContractManagement'));
+const TicketManagement = lazy(() => import('./pages/TicketManagement'));
+const StudentPortal = lazy(() => import('./pages/StudentPortal'));
+const DormitoryRulesPage = lazy(() => import('./pages/DormitoryRulesPage'));
+const RoomRegistration = lazy(() => import('./pages/RoomRegistration'));
+const TicketReport = lazy(() => import('./pages/TicketReport'));
+const BillPayment = lazy(() => import('./pages/BillPayment'));
+const FinancialDashboard = lazy(() => import('./pages/FinancialDashboard'));
+const FacilitiesHome = lazy(() => import('./pages/StaffHome').then((module) => ({ default: module.FacilitiesHome })));
+const FinancialHome = lazy(() => import('./pages/StaffHome').then((module) => ({ default: module.FinancialHome }))); 
+const SystemSettings = lazy(() => import('./pages/SystemSettings'));
 import StudentLayout from './components/StudentLayout';
-import MyRoom from './pages/MyRoom';
-import MilitaryStudentStay from './pages/MilitaryStudentStay';
-import ServiceRegistration from './pages/ServiceRegistration';
-import SelfServiceManagement from './pages/SelfServiceManagement';
-import SecurityMedicalManagement from './pages/SecurityMedicalManagement';
-import SecurityHome from './pages/SecurityHome';
-import MeterReadingManagement from './pages/MeterReadingManagement';
-import StaffAccountManagement from './pages/StaffAccountManagement';
-import MilitaryManagement from './pages/MilitaryManagement';
-import ArchivistManagement from './pages/ArchivistManagement';
+const MyRoom = lazy(() => import('./pages/MyRoom'));
+const MilitaryStudentStay = lazy(() => import('./pages/MilitaryStudentStay'));
+const ServiceRegistration = lazy(() => import('./pages/ServiceRegistration'));
+const SelfServiceManagement = lazy(() => import('./pages/SelfServiceManagement'));
+const SecurityMedicalManagement = lazy(() => import('./pages/SecurityMedicalManagement'));
+const SecurityHome = lazy(() => import('./pages/SecurityHome'));
+const MedicalHome = lazy(() => import('./pages/MedicalHome'));
+const MeterReadingManagement = lazy(() => import('./pages/MeterReadingManagement'));
+const StaffAccountManagement = lazy(() => import('./pages/StaffAccountManagement'));
+const MilitaryManagement = lazy(() => import('./pages/MilitaryManagement'));
+const ArchivistManagement = lazy(() => import('./pages/ArchivistManagement'));
 import RequireRole from './components/RequireRole';
 import AdminTestSwitcher from './components/AdminTestSwitcher';
 import BoardLayout from './components/BoardLayout';
@@ -39,6 +42,7 @@ function App() {
   const role = user?.role;
   return (
     <>
+    <Suspense fallback={<div role="status" aria-live="polite" style={{ padding: 24 }}>Đang tải trang...</div>}>
     <Routes>
       <Route path="/login" element={<LoginPortal />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
@@ -56,6 +60,7 @@ function App() {
       <Route path="/tickets" element={<RequireRole allowedRoles={rolePermissions['/tickets']}><TicketManagement /></RequireRole>} />
       <Route path="/self-service" element={<RequireRole allowedRoles={rolePermissions['/self-service']}><SelfServiceManagement /></RequireRole>} />
       <Route path="/security" element={<RequireRole allowedRoles={rolePermissions['/security']}><SecurityHome /></RequireRole>} />
+      <Route path="/medical" element={<RequireRole allowedRoles={rolePermissions['/medical']}><MedicalHome /></RequireRole>} />
       <Route path="/security/visitors" element={<RequireRole allowedRoles={rolePermissions['/security/visitors']}><SecurityMedicalManagement key="security-visitors" securitySection="access" /></RequireRole>} />
       <Route path="/security/violations" element={<RequireRole allowedRoles={rolePermissions['/security/violations']}><SecurityMedicalManagement key="security-violations" securitySection="violations" /></RequireRole>} />
       <Route path="/security-medical" element={<RequireRole allowedRoles={rolePermissions['/security-medical']}>{role === 'SECURITY' ? <Navigate to="/security" replace /> : <SecurityMedicalManagement />}</RequireRole>} />
@@ -63,6 +68,7 @@ function App() {
       <Route path="/archive-management" element={<RequireRole allowedRoles={rolePermissions['/archive-management']}><ArchivistManagement /></RequireRole>} />
       <Route element={<RequireRole allowedRoles={rolePermissions['/student-portal']}><StudentLayout /></RequireRole>}>
         <Route path="/student-portal" element={<StudentPortal />} />
+        <Route path="/dormitory-rules" element={<DormitoryRulesPage />} />
         <Route path="/my-room" element={<MyRoom />} />
         <Route path="/military-stay" element={<MilitaryStudentStay />} />
         <Route path="/room-registration" element={<RequireRole allowedRoles={rolePermissions['/room-registration']}><RoomRegistration /></RequireRole>} />
@@ -79,6 +85,7 @@ function App() {
       <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>
+    </Suspense>
     <AdminTestSwitcher />
     </>
   );
