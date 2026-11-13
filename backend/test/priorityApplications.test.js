@@ -141,10 +141,10 @@ test('a priority registration is approved immediately, reserves one place, and r
     assert.equal(res.body.contract.trangThai, 'PENDING_PAYMENT');
     assert.equal(res.body.contract.paymentPolicy, 'AUTO_PRIORITY');
     assert.equal(res.body.contract.paymentDueAt.getTime() - res.body.contract.ngayTao.getTime(), 30 * 60 * 1000);
-    assert.equal(res.body.contract.tongTien, 1500000);
+    assert.equal(res.body.contract.tongTien, 1800000);
     const start = res.body.contract.ngayBatDau;
     const end = res.body.contract.ngayKetThuc;
-    assert.equal((end.getUTCFullYear() - start.getUTCFullYear()) * 12 + end.getUTCMonth() - start.getUTCMonth(), 5);
+    assert.equal((end.getUTCFullYear() - start.getUTCFullYear()) * 12 + end.getUTCMonth() - start.getUTCMonth(), 6);
     const approved = structuredClone(f.state);
     assert.equal((await f.register()).statusCode, 409);
     assert.deepEqual(f.state, approved);
@@ -213,20 +213,20 @@ test('a full, missing, mismatched, or unpriced room cannot leave an approved app
     }
 });
 
-test('automatic contract terms charge one five-month semester using the Vietnamese date and clamp month-end dates', () => {
+test('automatic contract terms charge one six-month semester using the Vietnamese date and clamp month-end dates', () => {
     const room = { phiNoiTruThang: 200000 };
     const terms = defaultContractTerms(room, new Date('2026-10-24T18:00:00Z'));
     assert.equal(terms.ngayBatDau.toISOString(), '2026-10-25T00:00:00.000Z');
-    assert.equal(terms.ngayKetThuc.toISOString(), '2027-03-25T00:00:00.000Z');
-    assert.equal(terms.tongTien, 1000000);
-    const monthEnd = defaultContractTerms(room, new Date('2026-09-30T01:00:00Z'));
+    assert.equal(terms.ngayKetThuc.toISOString(), '2027-04-25T00:00:00.000Z');
+    assert.equal(terms.tongTien, 1200000);
+    const monthEnd = defaultContractTerms(room, new Date('2026-08-31T01:00:00Z'));
     assert.equal(monthEnd.ngayKetThuc.toISOString(), '2027-02-28T00:00:00.000Z');
-    assert.equal(monthEnd.tongTien, 1000000);
+    assert.equal(monthEnd.tongTien, 1200000);
 });
 
-test('manual and automatic defaults agree on five-month dates and amounts across month ends', async () => {
+test('manual and automatic defaults agree on six-month dates and amounts across month ends', async () => {
     const { PAYMENT_PERIOD_MONTHS, currentHousingDate, housingPeriodEnd, defaultHousingAmount } = await import('../../frontend/src/utils/housingBilling.js');
-    assert.equal(PAYMENT_PERIOD_MONTHS, 5);
+    assert.equal(PAYMENT_PERIOD_MONTHS, 6);
     for (const timestamp of ['2026-10-24T18:00:00Z', '2026-09-30T01:00:00Z', '2027-09-30T01:00:00Z', '2026-01-31T01:00:00Z']) {
         for (const room of [{ phiNoiTruThang: 300000 }, { loaiPhong: 'QUAT' }, { loaiPhong: 'DIEU_HOA' }]) {
             const now = new Date(timestamp);
