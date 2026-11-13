@@ -103,6 +103,17 @@ const ContractManagement = ({ embedded = false }) => {
     }
   };
 
+  const checkIn = async (contract) => {
+    if (!window.confirm(`X?c nh?n ${contract.sinhVien?.hoTen || contract.maSinhVien} ?? nh?n ch?a kh?a t?i t?a?`)) return;
+    setSaving(true); setError('');
+    try {
+      const response = await housingApi.checkIn(contract.maHopDong);
+      setNotice(response.message);
+      await loadData();
+    } catch (requestError) { setError(requestError.response?.data?.message || 'Kh?ng th? ghi nh?n check-in.'); }
+    finally { setSaving(false); }
+  };
+
   const openEdit = (contract) => setEditingContract({
     maHopDong: contract.maHopDong,
     maPhong: contract.maPhong,
@@ -168,7 +179,7 @@ const ContractManagement = ({ embedded = false }) => {
                 <thead className="bg-gray-50 text-xs uppercase text-gray-500"><tr><th className="px-5 py-4">Mã hợp đồng</th><th className="px-5 py-4">Sinh viên</th><th className="px-5 py-4">Phòng</th><th className="px-5 py-4">Thời hạn</th><th className="px-5 py-4">Tổng tiền</th><th className="px-5 py-4">Trạng thái</th><th className="px-5 py-4"></th></tr></thead>
                 <tbody className="divide-y">
                   {pagination.items.map((contract) => <tr key={contract.maHopDong}>
-                    <td className="px-5 py-4 font-semibold text-blue-700">{contract.maHopDong}</td><td className="px-5 py-4"><p className="font-semibold">{contract.sinhVien?.hoTen || '—'}</p><p className="text-xs text-gray-500">{contract.maSinhVien}</p></td><td className="px-5 py-4">{contract.phong?.soPhong || contract.maPhong} · {roomTypeLabel(contract.phong?.loaiPhong)}</td><td className="px-5 py-4">{new Date(contract.ngayBatDau).toLocaleDateString('vi-VN')} – {new Date(contract.ngayKetThuc).toLocaleDateString('vi-VN')}</td><td className="px-5 py-4">{Number(contract.tongTien).toLocaleString('vi-VN')} đ</td><td className="px-5 py-4"><span className={`rounded-full px-3 py-1 text-xs font-semibold ${contract.trangThai === 'PENDING_PAYMENT' ? 'bg-amber-100 text-amber-800' : contract.trangThai === 'ACTIVE' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'}`}>{statusLabel[contract.trangThai] || contract.trangThai}</span></td><td className="px-5 py-4 text-right">{canEditContracts && contract.trangThai === 'PENDING_PAYMENT' && <button title="Chỉnh sửa hợp đồng nháp" onClick={() => openEdit(contract)} className="rounded-lg p-2 text-blue-700 hover:bg-blue-50"><Pencil className="h-4 w-4" /></button>}</td>
+                    <td className="px-5 py-4 font-semibold text-blue-700">{contract.maHopDong}</td><td className="px-5 py-4"><p className="font-semibold">{contract.sinhVien?.hoTen || '—'}</p><p className="text-xs text-gray-500">{contract.maSinhVien}</p></td><td className="px-5 py-4">{contract.phong?.soPhong || contract.maPhong} · {roomTypeLabel(contract.phong?.loaiPhong)}</td><td className="px-5 py-4">{new Date(contract.ngayBatDau).toLocaleDateString('vi-VN')} – {new Date(contract.ngayKetThuc).toLocaleDateString('vi-VN')}</td><td className="px-5 py-4">{Number(contract.tongTien).toLocaleString('vi-VN')} đ</td><td className="px-5 py-4"><span className={`rounded-full px-3 py-1 text-xs font-semibold ${contract.trangThai === 'PENDING_PAYMENT' ? 'bg-amber-100 text-amber-800' : contract.trangThai === 'ACTIVE' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'}`}>{statusLabel[contract.trangThai] || contract.trangThai}</span></td><td className="px-5 py-4 text-right">{contract.checkedInAt && <p className="text-xs text-green-700">?? nh?n ch?a kh?a: {new Date(contract.checkedInAt).toLocaleString('vi-VN')}</p>}{['BUILDING_MANAGER', 'ADMIN'].includes(role) && contract.trangThai === 'ACTIVE' && !contract.checkedInAt && <button disabled={saving} onClick={() => checkIn(contract)} className="rounded-lg bg-blue-700 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50">X?c nh?n check-in & nh?n ch?a kh?a</button>}{canEditContracts && contract.trangThai === 'PENDING_PAYMENT' && <button title="Chỉnh sửa hợp đồng nháp" onClick={() => openEdit(contract)} className="rounded-lg p-2 text-blue-700 hover:bg-blue-50"><Pencil className="h-4 w-4" /></button>}</td>
                   </tr>)}
                   {filteredContracts.length === 0 && <tr><td colSpan="7" className="px-5 py-12 text-center text-gray-500">Chưa có hợp đồng phù hợp.</td></tr>}
                 </tbody>
