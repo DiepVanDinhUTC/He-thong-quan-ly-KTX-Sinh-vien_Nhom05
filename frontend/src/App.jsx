@@ -29,6 +29,7 @@ import MeterReadingManagement from './pages/MeterReadingManagement';
 import StaffAccountManagement from './pages/StaffAccountManagement';
 import MilitaryManagement from './pages/MilitaryManagement';
 import ArchivistManagement from './pages/ArchivistManagement';
+import StudentFeedback from './pages/StudentFeedback'; // Đã import trang Góp ý
 import RequireRole from './components/RequireRole';
 import AdminTestSwitcher from './components/AdminTestSwitcher';
 import BoardLayout from './components/BoardLayout';
@@ -70,6 +71,8 @@ function App() {
         <Route path="/service-registration" element={<RequireRole allowedRoles={rolePermissions['/service-registration']}><ServiceRegistration /></RequireRole>} />
         <Route path="/ticket-report" element={<TicketReport />} />
         <Route path="/bill-payment" element={<BillPayment />} />
+        {/* Đã thêm Route cho trang Góp ý / Phản ánh */}
+        <Route path="/student-feedback" element={<StudentFeedback />} />
       </Route>
       <Route path="/financial-dashboard" element={<RequireRole allowedRoles={rolePermissions['/financial-dashboard']}><FinancialHome /></RequireRole>} />
       <Route path="/bills" element={<Navigate to="/financial-dashboard/invoices" replace />} />
