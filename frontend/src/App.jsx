@@ -12,6 +12,7 @@ const AssetCatalogManagement = lazy(() => import('./pages/AssetCatalogManagement
 const ContractManagement = lazy(() => import('./pages/ContractManagement'));
 const TicketManagement = lazy(() => import('./pages/TicketManagement'));
 const StudentPortal = lazy(() => import('./pages/StudentPortal'));
+const StudentFeedback = lazy(() => import('./pages/StudentFeedback'));
 const DormitoryRulesPage = lazy(() => import('./pages/DormitoryRulesPage'));
 const RoomRegistration = lazy(() => import('./pages/RoomRegistration'));
 const TicketReport = lazy(() => import('./pages/TicketReport'));
