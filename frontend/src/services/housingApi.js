@@ -33,6 +33,7 @@ export const housingApi = {
   cancelServiceRegistration: async (id) => (await api.patch(`/self-service/services/${encodeURIComponent(id)}/cancel`)).data,
   serviceRegistrations: async () => (await api.get('/self-service/services')).data,
   decideServiceRegistration: async (id, data) => (await api.patch(`/self-service/services/${encodeURIComponent(id)}`, data)).data,
+  checkIn: async (id) => (await api.post(`/contracts/${encodeURIComponent(id)}/check-in`)).data,
   contracts: async () => (await api.get('/contracts')).data,
   rooms: async (loaiPhong) => (await api.get('/contracts/rooms', { params: loaiPhong ? { loaiPhong } : {} })).data,
   approveApplication: async (data) => (await api.post('/contracts', data)).data,

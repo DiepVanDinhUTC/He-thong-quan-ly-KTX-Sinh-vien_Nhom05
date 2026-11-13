@@ -277,6 +277,8 @@ model HopDong {
   ngayTao     DateTime @default(now())
   paymentDueAt DateTime?
   paymentPolicy String? @db.VarChar(24)
+  checkedInAt DateTime?
+  checkedInById String?
 
   // Đã ngắt Cascade
   sinhVien             SinhVien                     @relation(fields: [maSinhVien], references: [maSV], onDelete: NoAction, onUpdate: NoAction)

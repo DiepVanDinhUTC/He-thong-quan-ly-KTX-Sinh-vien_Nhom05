@@ -65,6 +65,7 @@ const HousingRequests = ({ embedded = false }) => {
       setNotice(response.message || 'Yêu cầu đã được gửi.');
       setReason(''); setRoomId('');
       await loadRequests();
+      if (response.request?.status === 'APPROVED') setContract(null);
     } catch (requestError) {
       setError(requestError.response?.data?.message || 'Không thể gửi yêu cầu.');
     } finally { setBusy(false); }
@@ -80,6 +81,7 @@ const HousingRequests = ({ embedded = false }) => {
         {atMilitaryStudy && <p className="mb-4 rounded-xl bg-blue-50 p-4 text-sm leading-6 text-blue-900">Bạn đang ở phòng GDQP tạm thời. Yêu cầu ở đây thay đổi hợp đồng nội trú gốc, không phải phòng quân sự. Bạn không cần gửi yêu cầu chuyển hoặc trả phòng để tham gia hay kết thúc đợt GDQP.</p>}
         {loading ? <p className="text-sm text-slate-500">Đang tải thông tin...</p> : !contract ? <div className="rounded-xl bg-amber-50 p-4 text-sm text-amber-900"><p>Bạn chưa có phòng lưu trú.</p>{!embedded && <button onClick={() => navigate('/room-registration')} className="mt-3 inline-flex items-center gap-2 rounded-lg bg-blue-700 px-4 py-2 font-semibold text-white"><DoorOpen className="h-4 w-4" />Đăng ký nội trú</button>}</div> : contract.trangThai !== 'ACTIVE' ? <p className="rounded-xl bg-amber-50 p-4 text-sm text-amber-900">Hợp đồng đang chờ thanh toán nên chưa thể gửi yêu cầu chuyển hoặc trả phòng.</p> : null}
 
+        {canRequest && <p className="mb-4 rounded-xl bg-blue-50 p-4 text-sm text-blue-900">Y?u c?u tr? ph?ng trong v?ng 7 ng?y k? t? l?c nh?n vi?n x?c nh?n check-in s? t? ??ng h?y h?p ??ng v? t?o kho?n ho?n 100% ti?n ?? thu; t?i ch?nh s? th?c hi?n ho?n ti?n.</p>}
         {canRequest && <form onSubmit={submit} className="space-y-4">
           <div className="grid gap-3 sm:grid-cols-2">
             <button type="button" onClick={() => setRequestType('TRANSFER')} className={`rounded-xl border-2 p-4 text-left ${requestType === 'TRANSFER' ? 'border-blue-600 bg-blue-50' : 'border-slate-200'}`}><ArrowLeftRight className="mb-2 h-5 w-5 text-blue-700" /><span className="block font-semibold">Xin chuyển phòng</span><span className="mt-1 block text-xs text-slate-500">Chọn phòng trống muốn chuyển đến.</span></button>
