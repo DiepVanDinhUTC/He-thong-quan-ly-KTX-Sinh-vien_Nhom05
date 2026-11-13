@@ -3,7 +3,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import {
   BedDouble, Building, ChevronDown, Home, LockKeyhole,
-  LogOut, Mail, PackageCheck, Receipt, Shield, UserRound, Wrench, X,
+  LogOut, Mail, MessageSquare, PackageCheck, Receipt, Shield, UserRound, Wrench, X,
 } from 'lucide-react';
 import { authApi } from '../services/authApi';
 import StudentNotificationBell from './StudentNotificationBell';
@@ -114,6 +114,7 @@ const StudentLayout = () => {
     }
   };
 
+  // Đã thêm mục Góp ý phản ánh vào mobileLinks
   const mobileLinks = [
     { to: '/student-portal', label: 'Trang chủ', Icon: Home, end: true },
     { to: '/my-room', label: 'Phòng ở', Icon: BedDouble },
@@ -121,6 +122,7 @@ const StudentLayout = () => {
     { to: '/service-registration', label: 'Dịch vụ', Icon: PackageCheck },
     { to: '/bill-payment', label: 'Hóa đơn', Icon: Receipt },
     { to: '/ticket-report', label: 'Báo hỏng', Icon: Wrench },
+    { to: '/student-feedback', label: 'Góp ý', Icon: MessageSquare },
   ];
 
   return (
@@ -138,6 +140,8 @@ const StudentLayout = () => {
           <NavLink to="/service-registration" className={navLinkClass}><PackageCheck className="h-5 w-5 shrink-0" />Đăng ký dịch vụ</NavLink>
           <NavLink to="/bill-payment" className={navLinkClass}><Receipt className="h-5 w-5 shrink-0" />Hóa đơn & thanh toán</NavLink>
           <NavLink to="/ticket-report" className={navLinkClass}><Wrench className="h-5 w-5 shrink-0" />Báo hỏng CSVC</NavLink>
+          {/* Đã thêm mục Góp ý phản ánh ở Sidebar */}
+          <NavLink to="/student-feedback" className={navLinkClass}><MessageSquare className="h-5 w-5 shrink-0" />Góp ý / Phản ánh</NavLink>
         </nav>
         <div className="shrink-0 border-t pt-3">
           <button type="button" onClick={() => toggleProfileMenu('sidebar')} aria-expanded={profileMenuOpen && profileMenuAnchor === 'sidebar'} aria-controls="student-profile-menu" className="flex w-full items-center gap-3 rounded-xl p-2 text-left hover:bg-gray-50">

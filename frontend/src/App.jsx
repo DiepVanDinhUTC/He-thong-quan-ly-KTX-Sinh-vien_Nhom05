@@ -76,6 +76,8 @@ function App() {
         <Route path="/service-registration" element={<RequireRole allowedRoles={rolePermissions['/service-registration']}><ServiceRegistration /></RequireRole>} />
         <Route path="/ticket-report" element={<TicketReport />} />
         <Route path="/bill-payment" element={<BillPayment />} />
+        {/* Đã thêm Route cho trang Góp ý / Phản ánh */}
+        <Route path="/student-feedback" element={<StudentFeedback />} />
       </Route>
       <Route path="/financial-dashboard" element={<RequireRole allowedRoles={rolePermissions['/financial-dashboard']}><FinancialHome /></RequireRole>} />
       <Route path="/bills" element={<Navigate to="/financial-dashboard/invoices" replace />} />
