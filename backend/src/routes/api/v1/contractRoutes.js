@@ -24,6 +24,7 @@ router.post(
     contractBuildingScope,
     contractController.createContract
 );
+router.post('/:id/check-in', protect, restrictTo(ROLES.BUILDING_MANAGER, ROLES.ADMIN), restrictBuildingAccess, contractController.checkIn);
 router.patch('/:id', protect, restrictTo(...ROLES.CONTRACT_EDIT_ROLES), contractBuildingScope, contractController.updateContract);
 
 module.exports = router;
