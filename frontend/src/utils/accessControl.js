@@ -15,6 +15,8 @@ export const rolePermissions = {
   '/meter-readings': ['FACILITIES_MANAGER', 'BUILDING_MANAGER', 'ADMIN'],
   '/contracts': ['BOARD_CHAIR', 'BOARD_DEPUTY', 'ARCHIVIST', 'BUILDING_MANAGER', 'ADMIN'],
   '/tickets': ['BOARD_CHAIR', 'BOARD_DEPUTY', 'FACILITIES_MANAGER', 'BUILDING_MANAGER', 'SERVICE_PROVIDER', 'ADMIN'],
+  '/student-feedbacks': ['FACILITIES_MANAGER'],
+  '/room-housekeeping': ['FACILITIES_MANAGER'],
   '/financial-dashboard': financialReadRoles,
   '/financial-dashboard/invoices': financialReadRoles,
   '/financial-dashboard/transactions': financialReadRoles,

@@ -85,7 +85,7 @@ const ROLE_PERMISSIONS = Object.freeze({
     ]),
     [ROLES.ACCOUNTANT]: Object.freeze(['dashboard:read', 'billing:read', 'billing:manage']),
     [ROLES.TREASURER]: Object.freeze(['dashboard:read', 'billing:read', 'billing:manage']),
-    [ROLES.FACILITIES_MANAGER]: Object.freeze(['dashboard:read', 'rooms:read', 'rooms:write', 'utilities:read', 'utilities:write', 'tickets:read', 'tickets:approve', 'tickets:schedule', 'tickets:assign', 'tickets:update', 'tickets:complete', 'tickets:assess-compensation']),
+    [ROLES.FACILITIES_MANAGER]: Object.freeze(['dashboard:read', 'rooms:read', 'rooms:write', 'utilities:read', 'utilities:write', 'tickets:read', 'tickets:approve', 'tickets:schedule', 'tickets:assign', 'tickets:update', 'tickets:complete', 'tickets:assess-compensation', 'feedback:read', 'housekeeping:read', 'housekeeping:create', 'housekeeping:update']),
     [ROLES.BUILDING_MANAGER]: Object.freeze(['dashboard:read', 'students:read', 'rooms:read', 'rooms:write', 'utilities:read', 'utilities:write', 'services:read', 'services:update', 'contracts:read', 'contracts:update', 'applications:decide', 'tickets:read', 'tickets:approve', 'tickets:schedule', 'tickets:assign', 'tickets:assess-compensation']),
     [ROLES.SECURITY]: Object.freeze([
         'dashboard:read',
@@ -104,8 +104,8 @@ const ROLE_PERMISSIONS = Object.freeze({
         'students:read', 'residents:read', 'medical:records:read', 'medical:records:write', 'medical:incidents:read', 'medical:incidents:create'
     ]),
     [ROLES.SERVICE_PROVIDER]: Object.freeze(['tickets:read', 'tickets:update', 'tickets:complete', 'services:read', 'services:update']),
-    [ROLES.STUDENT]: Object.freeze(['student-portal:read', 'tickets:create', 'tickets:accept-own']),
-    [ROLES.MILITARY_STUDENT]: Object.freeze(['student-portal:read', 'tickets:create', 'tickets:accept-own']),
+    [ROLES.STUDENT]: Object.freeze(['student-portal:read', 'tickets:create', 'tickets:accept-own', 'feedback:create']),
+    [ROLES.MILITARY_STUDENT]: Object.freeze(['student-portal:read', 'tickets:create', 'tickets:accept-own', 'feedback:create']),
     [ROLES.ADMIN]: Object.freeze(['*'])
 });
 

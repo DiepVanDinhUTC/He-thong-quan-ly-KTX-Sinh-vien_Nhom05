@@ -41,6 +41,7 @@ model User {
   militaryRoomAssignments     MilitaryRoomAssignment[]     @relation("MilitaryRoomAssignmentAllocator")
   militaryEquipmentIssues     MilitaryEquipmentIssue[]     @relation("MilitaryEquipmentIssueIssuer")
   meetingRoomBookings         MeetingRoomBooking[]         @relation("MeetingRoomBookingCreator")
+  roomHousekeepingEvaluations RoomHousekeepingEvaluation[]  @relation("RoomHousekeepingEvaluationRecorder")
 
   @@map("USER_ACCOUNT")
 }
@@ -82,6 +83,7 @@ model SinhVien {
   monthlyInvoices         MonthlyInvoice[]
   financialTransactions   FinancialTransaction[]
   housingRequests         StudentHousingRequest[]
+  feedbacks               StudentFeedback[]
   serviceRegistrations    StudentServiceRegistration[]
   securityAccessLogs      SecurityAccessLog[]
   securityViolations      SecurityViolation[]
@@ -145,6 +147,7 @@ model ToaNha {
   securityViolations SecurityViolation[]
   medicalIncidents   MedicalIncident[]
   financialTransactions FinancialTransaction[]
+  studentFeedbacks         StudentFeedback[]
 
   @@unique([maKhu, tenToaNha])
   @@index([maKhu])
@@ -185,6 +188,7 @@ model Phong {
   utilityMeterReadings    UtilityMeterReading[]
   militaryUtilityPeriods  MilitaryUtilityPeriod[]
   militaryRoomAssignments MilitaryRoomAssignment[]
+  housekeepingEvaluations RoomHousekeepingEvaluation[]
 
   @@index([maToaNha, tang])
 }
@@ -534,6 +538,47 @@ model StudentHousingRequest {
   @@index([status, createdAt])
   @@index([maSinhVien, status])
   @@map("STUDENT_HOUSING_REQUEST")
+}
+
+model StudentFeedback {
+  id         String   @id @default(uuid()) @db.VarChar(36)
+  maSinhVien String   @db.VarChar(20)
+  maToaNha   String?  @db.VarChar(20)
+  title      String   @db.VarChar(160)
+  description String   @db.VarChar(2000)
+  createdAt  DateTime @default(now())
+
+  sinhVien SinhVien @relation(fields: [maSinhVien], references: [maSV], onDelete: NoAction, onUpdate: NoAction)
+  toaNha   ToaNha?  @relation(fields: [maToaNha], references: [maToaNha], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([createdAt])
+  @@index([maSinhVien, createdAt])
+  @@index([maToaNha, createdAt])
+  @@map("STUDENT_FEEDBACK")
+}
+
+model RoomHousekeepingEvaluation {
+  id              String   @id @default(uuid()) @db.VarChar(36)
+  maPhong         String
+  recordedById    String
+  generalScore    Int
+  livingScore     Int
+  securityScore   Int
+  propertyScore   Int
+  environmentScore Int
+  notes           String?  @db.VarChar(2000)
+  periodMonth     DateTime @db.Date
+  periodLockKey   String?  @unique
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  phong      Phong @relation(fields: [maPhong], references: [maPhong], onDelete: NoAction, onUpdate: NoAction)
+  recordedBy User  @relation("RoomHousekeepingEvaluationRecorder", fields: [recordedById], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([maPhong, createdAt])
+  @@index([maPhong, periodMonth])
+  @@index([recordedById, createdAt])
+  @@map("ROOM_HOUSEKEEPING_EVALUATION")
 }
 
 model StudentServiceRegistration {

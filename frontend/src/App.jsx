@@ -13,6 +13,8 @@ const ContractManagement = lazy(() => import('./pages/ContractManagement'));
 const TicketManagement = lazy(() => import('./pages/TicketManagement'));
 const StudentPortal = lazy(() => import('./pages/StudentPortal'));
 const StudentFeedback = lazy(() => import('./pages/StudentFeedback'));
+const StudentFeedbackInbox = lazy(() => import('./pages/StudentFeedbackInbox'));
+const RoomHousekeepingEvaluation = lazy(() => import('./pages/RoomHousekeepingEvaluation'));
 const DormitoryRulesPage = lazy(() => import('./pages/DormitoryRulesPage'));
 const RoomRegistration = lazy(() => import('./pages/RoomRegistration'));
 const TicketReport = lazy(() => import('./pages/TicketReport'));
@@ -59,6 +61,8 @@ function App() {
       <Route path="/meter-readings" element={<RequireRole allowedRoles={rolePermissions['/meter-readings']}><MeterReadingManagement /></RequireRole>} />
       <Route path="/contracts" element={<RequireRole allowedRoles={rolePermissions['/contracts']}><ContractManagement /></RequireRole>} />
       <Route path="/tickets" element={<RequireRole allowedRoles={rolePermissions['/tickets']}><TicketManagement /></RequireRole>} />
+      <Route path="/student-feedbacks" element={<RequireRole allowedRoles={rolePermissions['/student-feedbacks']}><StudentFeedbackInbox /></RequireRole>} />
+      <Route path="/room-housekeeping" element={<RequireRole allowedRoles={rolePermissions['/room-housekeeping']}><RoomHousekeepingEvaluation /></RequireRole>} />
       <Route path="/self-service" element={<RequireRole allowedRoles={rolePermissions['/self-service']}><SelfServiceManagement /></RequireRole>} />
       <Route path="/security" element={<RequireRole allowedRoles={rolePermissions['/security']}><SecurityHome /></RequireRole>} />
       <Route path="/medical" element={<RequireRole allowedRoles={rolePermissions['/medical']}><MedicalHome /></RequireRole>} />

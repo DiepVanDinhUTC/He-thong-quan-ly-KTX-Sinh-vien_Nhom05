@@ -3,6 +3,8 @@ const assert = require('node:assert/strict');
 const ROLES = require('../src/config/roles');
 const rooms = require('../src/routes/api/v1/rooms');
 const tickets = require('../src/routes/api/v1/tickets');
+const studentFeedback = require('../src/routes/api/v1/studentFeedback');
+const roomHousekeeping = require('../src/routes/api/v1/roomHousekeeping');
 const securityMedical = require('../src/routes/api/v1/securityMedical');
 
 const response = () => ({
@@ -45,6 +47,32 @@ test('frontend room and repair access agrees with API permissions after separati
             for (const role of ['FACILITIES_MANAGER', 'BUILDING_MANAGER', 'ADMIN']) {
                 assert.equal((await checkGate(gate(router, path), role)).allowed, true, `${role}: ${path}`);
             }
+        }
+    }
+});
+
+test('student feedback inbox is available to facilities managers, not unrelated staff or students', async () => {
+    const { roleCanAccess } = await import('../../frontend/src/utils/accessControl.js');
+    const getRoute = studentFeedback.stack.find((layer) => layer.route?.path === '/' && layer.route.methods.get).route;
+    for (const role of ROLES.KNOWN_ROLES) {
+        const shouldAccess = ['FACILITIES_MANAGER', 'ADMIN'].includes(role);
+        assert.equal(roleCanAccess(role, '/student-feedbacks'), shouldAccess, `${role}: frontend feedback access`);
+        assert.equal(ROLES.hasPermission(role, 'feedback:read'), shouldAccess, `${role}: feedback permission`);
+        const result = await checkGate(getRoute.stack[0].handle, role);
+        assert.equal(result.allowed, shouldAccess, `${role}: API feedback access`);
+    }
+});
+
+test('room housekeeping evaluation is restricted to facilities managers', async () => {
+    const { roleCanAccess } = await import('../../frontend/src/utils/accessControl.js');
+    for (const [method, permission] of [['get', 'housekeeping:read'], ['post', 'housekeeping:create'], ['patch', 'housekeeping:update']]) {
+        const path = method === 'patch' ? '/:id' : '/';
+        const route = roomHousekeeping.stack.find((layer) => layer.route?.path === path && layer.route.methods[method]).route;
+        for (const role of ROLES.KNOWN_ROLES) {
+            const shouldAccess = ['FACILITIES_MANAGER', 'ADMIN'].includes(role);
+            assert.equal(roleCanAccess(role, '/room-housekeeping'), shouldAccess, `${role}: frontend housekeeping access`);
+            assert.equal(ROLES.hasPermission(role, permission), shouldAccess, `${role}: ${permission}`);
+            assert.equal((await checkGate(route.stack[0].handle, role)).allowed, shouldAccess, `${role}: API ${method}`);
         }
     }
 });
