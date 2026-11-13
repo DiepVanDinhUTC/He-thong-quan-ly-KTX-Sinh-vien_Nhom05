@@ -118,7 +118,7 @@ const RoomRegistration = () => {
             <p><span className="text-gray-500">Khoa:</span> <strong>{student?.khoa || '—'}</strong></p>
             {student?.isPriority && <p className="font-semibold text-amber-800 sm:col-span-2">Diện ưu tiên: {student.dienUuTien}</p>}
           </div>
-          <p className="mt-4 text-sm font-semibold text-blue-800">Phí nội trú thu theo học kỳ: 5 tháng/lần, tính theo giá tháng của phòng được xếp.</p>
+          <p className="mt-4 text-sm font-semibold text-blue-800">Phí nội trú thu theo học kỳ: 6 tháng/lần, tính theo giá tháng của phòng được xếp.</p>
           <p className="mt-2 text-sm text-amber-800">Đơn ưu tiên được duyệt tự động phải thanh toán trong 30 phút. Đơn được nhân viên duyệt có hạn 3 ngày làm việc, tính từ lúc duyệt; quá hạn hợp đồng nháp sẽ bị hủy.</p>
 
           <form onSubmit={submitRegistration}>

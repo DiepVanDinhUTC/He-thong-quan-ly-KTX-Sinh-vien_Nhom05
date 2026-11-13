@@ -1,4 +1,4 @@
-export const PAYMENT_PERIOD_MONTHS = 5;
+export const PAYMENT_PERIOD_MONTHS = 6;
 
 export const currentHousingDate = (now = new Date()) => new Date(now.getTime() + 7 * 60 * 60 * 1000).toISOString().slice(0, 10);
 
