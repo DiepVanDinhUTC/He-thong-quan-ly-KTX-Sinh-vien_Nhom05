@@ -1,7 +1,7 @@
 const { calculateContractRent } = require('./contractPricing');
 const { assertRenewalEligible } = require('./violationPolicy');
 const { calculateContractDueAt, configuredHolidays } = require('./invoiceDueDates');
-const PAYMENT_PERIOD_MONTHS = 5;
+const PAYMENT_PERIOD_MONTHS = 6;
 
 const reject = (status, message) => Object.assign(new Error(message), { status });
 
