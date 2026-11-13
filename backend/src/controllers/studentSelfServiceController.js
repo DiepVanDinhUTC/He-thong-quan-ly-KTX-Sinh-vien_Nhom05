@@ -105,20 +105,20 @@ const createStudentHousingRequestController = ({ db = prisma, now = () => new Da
                 });
                 const amount = Math.max(0, Math.round((receipts._sum.soTien || 0) - (refunds._sum.amount || 0)));
                 const changed = await tx.hopDong.updateMany({ where: { maHopDong: contract.maHopDong, trangThai: 'ACTIVE' }, data: { trangThai: 'CANCELLED' } });
-                if (changed.count !== 1) throw fail(409, 'H?p ??ng ?? ???c x? l?.');
+                if (changed.count !== 1) throw fail(409, 'Hợp đồng đã được xử lý.');
                 await tx.phong.updateMany({ where: { maPhong: contract.maPhong, soSinhVienHienTai: { gt: 0 } }, data: { soSinhVienHienTai: { decrement: 1 } } });
                 await tx.studentServiceRegistration.updateMany({ where: { maHopDong: contract.maHopDong, status: 'PENDING' }, data: { status: 'CANCELLED', cancelledAt: requestedAt } });
                 if (amount > 0) await tx.financialTransaction.create({ data: {
                     transactionType: 'REFUND', amount, method: 'TRANSFER', status: 'NEEDS_REVIEW',
                     invoiceType: 'CONTRACT', invoiceId: contract.maHopDong, maSinhVien: student.maSV,
                     maToaNha: contract.phong.maToaNha, paymentReference: `CANCEL-${contract.maHopDong}`,
-                    description: 'Ho?n 100% ti?n h?p ??ng sau y?u c?u h?y trong 7 ng?y check-in; ch? t?i ch?nh th?c hi?n v? x?c nh?n.'
+                    description: 'Hoàn 100% tiền hợp đồng sau yêu cầu hủy trong 7 ngày check-in; chờ tài chính thực hiện và xác nhận.'
                 } });
             }
             return tx.studentHousingRequest.create({
                 data: {
                     createdAt: requestedAt,
-                    ...(automaticCancellation ? { status: 'APPROVED', decidedAt: requestedAt, staffNote: 'T? ??ng h?y h?p ??ng; kho?n ho?n ?ang ch? t?i ch?nh th?c hi?n.' } : {}),
+                    ...(automaticCancellation ? { status: 'APPROVED', decidedAt: requestedAt, staffNote: 'Tự động hủy hợp đồng; khoản hoàn đang chờ tài chính thực hiện.' } : {}),
                     maSinhVien: student.maSV,
                     maHopDong: contract.maHopDong,
                     requestType,
@@ -128,7 +128,7 @@ const createStudentHousingRequestController = ({ db = prisma, now = () => new Da
                 include: { hopDong: { include: { phong: true } } }
             });
         }, { isolationLevel: 'Serializable' });
-        return res.status(201).json({ success: true, request, message: request.status === 'APPROVED' ? '?? t? ??ng h?y h?p ??ng; kho?n ho?n 100% ?ang ch? t?i ch?nh th?c hi?n.' : requestType === 'TRANSFER' ? 'Đã gửi yêu cầu chuyển phòng để nhân viên quản lý hồ sơ xem xét.' : 'Đã gửi yêu cầu để Ban quản lý xem xét.' });
+        return res.status(201).json({ success: true, request, message: request.status === 'APPROVED' ? 'Đã tự động hủy hợp đồng; khoản hoàn 100% đang chờ tài chính thực hiện.' : requestType === 'TRANSFER' ? 'Đã gửi yêu cầu chuyển phòng để nhân viên quản lý hồ sơ xem xét.' : 'Đã gửi yêu cầu để Phòng Chăm sóc người học xem xét.' });
     } catch (error) { return sendError(res, error, 'Không thể gửi yêu cầu lưu trú.'); }
 };
 
@@ -136,7 +136,7 @@ exports.createStudentHousingRequestController = createStudentHousingRequestContr
 exports.createHousingRequest = createStudentHousingRequestController();
 
 const createHousingRequestController = ({ db = prisma } = {}) => {
-    // Records staff handle transfers across the KTX, as with archive room assignments.
+    // Records staff handle housing requests across the KTX, as with archive room assignments.
     const getHousingScope = (req) => req.user.role === ROLES.ARCHIVIST ? null : getBuildingScope(req, db);
 
     const listHousingRequests = async (req, res) => {
@@ -144,7 +144,6 @@ const createHousingRequestController = ({ db = prisma } = {}) => {
             const scope = await getHousingScope(req);
             const requests = await db.studentHousingRequest.findMany({
                 where: {
-                    ...(req.user.role === ROLES.ARCHIVIST ? { requestType: 'TRANSFER' } : {}),
                     ...(scope === null ? {} : { hopDong: { phong: { maToaNha: { in: scope } } } })
                 },
                 include: {

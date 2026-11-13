@@ -3,7 +3,6 @@ import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { Building2, ClipboardList, DoorOpen, FileText, Home, Users, Wrench, Zap } from 'lucide-react';
-import AdminLogoutButton from './AdminLogoutButton';
 import AdminUserProfile from './AdminUserProfile';
 import { roleCanAccess } from '../utils/accessControl';
 import { useBoardWorkspace } from './BoardLayout';
@@ -60,7 +59,7 @@ const FacilitiesLayout = ({ children, title, description, actions, additionalMen
         </NavLink>)}
       </nav>
       <div className="shrink-0 border-t border-blue-900 p-4"><AdminUserProfile /></div>
-      <AdminLogoutButton />
+      
     </aside>
 
     <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">

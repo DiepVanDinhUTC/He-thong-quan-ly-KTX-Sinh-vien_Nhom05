@@ -57,7 +57,7 @@ exports.createApplication = async (req, res) => {
                 select: { maDangKy: true }
             });
             if (pendingApplication) {
-                const error = new Error('Bạn đã có đơn đăng ký đang chờ Ban quản lý xác nhận.');
+                const error = new Error('Bạn đã có đơn đăng ký đang chờ Phòng Chăm sóc người học xác nhận.');
                 error.status = 409;
                 throw error;
             }
@@ -78,7 +78,7 @@ exports.createApplication = async (req, res) => {
             success: true, data: result.application, contract: result.contract, autoApproved: Boolean(result.contract),
             message: result.contract
                 ? 'Đơn diện ưu tiên đã được tự động duyệt. Vui lòng thanh toán hợp đồng nháp trong vòng 30 phút.'
-                : 'Đã gửi nguyện vọng nội trú. Đơn đang chờ Ban quản lý xác nhận.'
+                : 'Đã gửi nguyện vọng nội trú. Đơn đang chờ Phòng Chăm sóc người học xác nhận.'
         });
     } catch (error) {
         if (error.code === 'P2034') return res.status(409).json({ success: false, message: 'Phòng hoặc đơn đăng ký vừa được cập nhật đồng thời. Vui lòng thử lại.' });

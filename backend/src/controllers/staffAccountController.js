@@ -31,7 +31,8 @@ const presentAccount = (account) => ({
     role: account.role,
     isActive: account.isActive,
     createdAt: account.createdAt,
-    employee: account.nhanVien
+    employee: account.nhanVien,
+    buildingIds: (account.buildingAccess || []).map((item) => item.maToaNha)
 });
 
 const employeeAccountWhere = (maNhanVien) => ({
@@ -96,6 +97,7 @@ exports.listStaffAccounts = async (req, res) => {
                 role: true,
                 isActive: true,
                 createdAt: true,
+                buildingAccess: { select: { maToaNha: true } },
                 nhanVien: { select: employeeSelect }
             },
             orderBy: [{ role: 'asc' }, { username: 'asc' }]
@@ -141,6 +143,7 @@ exports.updateStaffAccount = async (req, res) => {
                     role: true,
                     isActive: true,
                     createdAt: true,
+                    buildingAccess: { select: { maToaNha: true } },
                     nhanVien: { select: employeeSelect }
                 }
             });
@@ -176,5 +179,55 @@ exports.changeStaffPassword = async (req, res) => {
     } catch (error) {
         console.error(`[staffAccounts.password] ${error.code || 'ERROR'}: ${error.message}`);
         return res.status(500).json({ success: false, message: 'Không thể đổi mật khẩu tài khoản nhân viên.' });
+    }
+};
+
+
+const SCOPED_ROLES = ['FACILITIES_MANAGER', 'BUILDING_MANAGER', 'SECURITY'];
+
+exports.listAccessBuildings = async (req, res) => {
+    try {
+        const buildings = await prisma.toaNha.findMany({
+            select: { maToaNha: true, tenToaNha: true, maKhu: true },
+            orderBy: [{ maKhu: 'asc' }, { tenToaNha: 'asc' }]
+        });
+        return res.json({ success: true, data: buildings });
+    } catch (error) {
+        console.error(`[staffAccounts.buildings] ${error.code || 'ERROR'}: ${error.message}`);
+        return res.status(500).json({ success: false, message: 'Không thể tải danh sách tòa nhà.' });
+    }
+};
+
+exports.updateBuildingAccess = async (req, res) => {
+    const ids = req.body?.buildingIds;
+    if (!req.body || Object.keys(req.body).length !== 1 || !Array.isArray(ids)
+        || ids.some((id) => typeof id !== 'string' || !id.trim() || id !== id.trim() || id.length > 20)
+        || new Set(ids).size !== ids.length) {
+        return res.status(400).json({ success: false, message: 'Danh sách mã tòa nhà không hợp lệ.' });
+    }
+    try {
+        const result = await prisma.$transaction(async (tx) => {
+            const account = await tx.user.findFirst({
+                where: { role: { in: SCOPED_ROLES }, nhanVien: { is: { maNhanVien: req.params.maNhanVien } } },
+                select: { id: true }
+            });
+            if (!account) return 'not_found';
+            const buildings = await tx.toaNha.findMany({ where: { maToaNha: { in: ids } }, select: { maToaNha: true } });
+            if (buildings.length !== ids.length) return 'invalid_building';
+            await tx.userBuildingAccess.deleteMany({ where: ids.length ? { userId: account.id, maToaNha: { notIn: ids } } : { userId: account.id } });
+            for (const maToaNha of ids) {
+                await tx.userBuildingAccess.upsert({
+                    where: { userId_maToaNha: { userId: account.id, maToaNha } },
+                    create: { userId: account.id, maToaNha }, update: {}
+                });
+            }
+            return 'ok';
+        });
+        if (result === 'not_found') return res.status(404).json({ success: false, message: 'Không tìm thấy nhân viên có phạm vi theo tòa.' });
+        if (result === 'invalid_building') return res.status(400).json({ success: false, message: 'Có tòa nhà không tồn tại.' });
+        return res.json({ success: true, message: 'Đã cập nhật phạm vi tòa nhà.', data: { buildingIds: ids } });
+    } catch (error) {
+        console.error(`[staffAccounts.access] ${error.code || 'ERROR'}: ${error.message}`);
+        return res.status(500).json({ success: false, message: 'Không thể cập nhật phạm vi tòa nhà.' });
     }
 };

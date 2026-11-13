@@ -1,10 +1,9 @@
-import { ArrowLeftRight, CalendarDays, ClipboardCheck, DoorOpen, ShieldAlert, Users, Warehouse } from 'lucide-react';
+import { CalendarDays, ClipboardCheck, DoorOpen, ShieldAlert, Users, Warehouse } from 'lucide-react';
 
 export const archivistSections = [
   { id: 'students', to: '/archive-management?section=students', label: 'Hồ sơ sinh viên', Icon: Users, description: 'Tiếp nhận, đồng bộ và cập nhật hồ sơ sinh viên nội trú.' },
   { id: 'applications', to: '/archive-management?section=applications', label: 'Xét duyệt lưu trú', Icon: ClipboardCheck, description: 'Kiểm tra đăng ký lưu trú, lập và tra cứu hợp đồng.' },
-  { id: 'rooms', to: '/archive-management?section=rooms', label: 'Xếp / chuyển phòng', Icon: DoorOpen, description: 'Tra cứu chỗ ở và thực hiện xếp, chuyển phòng cho sinh viên.' },
-  { id: 'transfers', to: '/archive-management?section=transfers', label: 'Duyệt chuyển phòng', Icon: ArrowLeftRight, description: 'Xem xét yêu cầu chuyển phòng và cập nhật kết quả xử lý.' },
+  { id: 'rooms', to: '/archive-management?section=rooms', label: 'Xếp / chuyển / trả phòng', Icon: DoorOpen, description: 'Xếp, chuyển phòng và xử lý yêu cầu chuyển hoặc trả phòng.' },
   { id: 'discipline', to: '/archive-management?section=discipline', label: 'Thông tin & kỷ luật', Icon: ShieldAlert, description: 'Theo dõi biên bản vi phạm và điều kiện đăng ký tiếp hợp đồng nội trú.' },
 ];
 

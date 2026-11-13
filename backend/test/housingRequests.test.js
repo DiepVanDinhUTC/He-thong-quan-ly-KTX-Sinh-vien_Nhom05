@@ -111,10 +111,10 @@ test('a military learner can use their own housing-request and room-list endpoin
     }
 });
 
-test('archivists list transfer requests across buildings without assignments', async () => {
+test('archivists list transfer and return requests across buildings without assignments', async () => {
     const f = fixture();
     assert.equal((await f.list('ARCHIVIST')).statusCode, 200);
-    assert.deepEqual(f.calls.list.where, { requestType: 'TRANSFER' });
+    assert.deepEqual(f.calls.list.where, {});
     assert.equal(f.calls.scope, 0);
 });
 
@@ -243,14 +243,16 @@ test('housing decisions reject unsupported statuses and oversized notes before c
     }
 });
 
-test('return requests keep their existing building-manager workflow and scope', async () => {
+test('archivists can approve return requests and building managers retain their scope', async () => {
     const f = fixture({ requestType: 'RETURN', scope: ['A1'] });
-    assert.equal((await f.decide('ARCHIVIST')).statusCode, 403);
-    assert.equal((await f.decide('BUILDING_MANAGER')).statusCode, 200);
+    assert.equal((await f.decide('ARCHIVIST')).statusCode, 200);
+    assert.equal(f.calls.scope, 0);
     assert.equal(f.state.contract.trangThai, 'RETURNED');
     assert.equal(f.state.contract.tongTien, 3000000);
     assert.equal(f.state.rooms.A101.soSinhVienHienTai, 2);
     assert.equal(f.state.servicesCancelled, true);
+    const manager = fixture({ requestType: 'RETURN', scope: ['A1'] });
+    assert.equal((await manager.decide('BUILDING_MANAGER')).statusCode, 200);
     const outside = fixture({ requestType: 'RETURN', scope: ['B2'] });
     assert.equal((await outside.decide('BUILDING_MANAGER')).statusCode, 404);
     assert.equal(outside.calls.transactions, 0);

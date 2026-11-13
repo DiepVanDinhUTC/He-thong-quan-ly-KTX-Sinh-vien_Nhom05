@@ -9,6 +9,8 @@ const managers = [ROLES.BOARD_CHAIR, ROLES.BOARD_DEPUTY, ROLES.ADMIN];
 
 router.use(protect, restrictTo(...managers));
 router.get('/', staffAccountController.listStaffAccounts);
+router.get('/buildings', staffAccountController.listAccessBuildings);
+router.put('/:maNhanVien/building-access', staffAccountController.updateBuildingAccess);
 router.patch('/:maNhanVien', staffAccountController.updateStaffAccount);
 router.patch('/:maNhanVien/password', staffAccountController.changeStaffPassword);
 

@@ -40,4 +40,4 @@ Tại mục này, nhân viên có thể ghi nhận thu tiền và hoàn tiền c
 
 Kế toán và thủ quỹ được xem và thao tác nghiệp vụ tài chính trên tất cả tòa nhà, không cần phân công từng tòa trong `USER_BUILDING_ACCESS`. Phạm vi này áp dụng cho hóa đơn, lập hóa đơn, thu phí, hoàn tiền, giao dịch, chi sửa chữa và đối soát; không cấp quyền truy cập sổ hoặc ghi chỉ số điện nước.
 
-Trưởng ban và phó trưởng ban được xem các mục tài chính của tất cả tòa nhà, không được lập hóa đơn, thu phí, hoàn tiền, ghi chi phí hay xác minh giao dịch. Nhân viên CSVC và quản lý tòa vẫn chỉ được thao tác trong các tòa nhà được phân công.
+Trưởng phòng và phó phòng được xem các mục tài chính của tất cả tòa nhà, không được lập hóa đơn, thu phí, hoàn tiền, ghi chi phí hay xác minh giao dịch. Nhân viên CSVC và quản lý tòa vẫn chỉ được thao tác trong các tòa nhà được phân công.

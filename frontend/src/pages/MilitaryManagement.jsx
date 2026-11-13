@@ -5,7 +5,6 @@ import {
   CalendarDays, CheckCircle2, DoorOpen, Home, Package, RefreshCw,
   Shield, Users, XCircle
 } from 'lucide-react';
-import AdminLogoutButton from '../components/AdminLogoutButton';
 import AdminUserProfile from '../components/AdminUserProfile';
 import DashboardNavLink from '../components/DashboardNavLink';
 import ListPagination, { useListPagination } from '../components/ListPagination';
@@ -225,7 +224,7 @@ const MilitaryManagement = () => {
         </button>)}
       </nav>
       <div className="border-t border-blue-900 p-4"><AdminUserProfile /></div>
-      <AdminLogoutButton />
+      
     </aside>
 
     <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
@@ -371,7 +370,7 @@ const MilitaryManagement = () => {
               <div className="flex items-start justify-between gap-2"><div><p className="font-semibold text-slate-900">{room.name}</p><p className="mt-1 text-sm text-slate-500">{room.code} · {room.location}</p></div><button type="button" className={secondaryButtonClass} onClick={() => { setEditingMeetingRoomId(room.id); setMeetingRoomForm({ code: room.code, name: room.name, location: room.location, capacity: String(room.capacity) }); contentScrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' }); }}>Sửa</button></div><p className="mt-2 text-sm text-slate-700">Sức chứa {room.capacity} người · {room.bookings?.length || 0} lịch sắp tới</p>
             </div>)}{!activeRooms.length && <p className="text-sm text-slate-500">Chưa có phòng giao ban. Thêm phòng để đặt lịch.</p>}</div>
           </Panel>
-          <Panel title="Đặt lịch giao ban" description="Hệ thống từ chối lịch bị trùng thời gian tại cùng một phòng.">
+          <Panel title="Đặt lịch giao ban" description="Lịch sắp tới được thông báo tự động cho học viên quân sự. Hệ thống từ chối lịch trùng thời gian tại cùng một phòng.">
             <form onSubmit={submitBooking} className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
               <select className={fieldClass} required value={bookingForm.meetingRoomId} onChange={(event) => setBookingForm({ ...bookingForm, meetingRoomId: event.target.value })}><option value="">Chọn phòng giao ban</option>{activeRooms.map((room) => <option key={room.id} value={room.id}>{room.name} · {room.location}</option>)}</select>
               <input className={fieldClass} required placeholder="Tên cuộc họp" value={bookingForm.title} onChange={(event) => setBookingForm({ ...bookingForm, title: event.target.value })} />

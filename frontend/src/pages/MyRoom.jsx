@@ -81,7 +81,7 @@ const MyRoom = () => {
         </section> : <section className="rounded-2xl border bg-white p-8 text-center shadow-sm">
           <DoorOpen className="mx-auto h-9 w-9 text-gray-400" />
           <h2 className="mt-3 font-semibold">{isMilitaryStudent ? 'Bạn chưa được xếp phòng lưu trú' : 'Bạn chưa có phòng lưu trú'}</h2>
-          <p className="mt-1 text-sm text-gray-500">{isMilitaryStudent ? 'Thông tin phòng sẽ xuất hiện sau khi Ban quản lý bố trí.' : 'Đăng ký nội trú để gửi nguyện vọng phòng.'}</p>
+          <p className="mt-1 text-sm text-gray-500">{isMilitaryStudent ? 'Thông tin phòng sẽ xuất hiện sau khi Phòng Chăm sóc người học bố trí.' : 'Đăng ký nội trú để gửi nguyện vọng phòng.'}</p>
           {!isMilitaryStudent && <button type="button" onClick={() => navigate('/room-registration')} className="mt-4 rounded-lg bg-blue-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-800">Đăng ký nội trú</button>}
         </section>}
         {!loading && !error && militaryRoom && regularContract && <section className="mt-5 rounded-2xl border border-blue-200 bg-white p-6"><h2 className="font-bold text-blue-950">Giữ chỗ nội trú gốc: phòng {regularContract.soPhong || regularContract.maPhong}</h2><p className="mt-2 text-sm leading-7 text-slate-600">Hợp đồng {regularContract.maHopDong} · đến {formatDate(regularContract.ngayKetThuc)}. Giường này vẫn được giữ cho bạn trong đợt GDQP. Sau đợt học, hệ thống hiển thị lại phòng gốc nếu hợp đồng còn hiệu lực.</p></section>}

@@ -1,7 +1,7 @@
 import React from 'react';
 import { useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
-import { ArrowRight, BedDouble, Building, DoorOpen, PackageCheck, Receipt, Shield, Wrench } from 'lucide-react';
+import { ArrowRight, BedDouble, BookOpen, Building, DoorOpen, PackageCheck, Receipt, Shield, Wrench } from 'lucide-react';
 import { isMilitaryLearner } from '../utils/studentResidence';
 
 const StudentPortal = () => {
@@ -11,6 +11,7 @@ const StudentPortal = () => {
   const hasMilitaryStudy = isMilitaryLearner(student);
   const studentName = student?.hoTen || student?.username || 'bạn';
   const features = [
+    { path: '/dormitory-rules', title: 'Nội quy ký túc xá', description: 'Xem quy định về sinh hoạt, an ninh, tài sản và vệ sinh.', Icon: BookOpen, color: 'blue', action: 'Xem nội quy' },
     ...(hasMilitaryStudy ? [{ path: '/military-stay', title: 'Đợt học GDQP', description: 'Xem phòng, thời gian học, chỗ nội trú gốc và quân tư trang đã nhận.', Icon: Shield, color: 'indigo', action: 'Xem đợt học' }] : []),
     ...(!isMilitaryStudent ? [{ path: '/room-registration', title: 'Đăng ký nội trú', description: 'Gửi nguyện vọng phòng và theo dõi kết quả xét duyệt.', Icon: DoorOpen, color: 'blue', action: 'Tạo đăng ký' }] : []),
     { path: '/my-room', title: 'Phòng ở & lưu trú', description: student?.currentContract ? 'Xem phòng hiện tại, hợp đồng nội trú gốc và yêu cầu chuyển hoặc trả phòng.' : 'Xem thông tin phòng và thời gian lưu trú đã được bố trí.', Icon: BedDouble, color: 'indigo', action: 'Xem thông tin' },
@@ -56,7 +57,7 @@ const StudentPortal = () => {
           </button>)}
         </div>
       </section>
-      <p className="text-center text-xs text-slate-400">Cần hỗ trợ? Hãy gửi yêu cầu qua đúng chức năng để Ban quản lý tiếp nhận nhanh hơn.</p>
+      <p className="text-center text-xs text-slate-400">Cần hỗ trợ? Hãy gửi yêu cầu qua đúng chức năng để Phòng Chăm sóc người học tiếp nhận nhanh hơn.</p>
     </div>
   </main>;
 };

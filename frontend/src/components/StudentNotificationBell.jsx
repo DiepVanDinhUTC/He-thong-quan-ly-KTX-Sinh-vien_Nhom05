@@ -51,8 +51,10 @@ const StudentNotificationBell = () => {
         refresh();
       }
     }
-    setOpen(false);
-    navigate('/bill-payment');
+    if (notification.kind !== 'MILITARY') {
+      setOpen(false);
+      navigate('/bill-payment');
+    }
   };
 
   return (
@@ -71,18 +73,18 @@ const StudentNotificationBell = () => {
 
       {open && <>
         <button type="button" aria-label="Đóng thông báo" className="fixed inset-0 z-40 cursor-default" onClick={() => setOpen(false)} />
-        <section role="dialog" aria-label="Thông báo hóa đơn" className="fixed right-3 top-16 z-50 max-h-[75vh] w-[calc(100vw_-_1.5rem)] max-w-sm overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl md:absolute md:right-0 md:top-full md:mt-2 md:w-96 md:max-w-[calc(100vw_-_2rem)]">
+        <section role="dialog" aria-label="Thông báo" className="fixed right-3 top-16 z-50 max-h-[75vh] w-[calc(100vw_-_1.5rem)] max-w-sm overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl md:absolute md:right-0 md:top-full md:mt-2 md:w-96 md:max-w-[calc(100vw_-_2rem)]">
           <div className="flex items-center justify-between gap-3 border-b px-4 py-3">
-            <div><h2 className="font-bold text-slate-900">Thông báo hóa đơn</h2><p className="mt-0.5 text-xs text-slate-500">{unreadCount ? `${unreadCount} thông báo chưa đọc` : 'Đã cập nhật'}</p></div>
+            <div><h2 className="font-bold text-slate-900">Thông báo</h2><p className="mt-0.5 text-xs text-slate-500">{unreadCount ? `${unreadCount} thông báo chưa đọc` : 'Đã cập nhật'}</p></div>
             {unreadCount > 0 && <button type="button" onClick={markAllRead} className="inline-flex shrink-0 items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-semibold text-blue-700 hover:bg-blue-50"><CheckCheck className="h-4 w-4" />Đánh dấu đã đọc</button>}
           </div>
           <div className="max-h-[calc(75vh_-_4rem)] overflow-y-auto">
-            {notifications.length === 0 ? <div className="px-5 py-10 text-center text-sm text-slate-500"><Bell className="mx-auto mb-2 h-6 w-6 text-slate-300" />Bạn chưa có thông báo nhắc nợ.</div> : notifications.map((item) => {
+            {notifications.length === 0 ? <div className="px-5 py-10 text-center text-sm text-slate-500"><Bell className="mx-auto mb-2 h-6 w-6 text-slate-300" />Bạn chưa có thông báo.</div> : notifications.map((item) => {
               const overdue = item.kind === 'OVERDUE';
               return <button key={item.id} type="button" onClick={() => openInvoice(item)} className={`block w-full border-b px-4 py-3 text-left transition hover:bg-slate-50 ${overdue ? 'border-l-4 border-l-red-600 bg-red-50/70' : 'border-l-4 border-l-transparent'} ${!item.readAt ? 'bg-blue-50/40' : ''}`}>
                 <span className="flex items-start gap-3">
                   <span className={`mt-0.5 rounded-full p-1.5 ${overdue ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'}`}>{overdue ? <AlertTriangle className="h-4 w-4" /> : <Clock3 className="h-4 w-4" />}</span>
-                  <span className="min-w-0 flex-1"><span className={`block text-sm font-semibold ${overdue ? 'text-red-800' : 'text-slate-800'}`}>{item.title}</span><span className="mt-1 block text-xs leading-5 text-slate-600">{item.message}</span><span className="mt-1.5 block text-[11px] text-slate-400">{formatTime(item.createdAt)}</span></span>
+                  <span className="min-w-0 flex-1"><span className={`block text-sm font-semibold ${overdue ? 'text-red-800' : 'text-slate-800'}`}>{item.title}</span>{item.kind === 'MILITARY' && <span className="block text-xs text-blue-700">Phòng giao ban</span>}<span className="mt-1 block whitespace-pre-wrap text-xs leading-5 text-slate-600">{item.message}</span><span className="mt-1.5 block text-[11px] text-slate-400">{formatTime(item.createdAt)}</span></span>
                   {!item.readAt && <span aria-label="Chưa đọc" className={`mt-2 h-2 w-2 shrink-0 rounded-full ${overdue ? 'bg-red-600' : 'bg-blue-600'}`} />}
                 </span>
               </button>;
