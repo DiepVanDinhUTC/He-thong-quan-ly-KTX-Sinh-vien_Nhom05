@@ -12,6 +12,7 @@ import StaffHomeContent from '../components/StaffHomeContent';
 import { archivistSections } from '../utils/staffNavigation';
 import StudentManagement from './StudentManagement';
 import ContractManagement from './ContractManagement';
+import ResidenceRegistrationManagement from './ResidenceRegistrationManagement';
 import SelfServiceManagement from './SelfServiceManagement';
 import { housingApi } from '../services/housingApi';
 import { securityMedicalApi } from '../services/securityMedicalApi';
@@ -247,6 +248,7 @@ const ArchivistWorkspace = () => {
         {activeTab === 'home' && <StaffHomeContent role="ARCHIVIST" />}
         {activeTab === 'students' && <StudentManagement key={panelKey} embedded />}
         {activeTab === 'applications' && <ContractManagement key={panelKey} embedded />}
+        {activeTab === 'residence-registration' && <ResidenceRegistrationManagement key={panelKey} />}
         {activeTab === 'rooms' && <div className="space-y-5"><div role="group" aria-label="Chọn chức năng quản lý phòng" className="grid gap-2 rounded-xl border border-slate-200 bg-white p-2 shadow-sm sm:grid-cols-2"><button type="button" aria-pressed={roomView === 'assignments'} onClick={() => setRoomView('assignments')} className={`rounded-lg px-4 py-3 text-left text-sm font-semibold ${roomView === 'assignments' ? 'bg-blue-700 text-white' : 'text-slate-600 hover:bg-slate-50'}`}>Xếp và chuyển phòng</button><button type="button" aria-pressed={roomView === 'requests'} onClick={() => setRoomView('requests')} className={`rounded-lg px-4 py-3 text-left text-sm font-semibold ${roomView === 'requests' ? 'bg-blue-700 text-white' : 'text-slate-600 hover:bg-slate-50'}`}>Yêu cầu chuyển / trả phòng</button></div>{roomView === 'assignments' ? <RoomAssignments key={`${panelKey}-${roomKey}`} /> : <SelfServiceManagement key={panelKey} embedded housingOnly onHousingDecision={() => setRoomKey((key) => key + 1)} />}</div>}
         {activeTab === 'discipline' && <DisciplineManagement key={panelKey} />}
       </main>
